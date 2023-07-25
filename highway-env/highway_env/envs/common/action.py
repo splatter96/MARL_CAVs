@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Optional, Union, Tuple, Callable
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 
 from highway_env import utils
@@ -192,7 +192,10 @@ class DiscreteMetaAction(ActionType):
 
     def act(self, action: int) -> None:
         # self.controlled_vehicle.act(self.actions[action[0]])
-        self.controlled_vehicle.act(self.actions[action])
+        # print(self.actions[int(action)])
+        # print(self.controlled_vehicle)
+
+        self.controlled_vehicle.act(self.actions[int(action)])
 
 
 class MultiAgentAction(ActionType):

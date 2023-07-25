@@ -2,7 +2,7 @@ import os
 from typing import TYPE_CHECKING, Callable, List
 import numpy as np
 import pygame
-from gym.spaces import Discrete
+from gymnasium.spaces import Discrete
 
 from highway_env.envs.common.action import ActionType, DiscreteMetaAction, ContinuousAction
 from highway_env.road.graphics import WorldSurface, RoadGraphics

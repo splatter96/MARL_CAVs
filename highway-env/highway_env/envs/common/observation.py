@@ -1,6 +1,6 @@
 from typing import List, Dict, TYPE_CHECKING, Optional, Union
-from gym import spaces
-import gym
+from gymnasium import spaces
+import gymnasium as gym
 gym.logger.set_level(40)
 import numpy as np
 import pandas as pd
@@ -222,7 +222,8 @@ class KinematicObservation(ObservationType):
         if self.order == "shuffled":
             self.env.np_random.shuffle(obs[1:])
         # Flatten
-        return obs
+        # return obs
+        return obs.astype(self.space().dtype)
 
 
 class OccupancyGridObservation(ObservationType):

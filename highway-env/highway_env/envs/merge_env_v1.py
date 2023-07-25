@@ -4,7 +4,7 @@ Dong Chen: chendon9@msu.edu
 Date: 01/05/2021
 """
 import numpy as np
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 from typing import Tuple
 
 from highway_env import utils

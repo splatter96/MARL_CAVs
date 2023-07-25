@@ -1,9 +1,9 @@
 import copy
 import os
 from typing import List, Tuple, Optional, Callable
-import gym
+import gymnasium as gym
 import random
-from gym import Wrapper
+from gymnasium import Wrapper
 import numpy as np
 from queue import PriorityQueue
 
@@ -103,7 +103,7 @@ class AbstractEnv(gym.Env):
         """
         return {
             "observation": {
-                "type": "TimeToCollision"
+                "type": "Kinematics"
             },
             "action": {
                 "type": "DiscreteMetaAction"
@@ -114,7 +114,7 @@ class AbstractEnv(gym.Env):
             "screen_width": 600,  # [px]
             "screen_height": 150,  # [px]
             "centering_position": [0.3, 0.5],
-            "scaling": 5.5,
+            "scaling": 2.5,
             "show_trajectories": False,
             "render_agent": True,
             "safety_guarantee": True,
@@ -170,7 +170,7 @@ class AbstractEnv(gym.Env):
         """
         raise NotImplementedError
 
-    def reset(self, is_training=True, testing_seeds=0, num_CAV=0) -> Observation:
+    def reset(self, seed =None, is_training=True, testing_seeds=0, num_CAV=0) -> Observation:
         """
         Reset the environment to it's initial configuration
 
@@ -203,7 +203,8 @@ class AbstractEnv(gym.Env):
                     available_actions[i][a] = 1
         else:
             available_actions = [[1] * self.n_a] * len(self.controlled_vehicles)
-        return np.asarray(obs).reshape((len(obs), -1)), np.array(available_actions)
+        # return np.asarray(obs).reshape((len(obs), -1)), np.array(available_actions)
+        return np.asarray(obs).reshape((len(obs), -1)), {}
 
     def _reset(self, num_CAV=1) -> None:
         """
@@ -501,7 +502,7 @@ class AbstractEnv(gym.Env):
             pass
 
         # print(self.steps)
-        return obs, reward, terminal, info
+        return obs, reward, terminal, False, info
 
     def _simulate(self, action: Optional[Action] = None) -> None:
         """Perform several steps of simulation with constant action."""
