@@ -30,7 +30,7 @@ env.config["screen_height"] = 300
 env.config["screen_width"] = 1900
 #env.config["action"]["target_speeds"] = np.linspace(10, 30, 3).tolist()
 env.config["safety_guarantee"] = False
-env.config["traffic_density"] = 2
+env.config["traffic_density"] = 1
 
 
 # Load and test saved model
@@ -48,6 +48,7 @@ env.config["traffic_density"] = 2
 
 #model = PPO.load("/home/paul/model_my_road.zip")
 model = PPO.load("/home/paul/model_my_road_continued_density_2.zip")
+# model = PPO.load("/home/paul/model_default_params.zip")
 
 num_tries = 100
 crashes = 0
@@ -66,8 +67,8 @@ for i in range(num_tries):
     # print("\n")
     ret += reward
 
-    env.render()
-    time.sleep(0.05)
+    # env.render()
+    # time.sleep(0.05)
 
   if info['crashed']:
       crashes += 1

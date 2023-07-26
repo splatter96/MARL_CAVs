@@ -113,8 +113,8 @@ class AbstractEnv(gym.Env):
             "other_vehicles_type": "highway_env.vehicle.behavior.IDMVehicle",
             "screen_width": 600,  # [px]
             "screen_height": 150,  # [px]
-            "centering_position": [0.3, 0.5],
-            "scaling": 2.5,
+            "centering_position": [0.6, 0.5],
+            "scaling": 5.5,
             "show_trajectories": False,
             "render_agent": True,
             "safety_guarantee": True,

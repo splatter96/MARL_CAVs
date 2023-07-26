@@ -8,3 +8,4 @@ opencv-python
 pygame
 stable-baselines3==2.0.0
 tensorboard
+tqdm
