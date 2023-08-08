@@ -36,8 +36,8 @@ if __name__ == "__main__":
             next_state, reward, done, _, info = env.step(action)
             next_state = next_state.flatten()
 
-            env.render()
-            time.sleep(0.1)
+            # env.render()
+            # time.sleep(0.1)
 
             state = next_state
 

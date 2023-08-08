@@ -7,6 +7,7 @@ from utilities.ReplayBuffer import ReplayBuffer
 
 class SACAgent:
 
+    #ALPHA_INITIAL = 1.
     # REPLAY_BUFFER_BATCH_SIZE = 100
     REPLAY_BUFFER_BATCH_SIZE = 256
     DISCOUNT_RATE = 0.99
@@ -15,10 +16,13 @@ class SACAgent:
     # SOFT_UPDATE_INTERPOLATION_FACTOR = 0.01 #tau
     SOFT_UPDATE_INTERPOLATION_FACTOR = 0.005 #tau
     UPDATE_INTERVAL = 4
-    # TARGET_UPDATE_INTERVAL = 8000
+    #UPDATE_INTERVAL = 1
+    #TARGET_UPDATE_INTERVAL = 8000
     TARGET_UPDATE_INTERVAL = 8
+    #TARGET_UPDATE_INTERVAL = 1
     START_STEPS = 1000
-    GRADIENT_CLIPPING_NORM = 5.0
+    #GRADIENT_CLIPPING_NORM = 5.0
+    GRADIENT_CLIPPING_NORM = None
 
     def __init__(self, environment):
         self.environment = environment
@@ -49,6 +53,8 @@ class SACAgent:
         self.replay_buffer = ReplayBuffer(self.environment, capacity=500000)
 
         self.target_entropy = 0.98 * -np.log(1 / self.environment.action_space.n)
+        # self.log_alpha = torch.tensor(np.log(self.ALPHA_INITIAL), requires_grad=True)
+        # self.alpha = self.log_alpha
         self.log_alpha = torch.zeros(1, requires_grad=True)
         self.alpha = self.log_alpha.exp()
         self.alpha_optimiser = torch.optim.Adam([self.log_alpha], lr=self.LEARNING_RATE, eps=1e-4)
@@ -85,6 +91,9 @@ class SACAgent:
 
     def train_networks(self, transition):
         # Set all the gradients stored in the optimisers to zero.
+        # self.critic_optimiser.zero_grad()
+        # self.critic_optimiser2.zero_grad()
+        # self.actor_optimiser.zero_grad()
         self.alpha_optimiser.zero_grad()
 
         # Calculate the loss for this transition.
@@ -110,8 +119,17 @@ class SACAgent:
             self.take_optimisation_step(self.critic_optimiser, self.critic_local, critic_loss, self.GRADIENT_CLIPPING_NORM)
             self.take_optimisation_step(self.critic_optimiser2, self.critic_local2, critic2_loss, self.GRADIENT_CLIPPING_NORM)
 
+            # critic_loss.backward()
+            # critic2_loss.backward()
+            # self.critic_optimiser.step()
+            # self.critic_optimiser2.step()
+
             actor_loss, log_action_probabilities = self.actor_loss(states_tensor)
+
             self.take_optimisation_step(self.actor_optimiser, self.actor_local, actor_loss, self.GRADIENT_CLIPPING_NORM)
+
+            # actor_loss.backward()
+            # self.actor_optimiser.step()
 
             alpha_loss = self.temperature_loss(log_action_probabilities)
 

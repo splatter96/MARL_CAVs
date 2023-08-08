@@ -39,9 +39,11 @@ class SingleAgentMergeEnv(AbstractEnv):
             "collision_reward": 200,
             "high_speed_reward": 1,
             "HEADWAY_COST": 4,  # default=1
+            #"HEADWAY_COST": 1,  # default=1
             "HEADWAY_TIME": 1.2,  # default=1.2[s]
             "MERGING_LANE_COST": 4,  # default=4
             "LANE_CHANGE_COST": 1,  # default=0.5
+            #"LANE_CHANGE_COST": 0.5,  # default=0.5
             "traffic_density": 1,  # easy or hard modes
         })
         return cfg
@@ -73,21 +75,17 @@ class SingleAgentMergeEnv(AbstractEnv):
         Headway_cost = np.log(
             headway_distance / (self.config["HEADWAY_TIME"] * vehicle.speed)) if vehicle.speed > 0 else 0
 
-        # print(self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1))
         # compute overall reward
         reward = self.config["collision_reward"] * (-1 * vehicle.crashed) \
                  + (self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1)) \
                  + self.config["MERGING_LANE_COST"] * Merging_lane_cost \
                  + self.config["HEADWAY_COST"] * (Headway_cost if Headway_cost < 0 else 0) \
                  + Lane_change_cost
-
-        # print(reward)
         return reward
 
 
     def _is_terminal(self) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
-        # print(self.vehicle.position[0])
         return self.vehicle.crashed or self.vehicle.position[0] > 370
         # return self.vehicle.crashed \
                # or self.steps >= self.config["duration"] * self.config["policy_frequency"]
