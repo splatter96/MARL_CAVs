@@ -163,6 +163,23 @@ class KinematicObservation(ObservationType):
     def space(self) -> spaces.Space:
         return spaces.Box(shape=(self.vehicles_count, len(self.features)), low=-1, high=1, dtype=np.float32)
 
+    def normalize_obs2(self, data: List[dict]):
+        if not self.features_range:
+            self.features_range = {
+                "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+                "y": [-12, 12],
+                "vx": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
+                "vy": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX]
+            }
+
+        for veh in data:
+            for feature, _ in veh.items():
+                if feature in self.features_range.keys():
+                    veh[feature] = utils.lmap(veh[feature], [self.features_range[feature][0], self.features_range[feature][1]], [-1, 1])
+                    # veh[feature] = np.interp(veh[feature], [self.features_range[feature][0], self.features_range[feature][1]], [-1, 1])
+
+        return data
+
     def normalize_obs(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Normalize the observation values.
@@ -192,7 +209,7 @@ class KinematicObservation(ObservationType):
                     df[feature] = np.clip(df[feature], -1, 1)
         return df
 
-    def observe(self) -> np.ndarray:
+    def observe_old(self) -> np.ndarray:
         if not self.env.road:
             return np.zeros(self.space().shape)
 
@@ -223,9 +240,48 @@ class KinematicObservation(ObservationType):
         if self.order == "shuffled":
             self.env.np_random.shuffle(obs[1:])
         # Flatten
-        # return obs
         return obs.astype(self.space().dtype)
 
+    def observe(self) -> np.ndarray:
+        if not self.env.road:
+            return np.zeros(self.space().shape)
+
+        # Collect nearby traffic
+        close_vehicles = self.env.road.close_vehicles_to(self.observer_vehicle,
+                                                         self.env.PERCEPTION_DISTANCE,
+                                                         count=self.vehicles_count - 1,
+                                                         see_behind=self.see_behind)
+        obs_list = []
+
+        # Add ego-vehicle
+        obs = self.observer_vehicle.to_dict()
+        # extract only the features we want
+        obs = {k:obs[k] for k in self.features if k in obs}
+        obs_list.append(obs)
+
+        if close_vehicles:
+            origin = self.observer_vehicle if not self.absolute else None
+
+            close_veh = [v.to_dict(origin, observe_intentions=self.observe_intentions) for v in close_vehicles[-self.vehicles_count + 1:]]
+            # extract only the features we want
+            for idx, veh in enumerate(close_veh):
+                close_veh[idx] = {k:veh[k] for k in self.features if k in veh}
+                obs_list.append(close_veh[idx])
+
+        # Normalize and clip
+        if self.normalize:
+            obs_list = self.normalize_obs2(obs_list)
+
+        # Fill missing rows
+        if len(obs_list) < self.vehicles_count:
+            empty_row = {k:0 for k in self.features}
+            for i in range(self.vehicles_count - len(obs_list)):
+                obs_list.append(empty_row)
+
+        # Convert to 2D Array
+        res = [[item.get(key, '') for key in self.features] for item in obs_list]
+
+        return res
 
 class OccupancyGridObservation(ObservationType):
 
