@@ -486,10 +486,10 @@ class AbstractEnv(gym.Env):
             "crashed": self.vehicle.crashed,
             "action": action,
             "new_action": self.new_action,
-            "action_mask": np.array(available_actions),
+            "action_mask": available_actions,
             "average_speed": average_speed,
-            "vehicle_speed": np.array(self.vehicle_speed),
-            "vehicle_position": np.array(self.vehicle_pos)
+            "vehicle_speed": self.vehicle_speed,
+            "vehicle_position": self.vehicle_pos
         }
 
         # if terminal:
@@ -741,7 +741,8 @@ class AbstractEnv(gym.Env):
         # other_trajectories: [vehicle.position, vehicle.heading, vehicle.speed]
 
         # Euclidean distance
-        if np.linalg.norm(other_trajectories[0] - vehicle.position) > vehicle.LENGTH:
+        # if np.linalg.norm(other_trajectories[0] - vehicle.position) > vehicle.LENGTH:
+        if utils.norm(other_trajectories[0] - vehicle.position) > vehicle.LENGTH:
             return False
 
         # Accurate rectangular check

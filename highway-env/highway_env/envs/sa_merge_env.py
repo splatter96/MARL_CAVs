@@ -4,7 +4,7 @@ from gymnasium.envs.registration import register
 
 from highway_env import utils
 from highway_env.envs.common.abstract import AbstractEnv
-from highway_env.road.lane import LineType, StraightLane, SineLane
+from highway_env.road.lane import LineType, StraightLane, SineLane, HorizontalLane
 from highway_env.road.road import Road, RoadNetwork
 from highway_env.vehicle.controller import ControlledVehicle
 #from highway_env.vehicle.objects import Obstacle
@@ -125,16 +125,16 @@ class SingleAgentMergeEnv(AbstractEnv):
         line_type = [[c, s], [n, c]]
         line_type_merge = [[c, s], [n, s]]
         for i in range(2):
-            net.add_lane("a", "b", StraightLane([0, y[i]], [sum(self.ends[:2]), y[i]], line_types=line_type[i]))
-            net.add_lane("b", "c", StraightLane([sum(self.ends[:2]), y[i]], [sum(self.ends[:3]), y[i]], line_types=line_type_merge[i]))
-            net.add_lane("c", "d", StraightLane([sum(self.ends[:3]), y[i]], [sum(self.ends), y[i]], line_types=line_type[i]))
+            net.add_lane("a", "b", HorizontalLane([0, y[i]], [sum(self.ends[:2]), y[i]], line_types=line_type[i]))
+            net.add_lane("b", "c", HorizontalLane([sum(self.ends[:2]), y[i]], [sum(self.ends[:3]), y[i]], line_types=line_type_merge[i]))
+            net.add_lane("c", "d", HorizontalLane([sum(self.ends[:3]), y[i]], [sum(self.ends), y[i]], line_types=line_type[i]))
 
         # Merging lane
         amplitude = 3.25
-        ljk = StraightLane([0, 6.5 + 4 + 4], [self.ends[0], 6.5 + 4 + 4], line_types=[c, c], forbidden=True)
+        ljk = HorizontalLane([0, 6.5 + 4 + 4], [self.ends[0], 6.5 + 4 + 4], line_types=[c, c], forbidden=True)
         lkb = SineLane(ljk.position(self.ends[0], -amplitude), ljk.position(sum(self.ends[:2]), -amplitude),
                        amplitude, 2 * np.pi / (2*self.ends[1]), np.pi / 2, line_types=[c, c], forbidden=True)
-        lbc = StraightLane(lkb.position(self.ends[1], 0), lkb.position(self.ends[1], 0) + [self.ends[2], 0],
+        lbc = HorizontalLane(lkb.position(self.ends[1], 0), lkb.position(self.ends[1], 0) + [self.ends[2], 0],
                            line_types=[n, c], forbidden=True)
         net.add_lane("j", "k", ljk)
         net.add_lane("k", "b", lkb)

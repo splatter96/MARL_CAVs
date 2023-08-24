@@ -5,6 +5,7 @@ from typing import List, Tuple, Dict, TYPE_CHECKING, Optional
 
 from highway_env.road.lane import LineType, StraightLane, AbstractLane
 from highway_env.road.objects import Landmark
+from highway_env import utils
 
 if TYPE_CHECKING:
     from highway_env.vehicle import kinematics
@@ -62,7 +63,7 @@ class RoadNetwork(object):
                 for _id, l in enumerate(lanes):
                     distances.append(l.distance_with_heading(position, heading))
                     indexes.append((_from, _to, _id))
-        return indexes[int(np.argmin(distances))]
+        return indexes[utils.argmin(distances)]
 
     def next_lane(self, current_index: LaneIndex, route: Route = None, position: np.ndarray = None,
                   np_random: np.random.RandomState = np.random) -> LaneIndex:
@@ -257,7 +258,8 @@ class Road(object):
     def close_vehicles_to(self, vehicle: 'kinematics.Vehicle', distance: float, count: int = None,
                           see_behind: bool = True) -> object:
         vehicles = [v for v in self.vehicles
-                    if np.linalg.norm(v.position - vehicle.position) < distance
+                    # if np.linalg.norm(v.position - vehicle.position) < distance
+                    if utils.norm(v.position, vehicle.position) < distance
                     and v is not vehicle
                     and (see_behind or -2 * vehicle.LENGTH < vehicle.lane_distance_to(v))]
 
@@ -346,6 +348,7 @@ class Road(object):
                     v_rear = v
         return v_front, v_rear
 
+    # @profile
     def neighbour_vehicles(self, vehicle: 'kinematics.Vehicle', lane_index: LaneIndex = None) \
             -> Tuple[Optional['kinematics.Vehicle'], Optional['kinematics.Vehicle']]:
         """

@@ -2,6 +2,7 @@ from typing import Union, TYPE_CHECKING, Optional
 import numpy as np
 import pandas as pd
 from collections import deque
+import math
 
 from highway_env import utils
 from highway_env.road.lane import AbstractLane
@@ -39,7 +40,8 @@ class Vehicle(object):
                  heading: float = 0,
                  speed: float = 0):
         self.road = road
-        self.position = np.array(position).astype('float')
+        # self.position = np.array(position, dtype=float)
+        self.position = position
         self.heading = heading
         self.speed = speed
         self.lane_index = self.road.network.get_closest_lane_index(self.position, self.heading) if self.road else np.nan
@@ -119,6 +121,7 @@ class Vehicle(object):
         if action:
             self.action = action
 
+    # @profile
     def step(self, dt: float) -> None:
         """
         Propagate the vehicle state given its actions.
@@ -131,11 +134,11 @@ class Vehicle(object):
         """
         self.clip_actions()
         delta_f = self.action['steering']
-        beta = np.arctan(1 / 2 * np.tan(delta_f))
-        v = self.speed * np.array([np.cos(self.heading + beta),
-                                   np.sin(self.heading + beta)])
+        beta = math.atan(0.5 * math.tan(delta_f))
+        v = self.speed * np.array([math.cos(self.heading + beta),
+                                   math.sin(self.heading + beta)])
         self.position += v * dt
-        self.heading += self.speed * np.sin(beta) / (self.LENGTH / 2) * dt
+        self.heading += self.speed * math.sin(beta) / (self.LENGTH / 2) * dt
         self.speed += self.action['acceleration'] * dt
         self.on_state_update()
 
@@ -200,7 +203,7 @@ class Vehicle(object):
 
     def _is_colliding(self, other):
         # Fast spherical pre-check
-        if np.linalg.norm(other.position - self.position) > self.LENGTH:
+        if utils.norm(other.position, self.position) > self.LENGTH:
             return False
         # Accurate rectangular check
         return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),
@@ -233,6 +236,7 @@ class Vehicle(object):
     @property
     def on_road(self) -> bool:
         """ Is the vehicle on its current lane, or off-road ? """
+        print("calling on_road")
         return self.lane.on_lane(self.position)
 
     def front_distance_to(self, other: "Vehicle") -> float:

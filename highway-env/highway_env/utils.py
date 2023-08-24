@@ -7,6 +7,18 @@ import numpy as np
 
 from highway_env.types import Vector, Interval
 
+def argmin(lst):
+      return lst.index(min(lst))
+
+def clip(value, low, high):
+    return min(max(low, value), high)
+
+def norm(p1, p2):
+    return (
+            ((p1[0] - p2[0]) ** 2) +
+            ((p1[1] - p2[1]) ** 2)
+            ) ** 0.5
+
 
 def do_every(duration: float, timer: float) -> bool:
     return duration < timer
@@ -37,7 +49,8 @@ def not_zero(x: float, eps: float = 1e-2) -> float:
 
 
 def wrap_to_pi(x: float) -> float:
-    return ((x + np.pi) % (2 * np.pi)) - np.pi
+    # return ((x + np.pi) % (2 * np.pi)) - np.pi
+    return ((x + 3.14) % (2 * 3.14)) - 3.14
 
 
 def point_in_rectangle(point: Vector, rect_min: Vector, rect_max: Vector) -> bool:
