@@ -479,6 +479,11 @@ class AbstractEnv(gym.Env):
             average_speed += v.speed
         average_speed = average_speed / len(self.controlled_vehicles)
 
+        average_road_speed = 0
+        for v in self.road.vehicles:
+            average_road_speed += v.speed
+        average_road_speed = average_road_speed / len(self.road.vehicles)
+
         self.vehicle_speed.append([v.speed for v in self.controlled_vehicles])
         self.vehicle_pos.append(([v.position[0] for v in self.controlled_vehicles]))
         info = {
@@ -488,6 +493,7 @@ class AbstractEnv(gym.Env):
             "new_action": self.new_action,
             "action_mask": available_actions,
             "average_speed": average_speed,
+            "average_road_speed": average_road_speed,
             "vehicle_speed": self.vehicle_speed,
             "vehicle_position": self.vehicle_pos
         }

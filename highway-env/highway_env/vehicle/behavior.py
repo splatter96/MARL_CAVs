@@ -132,6 +132,10 @@ class IDMVehicle(ControlledVehicle):
         acceleration = self.COMFORT_ACC_MAX * (
                 1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
 
+        # currently lane change happening
+        if self.target_lane_index != self.lane_index:
+            _, front_vehicle =  self.road.neighbour_vehicles(self, self.target_lane_index)
+
         if front_vehicle:
             d = ego_vehicle.lane_distance_to(front_vehicle)
             acceleration -= self.COMFORT_ACC_MAX * \
