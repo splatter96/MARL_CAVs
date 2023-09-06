@@ -117,7 +117,7 @@ def train(args):
 
     # split up total learning steps when using curriculum learning
     learn_steps = 10e5
-    if args.curriculum_learning == True:
+    if curriculum_learning == True:
         learn_steps = 3e5
 
     model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", callback=checkpoint_log_speed)
