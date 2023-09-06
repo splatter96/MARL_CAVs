@@ -84,8 +84,11 @@ def train(args):
 
     # copy all files to the results that have influence on it
     copy_tree("../highway-env", dirs['configs'])
-    copy('configs/configs_sacd.ini', dirs['configs'])
+    copy('configs/configs_sacd.json', dirs['configs'])
     copy(__file__, dirs['configs'])
+    with open(dirs['configs']+ "args", "w") as f:
+        for arg in sys.argv:
+            f.write(f"{arg} ")
 
     # configure environment
     env = gym.make('merge-single-agent-v0')
