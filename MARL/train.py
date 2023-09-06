@@ -123,7 +123,7 @@ def train(args):
         env.config['traffic_density'] = 3
         model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=checkpoint_log_speed)
 
-    model.save(dirs['models'])
+    model.save(dirs['models'] + f"/model_{args.exp_tag}_seed_{seed_}")
 
 if __name__ == "__main__":
     args = parse_args()
