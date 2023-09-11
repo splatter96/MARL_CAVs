@@ -6,6 +6,7 @@ from highway_env import utils
 from highway_env.vehicle.dynamics import BicycleVehicle
 from highway_env.vehicle.kinematics import Vehicle
 from highway_env.vehicle.controller import MDPVehicle
+from highway_env.vehicle.behavior import IDMVehicle
 
 if TYPE_CHECKING:
     from highway_env.envs.common.abstract import AbstractEnv
@@ -197,6 +198,23 @@ class DiscreteMetaAction(ActionType):
 
         self.controlled_vehicle.act(self.actions[int(action)])
 
+class IDMDummy(ActionType):
+
+
+    def __init__(self,
+                 env: 'AbstractEnv',
+                 **kwargs) -> None:
+        super().__init__(env)
+
+    def space(self) -> spaces.Space:
+        return spaces.Discrete(1)
+
+    @property
+    def vehicle_class(self) -> Callable:
+        return IDMVehicle
+
+    def act(self, action: int) -> None:
+        self.controlled_vehicle.act()
 
 class MultiAgentAction(ActionType):
     def __init__(self,
@@ -233,5 +251,7 @@ def action_factory(env: 'AbstractEnv', config: dict) -> ActionType:
         return DiscreteMetaAction(env, **config)
     elif config["type"] == "MultiAgentAction":
         return MultiAgentAction(env, **config)
+    elif config["type"] == "IDM":
+        return IDMDummy(env, **config)
     else:
         raise ValueError("Unknown action type")

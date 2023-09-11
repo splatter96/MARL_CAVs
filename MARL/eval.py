@@ -16,11 +16,12 @@ import torch
 
 def parse_args():
     parser = argparse.ArgumentParser(description=('Evaluate policy on RL environment'))
-    parser.add_argument('model', type=str, help="Model which to evaluate")
+    parser.add_argument('model', nargs="?", type=str, help="Model which to evaluate")
     parser.add_argument('--difficulty', type=int, required=False,
                         default=3, help="difficulty setting to which the environment is to be set")
     parser.add_argument('--traj-dir', type=str, required=False,
                         default='', help="directory where to save the trajectories")
+    parser.add_argument('--mobil', action='store_true', help="If set the mobil model instead of the RL agent")
     parser.add_argument('--num-runs', type=int, required=False,
                         default=200, help="number of runs to evaluate over")
     parser.add_argument( '--render', action='store_true',
@@ -38,8 +39,12 @@ def eval_policy(args):
     env.config["screen_width"] = 1900
     env.config["safety_guarantee"] = False
     env.config["traffic_density"] = args.difficulty
+    if args.mobil:
+        env.config["action"] = {"type": "IDM"}
+        env.config["action_masking"] = False
 
-    model = SACD.load(args.model)
+    if not args.mobil:
+        model = SACD.load(args.model)
 
     num_tries = args.num_runs
     crashes = 0
@@ -54,11 +59,14 @@ def eval_policy(args):
     t = tqdm(range(num_tries))
     for i in t:
       done = truncated = False
-      obs, info = env.reset()
+      obs, info = env.reset(seed=41)
       ret = 0
       position_list = []
       while not (done or truncated):
-        action, _states = model.predict(obs, deterministic=True)
+        if not args.mobil:
+            action, _states = model.predict(obs, deterministic=True)
+        else:
+            action = None
         obs, reward, done, truncated, info = env.step(action)
         ret += reward
 
