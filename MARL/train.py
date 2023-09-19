@@ -23,7 +23,9 @@ from stable_baselines3.common.callbacks import EveryNTimesteps, BaseCallback, Ev
 from stable_baselines3.common.logger import configure
 
 class CustomEvalCallback(EventCallback):
-
+    """
+    Custom callback to evaluate a policy and save some important metrics
+    """
     def __init__(self, env, log_dir, episodes=4, verbose=0):
         super().__init__(verbose=verbose)
 
@@ -31,10 +33,28 @@ class CustomEvalCallback(EventCallback):
         self.log_dir = log_dir
         self.episodes = episodes
 
-    def _on_step(self):
-        print(f"At {self.num_timesteps}")
-        for i in range(episodes):
+        with open(self.log_dir + "/evaluation.csv", 'w') as f:
+            f.write('steps,reward,ego_speed,network_speed\n')
 
+    def _on_step(self):
+        ret = speed = road_speed = total_steps = 0
+
+        for i in range(self.episodes):
+          obs, info = self.env.reset()
+          done = truncated = False
+          while not (done or truncated):
+            action, _states = self.model.predict(obs, deterministic=True)
+            obs, reward, done, truncated, info = self.env.step(action)
+
+            ret += reward
+
+            speed += info["average_speed"]
+            road_speed += info["average_road_speed"]
+            total_steps += 1
+
+        f = open(self.log_dir + '/evaluation.csv', 'a')
+        f.write(f"{self.num_timesteps},{ret/self.episodes},{speed/total_steps},{road_speed/total_steps}\n")
+        f.close()
 
 class TensorboardCallback(BaseCallback):
     """
@@ -95,6 +115,8 @@ def train(args):
     output_dir = base_dir + now
     if args.exp_tag != '':
         output_dir += '_' + args.exp_tag
+    if args.seed != '':
+        output_dir += '_' + str(args.seed)
     dirs = init_dir(output_dir, pathes=['configs', 'models', 'logs', 'output'])
 
     # copy all files to the results that have influence on it
@@ -122,7 +144,7 @@ def train(args):
     eval_env.config.update(config['env_config'])
     eval_env.config["traffic_density"] = 3
     #eval_callback = EvalCallback(eval_env, log_path=dirs['logs'], eval_freq=500, deterministic=True, render=False)
-    custom_eval = CustomEvalCallback(dirs['logs'])
+    custom_eval = CustomEvalCallback(eval_env, dirs['logs'])
 
     eval_callback = EveryNTimesteps(n_steps=500, callback=custom_eval)
 
