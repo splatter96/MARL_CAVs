@@ -19,7 +19,22 @@ from sb3_contrib import SACD
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import SubprocVecEnv
-from stable_baselines3.common.callbacks import EveryNTimesteps, BaseCallback
+from stable_baselines3.common.callbacks import EveryNTimesteps, BaseCallback, EventCallback, EvalCallback, CallbackList, EveryNTimesteps
+from stable_baselines3.common.logger import configure
+
+class CustomEvalCallback(EventCallback):
+
+    def __init__(self, env, log_dir, episodes=4, verbose=0):
+        super().__init__(verbose=verbose)
+
+        self.env = env
+        self.log_dir = log_dir
+        self.episodes = episodes
+
+    def _on_step(self):
+        print(f"At {self.num_timesteps}")
+        for i in range(episodes):
+
 
 class TensorboardCallback(BaseCallback):
     """
@@ -102,6 +117,16 @@ def train(args):
     # seed from commandline has priority over config
     seed_ = config.get('seed', 42) if args.seed == 0 else args.seed
 
+    # configure callbacks
+    eval_env = gym.make('merge-single-agent-v0')
+    eval_env.config.update(config['env_config'])
+    eval_env.config["traffic_density"] = 3
+    #eval_callback = EvalCallback(eval_env, log_path=dirs['logs'], eval_freq=500, deterministic=True, render=False)
+    custom_eval = CustomEvalCallback(dirs['logs'])
+
+    eval_callback = EveryNTimesteps(n_steps=500, callback=custom_eval)
+
+
     checkpoint_log_speed = TensorboardCallback()
     model = SACD('MlpPolicy', env,
                   policy_kwargs=dict(net_arch=[256, 256]),
@@ -115,12 +140,18 @@ def train(args):
                   tensorboard_log=dirs['logs'],
                   device=f"cuda:{args.gpu}")
 
+    callback_list = CallbackList([eval_callback, checkpoint_log_speed])
+
+    # configure logging
+    custom_logger = configure(dirs['logs'], ["stdout", "csv", "tensorboard"])
+    model.set_logger(custom_logger)
+
     # split up total learning steps when using curriculum learning
     learn_steps = 10e5
     if curriculum_learning == True:
         learn_steps = 3e5
 
-    model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", callback=checkpoint_log_speed)
+    model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", callback=callback_list)
 
     if curriculum_learning == True:
         env.config['traffic_density'] = 2
