@@ -177,9 +177,9 @@ def train(args):
 
     if curriculum_learning == True:
         env.config['traffic_density'] = 2
-        model.learn(int(3e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=checkpoint_log_speed)
+        model.learn(int(3e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list)
         env.config['traffic_density'] = 3
-        model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=checkpoint_log_speed)
+        model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list)
 
     model.save(dirs['models'] + f"/model_{args.exp_tag}_seed_{seed_}")
 
