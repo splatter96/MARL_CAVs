@@ -260,7 +260,6 @@ def neighbour_vehicles(vehicle, env_copy):
         if v is not vehicle and not isinstance(v, Landmark):  # self.network.is_connected_road(v.lane_index,
             # lane_index, same_lane=True):
             s_v, lat_v = lane.local_coordinates(v.position)
-            print("in idm")
             if not lane.on_lane(v.position, s_v, lat_v, margin=1):
                 continue
             if s <= s_v and (s_front is None or s_v <= s_front):

@@ -85,6 +85,14 @@ class EnvViewer(object):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.env.close()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    paused = True
+                    while paused:
+                        pygame.time.wait(1000)
+                        for event in pygame.event.get():
+                            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                                paused = False
+
             self.sim_surface.handle_event(event)
             if self.env.action_type:
                 EventHandler.handle_event(self.env.action_type, event)

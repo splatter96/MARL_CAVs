@@ -86,7 +86,7 @@ class SingleAgentMergeEnv(AbstractEnv):
 
     def _is_terminal(self) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
-        return self.vehicle.crashed or self.vehicle.position[0] > 370
+        return self.vehicle.crashed or self.vehicle.position[0] > 370 #or self.steps >= 200
         # return self.vehicle.crashed \
                # or self.steps >= self.config["duration"] * self.config["policy_frequency"]
 
@@ -155,6 +155,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         spawn_points_s1 = [10, 50, 90, 130, 170, 210]
         spawn_points_s2 = [5, 45, 85, 125, 165, 205]
         spawn_points_m = [5, 45, 85, 125, 165, 205]
+        # spawn_points_m = [5, 45, 65, 85, 100, 125]
 
         # initial speed with noise and location noise
         initial_speed = np.random.rand(num_CAV + num_HDV) * 2 + 25  # range from [25, 27]
@@ -206,6 +207,8 @@ class SingleAgentMergeEnv(AbstractEnv):
             # self.controlled_vehicles.append(ego_vehicle)
             self.vehicle = ego_vehicle
             road.vehicles.append(ego_vehicle)
+
+        self.vehicle.color = (200, 0, 150)
 
         """Spawn points for HDV"""
         # spawn point indexes on the straight road

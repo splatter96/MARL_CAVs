@@ -38,6 +38,8 @@ class IDMVehicle(ControlledVehicle):
     LANE_CHANGE_MIN_ACC_GAIN = 0.1  # [m/s2]
     LANE_CHANGE_MAX_BRAKING_IMPOSED = 9.0  # [m/s2]
     LANE_CHANGE_DELAY = 1.0  # [s]
+    # LANE_CHANGE_MAX_BRAKING_IMPOSED = 50.0  # [m/s2]
+    # LANE_CHANGE_DELAY = 0.1  # [s]
 
     def __init__(self,
                  road: Road,
@@ -239,6 +241,10 @@ class IDMVehicle(ControlledVehicle):
         """
         # Is the maneuver unsafe for the new following vehicle?
         new_preceding, new_following = self.road.neighbour_vehicles(self, lane_index)
+        if self.id == 0 and new_preceding is not None:
+            new_preceding.color = (255, 0, 0)
+        if self.id == 0 and new_following is not None:
+            new_following.color = (0, 0, 255)
         new_following_a = self.acceleration(ego_vehicle=new_following, front_vehicle=new_preceding)
         new_following_pred_a = self.acceleration(ego_vehicle=new_following, front_vehicle=self)
         if new_following_pred_a < -self.LANE_CHANGE_MAX_BRAKING_IMPOSED:
