@@ -47,7 +47,6 @@ class AbstractEnv(gym.Env):
 
         # Seeding
         self.np_random = None
-        self.seed = self.config["seed"]
 
         # Scene
         self.road = None
@@ -122,13 +121,8 @@ class AbstractEnv(gym.Env):
             "manual_control": False,
             "real_time_rendering": False,
             "n_step": 5,  # do n step prediction
-            "seed": 0,
             "action_masking": True
         }
-
-    def seed(self, seeding: int = None) -> List[int]:
-        seed = np.random.seed(self.seed)
-        return [seed]
 
     def configure(self, config: dict) -> None:
         if config:
@@ -170,21 +164,16 @@ class AbstractEnv(gym.Env):
         """
         raise NotImplementedError
 
-    def reset(self, seed =None, is_training=True, testing_seeds=0, num_CAV=0) -> Observation:
+    def reset(self, seed=None, is_training=True, testing_seeds=0, num_CAV=0) -> Observation:
         """
         Reset the environment to it's initial configuration
 
         :return: the observation of the reset state
         """
-        if is_training:
-            np.random.seed(self.seed)
-            random.seed(self.seed)
-        else:
-            np.random.seed(testing_seeds)
-            random.seed(testing_seeds)
+        super().reset(seed=seed)
+
         self.define_spaces()  # First, to set the controlled vehicle class depending on action space
         self.time = self.steps = 0
-        self.seed += 1
         self.done = False
         self.vehicle_speed = []
         self.vehicle_pos = []
