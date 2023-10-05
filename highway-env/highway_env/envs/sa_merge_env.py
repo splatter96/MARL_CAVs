@@ -48,6 +48,9 @@ class SingleAgentMergeEnv(AbstractEnv):
         })
         return cfg
 
+    def set_vehicle(self, veh):
+        self.vehicle = veh
+
     def _reward(self, action: int) -> float:
         # Cooperative reward
         return self._agent_reward(action, self.vehicle)

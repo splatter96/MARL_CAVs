@@ -3,6 +3,7 @@ import gymnasium as gym
 
 import argparse
 import sys
+import os
 import numpy as np
 from tqdm import tqdm
 import warnings
@@ -24,6 +25,8 @@ def parse_args():
     parser.add_argument('--mobil', action='store_true', help="If set the mobil model instead of the RL agent")
     parser.add_argument('--num-runs', type=int, required=False,
                         default=200, help="number of runs to evaluate over")
+    parser.add_argument('--initial-pos', type=str, required=False,
+                        default='', help="numpy file with the initial positions to load")
     parser.add_argument( '--render', action='store_true',
         help='Wether to render the the output during evaluation or not')
     parser.add_argument( '--no-render', dest='render', action='store_false',
@@ -36,7 +39,7 @@ def eval_policy(args):
     env = gym.make('merge-single-agent-v0')
 
     env.config["screen_height"] = 300
-    env.config["screen_width"] = 1900
+    env.config["screen_width"] = 2800
     env.config["safety_guarantee"] = False
     env.config["traffic_density"] = args.difficulty
     if args.mobil:
@@ -53,13 +56,20 @@ def eval_policy(args):
     total_steps = 0
 
     # create the output directory if we need to save the trajectories
-    if args.traj_dir != '' and not os.path.exists(arg.traj_dir):
-        os.mkdir(arg.traj_dir)
+    if args.traj_dir != '' and not os.path.exists(args.traj_dir):
+        os.mkdir(args.traj_dir)
 
     t = tqdm(range(num_tries))
     for i in t:
       done = truncated = False
-      obs, info = env.reset(seed=41)
+      obs, info = env.reset()
+
+      if args.initial_pos != '':
+          load_veh = np.load(args.initial_pos, allow_pickle=True)
+
+          env.road.vehicles = load_veh
+          env.set_vehicle(env.road.vehicles[0])
+
       ret = 0
       position_list = []
       while not (done or truncated):
@@ -80,10 +90,14 @@ def eval_policy(args):
 
         if args.render:
             env.render()
-            time.sleep(0.05)
+            time.sleep(0.1)
 
       if info['crashed']:
           crashes += 1
+
+          # only save trajectories if we didn't load any in the first place
+          if args.initial_pos == '':
+              np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
 
       if args.traj_dir != '':
           np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(position_list))

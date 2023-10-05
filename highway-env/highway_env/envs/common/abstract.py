@@ -1,6 +1,7 @@
 import copy
 import os
 from typing import List, Tuple, Optional, Callable
+from copy import deepcopy
 import gymnasium as gym
 import random
 from gymnasium import Wrapper
@@ -192,6 +193,9 @@ class AbstractEnv(gym.Env):
                     available_actions[i][a] = 1
         else:
             available_actions = [[1] * self.n_a] * len(self.controlled_vehicles)
+
+        self.road.initial_vehicles = deepcopy(self.road.vehicles)
+
         # return np.asarray(obs).reshape((len(obs), -1)), np.array(available_actions)
         return np.asarray(obs).reshape((len(obs), -1)), {}
 
