@@ -88,8 +88,8 @@ class RoadNetwork(object):
                 route.pop(0)
             if route and route[0][0] == _to:  # Next road in route is starting at the end of current road.
                 _, next_to, _ = route[0]
-            elif route:
-                logger.warning("Route {} does not start after current road {}.".format(route[0], current_index))
+            # elif route:
+                # logger.warning("Route {} does not start after current road {}.".format(route[0], current_index))
         # Randomly pick next road
         if not next_to:
             try:
@@ -322,6 +322,30 @@ class Road(object):
                         s_v, lat_v = v.position
                     elif lane_index == ("c", "d", 0) and (v.lane_index == ("b", "c", 0) or v.lane_index == (
                     "c", "d", 0)):
+                        s_v, lat_v = v.position
+                    else:
+                        continue
+                elif lane_index == ("a", "b", 1) or lane_index == ("b", "c", 1) or lane_index == (
+                        "c", "d", 1):
+                    if lane_index == ("a", "b", 1) and (
+                            v.lane_index == ("a", "b", 1) or v.lane_index == ("b", "c", 1)):
+                        s_v, lat_v = v.position
+                    elif lane_index == ("b", "c", 1) and (
+                            v.lane_index == ("a", "b", 1) or v.lane_index == ("b", "c", 1) or v.lane_index == (
+                    "c", "d", 1)):
+                        s_v, lat_v = v.position
+                    elif lane_index == ("c", "d", 1) and (v.lane_index == ("b", "c", 1) or v.lane_index == (
+                    "c", "d", 1)):
+                        s_v, lat_v = v.position
+                    else:
+                        continue
+                elif lane_index == ("b", "c", 2):
+                    if v.lane_index == ("b", "c", 2) or v.lane_index == ("k", "b", 0):
+                        s_v, lat_v = v.position
+                    else:
+                        continue
+                elif lane_index == ("c", "o", 0):
+                    if v.lane_index == ("c", "o", 0) or v.lane_index == ("b", "c", 2):
                         s_v, lat_v = v.position
                     else:
                         continue

@@ -36,10 +36,10 @@ class IDMVehicle(ControlledVehicle):
     """Lateral policy parameters"""
     POLITENESS = 0.  # in [0, 1]
     LANE_CHANGE_MIN_ACC_GAIN = 0.1  # [m/s2]
-    LANE_CHANGE_MAX_BRAKING_IMPOSED = 9.0  # [m/s2]
+    # LANE_CHANGE_MAX_BRAKING_IMPOSED = 9.0  # [m/s2]
+    LANE_CHANGE_MAX_BRAKING_IMPOSED = 50.0  # [m/s2]
     LANE_CHANGE_DELAY = 1.0  # [s]
-    # LANE_CHANGE_MAX_BRAKING_IMPOSED = 50.0  # [m/s2]
-    # LANE_CHANGE_DELAY = 0.1  # [s]
+    RIGHT_BIAS = 0.0 # bias for lane changes to the right
 
     def __init__(self,
                  road: Road,
@@ -135,7 +135,7 @@ class IDMVehicle(ControlledVehicle):
                 1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
 
         # currently lane change happening
-        if self.target_lane_index != self.lane_index:
+        if not front_vehicle and (self.target_lane_index != self.lane_index):
             _, front_vehicle =  self.road.neighbour_vehicles(self, self.target_lane_index)
 
         if front_vehicle:
@@ -200,19 +200,9 @@ class IDMVehicle(ControlledVehicle):
         """
         # If a lane change already ongoing
         if self.lane_index != self.target_lane_index:
-            # If we are on correct route but bad lane: abort it if someone else is already changing into the same lane
-            if self.lane_index[:2] == self.target_lane_index[:2]:
-                for v in self.road.vehicles:
-                    if v is not self \
-                            and v.lane_index != self.target_lane_index \
-                            and isinstance(v, ControlledVehicle) \
-                            and v.target_lane_index == self.target_lane_index:
-                        d = self.lane_distance_to(v)
-                        d_star = self.desired_gap(self, v)
-                        if 0 < d < d_star:
-                            self.target_lane_index = self.lane_index
-                            break
-            return
+            # Only allow this lane change if mobil model allows it
+            if not self.mobil(self.target_lane_index):
+                self.target_lane_index = self.lane_index
 
         # else, at a given frequency,
         if not utils.do_every(self.LANE_CHANGE_DELAY, self.timer):
@@ -240,37 +230,33 @@ class IDMVehicle(ControlledVehicle):
         :return: whether the lane change should be performed
         """
         # Is the maneuver unsafe for the new following vehicle?
-        new_preceding, new_following = self.road.neighbour_vehicles(self, lane_index)
-        if self.id == 0 and new_preceding is not None:
-            new_preceding.color = (255, 0, 0)
-        if self.id == 0 and new_following is not None:
-            new_following.color = (0, 0, 255)
+        new_preceding, new_following = self.road.surrounding_vehicles(self, lane_index)
+        old_preceding, old_following = self.road.surrounding_vehicles(self)
+
+        self_pred_a = self.acceleration(ego_vehicle=self, front_vehicle=new_preceding)
         new_following_a = self.acceleration(ego_vehicle=new_following, front_vehicle=new_preceding)
         new_following_pred_a = self.acceleration(ego_vehicle=new_following, front_vehicle=self)
+
+        # unsafe braking required?
         if new_following_pred_a < -self.LANE_CHANGE_MAX_BRAKING_IMPOSED:
             return False
 
-        # Do I have a planned route for a specific lane which is safe for me to access?
-        old_preceding, old_following = self.road.neighbour_vehicles(self)
-        self_pred_a = self.acceleration(ego_vehicle=self, front_vehicle=new_preceding)
-        if self.route and self.route[0][2]:
-            # Wrong direction
-            if np.sign(lane_index[2] - self.target_lane_index[2]) != np.sign(
-                    self.route[0][2] - self.target_lane_index[2]):
-                return False
-            # Unsafe braking required
-            elif self_pred_a < -self.LANE_CHANGE_MAX_BRAKING_IMPOSED:
-                return False
-
         # Is there an acceleration advantage for me and/or my followers to change lane?
+        self_a = self.acceleration(ego_vehicle=self, front_vehicle=old_preceding)
+        old_following_a = self.acceleration(ego_vehicle=old_following, front_vehicle=self)
+        old_following_pred_a = self.acceleration(ego_vehicle=old_following, front_vehicle=old_preceding)
+        jerk = self_pred_a - self_a + self.POLITENESS * (new_following_pred_a - new_following_a
+                                                         + old_following_pred_a - old_following_a)
+
+        if self.lane_index[2] > lane_index[2]: #change to right lane
+            bias = self.RIGHT_BIAS
+        elif self.lane_index[2] < lane_index[2]: #change to left lane
+            bias = - self.RIGHT_BIAS
         else:
-            self_a = self.acceleration(ego_vehicle=self, front_vehicle=old_preceding)
-            old_following_a = self.acceleration(ego_vehicle=old_following, front_vehicle=self)
-            old_following_pred_a = self.acceleration(ego_vehicle=old_following, front_vehicle=old_preceding)
-            jerk = self_pred_a - self_a + self.POLITENESS * (new_following_pred_a - new_following_a
-                                                             + old_following_pred_a - old_following_a)
-            if jerk < self.LANE_CHANGE_MIN_ACC_GAIN:
-                return False
+            bias = 0
+
+        if jerk < self.LANE_CHANGE_MIN_ACC_GAIN + bias:
+            return False
 
         # All clear, let's go!
         return True

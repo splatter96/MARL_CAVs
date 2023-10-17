@@ -122,6 +122,7 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         # Highway lanes
         self.ends = [150, 80, 80, 150]  # Before, converging, merge, after
+        # self.ends = [150, 80, 40, 40, 150]  # Before, converging, merge, after
 
         c, s, n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
         y = [0, StraightLane.DEFAULT_WIDTH]
@@ -130,20 +131,33 @@ class SingleAgentMergeEnv(AbstractEnv):
         for i in range(2):
             net.add_lane("a", "b", HorizontalLane([0, y[i]], [sum(self.ends[:2]), y[i]], line_types=line_type[i]))
             net.add_lane("b", "c", HorizontalLane([sum(self.ends[:2]), y[i]], [sum(self.ends[:3]), y[i]], line_types=line_type_merge[i]))
-            net.add_lane("c", "d", HorizontalLane([sum(self.ends[:3]), y[i]], [sum(self.ends), y[i]], line_types=line_type[i]))
+            net.add_lane("c", "d", HorizontalLane([sum(self.ends[:3]), y[i]], [sum(self.ends[:4]), y[i]], line_types=line_type_merge[i]))
+            # net.add_lane("d", "e", HorizontalLane([sum(self.ends[:4]), y[i]], [sum(self.ends), y[i]], line_types=line_type[i]))
 
         # Merging lane
         amplitude = 3.25
         ljk = HorizontalLane([0, 6.5 + 4 + 4], [self.ends[0], 6.5 + 4 + 4], line_types=[c, c], forbidden=True)
+
         lkb = SineLane(ljk.position(self.ends[0], -amplitude), ljk.position(sum(self.ends[:2]), -amplitude),
                        amplitude, 2 * np.pi / (2*self.ends[1]), np.pi / 2, line_types=[c, c], forbidden=True)
+
         lbc = HorizontalLane(lkb.position(self.ends[1], 0), lkb.position(self.ends[1], 0) + [self.ends[2], 0],
-                           line_types=[n, c], forbidden=True)
+                           line_types=[n, c], forbidden=False)
+        # lcd = HorizontalLane(lbc.position(self.ends[2], 0), lbc.position(self.ends[2], 0) + [self.ends[3], 0],
+                           # line_types=[n, c], forbidden=True)
+        #off ramp
+        # lco = StraightLane(lcd.position(self.ends[2], 0), lcd.position(self.ends[2]+80, 6.5), line_types=[c, c], forbidden=True)
+        lco = StraightLane(lbc.position(self.ends[2], 0), lbc.position(self.ends[2]+80, 6.5), line_types=[c, c], forbidden=True)
+        lou = HorizontalLane([sum(self.ends[:3])+80, 6.5+4+4], [sum(self.ends[:3])+80+70, 6.5+4+4], line_types=[c, c], forbidden=True)
+
         net.add_lane("j", "k", ljk)
         net.add_lane("k", "b", lkb)
         net.add_lane("b", "c", lbc)
+        net.add_lane("c", "o", lco)
+        # net.add_lane("d", "o", ldo) #off ramp
+        net.add_lane("o", "u", lou) #off ramp
         road = Road(network=net, np_random=self.np_random, record_history=self.config["show_trajectories"])
-        road.objects.append(Obstacle(road, lbc.position(self.ends[2], 0)))
+        # road.objects.append(Obstacle(road, lbc.position(self.ends[2], 0)))
         self.road = road
 
     def _make_vehicles(self, num_CAV=1, num_HDV=3) -> None:
@@ -156,12 +170,12 @@ class SingleAgentMergeEnv(AbstractEnv):
         # self.controlled_vehicles = []
 
         spawn_points_s1 = [10, 50, 90, 130, 170, 210]
-        spawn_points_s2 = [5, 45, 85, 125, 165, 205]
+        spawn_points_s2 = [0, 40, 80, 120, 160, 200]
         spawn_points_m = [5, 45, 85, 125, 165, 205]
         # spawn_points_m = [5, 45, 65, 85, 100, 125]
 
         # initial speed with noise and location noise
-        initial_speed = np.random.rand(num_CAV + num_HDV) * 2 + 25  # range from [25, 27]
+        initial_speed = np.random.rand(num_CAV + num_HDV) * 5 + 25  # range from [25, 30]
         loc_noise = np.random.rand(num_CAV + num_HDV) * 3 - 1.5  # range from [-1.5, 1.5]
         initial_speed = list(initial_speed)
         loc_noise = list(loc_noise)
@@ -226,21 +240,27 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         """spawn the HDV on the main road first"""
         for _ in range(num_HDV // 3):
-            road.vehicles.append(
-                other_vehicles_type(road, road.network.get_lane(("a", "b", 0)).position(
-                    spawn_point_s_h1.pop(0) + loc_noise.pop(0), 0), speed=initial_speed.pop(0)))
+            veh = other_vehicles_type(road, road.network.get_lane(("a", "b", 0)).position(
+                    spawn_point_s_h1.pop(0) + loc_noise.pop(0), 0), speed=initial_speed.pop(0))
+            # veh.route = [('a', 'b', 0), ('b', 'c', 2), ('c', 'o', 0)]
+            veh.RIGHT_BIAS = 4.0
+            road.vehicles.append(veh)
 
         for _ in range(num_HDV // 3):
-            road.vehicles.append(
-                other_vehicles_type(road, road.network.get_lane(("a", "b", 1)).position(
-                    spawn_point_s_h2.pop(0) + loc_noise.pop(0), 0), speed=initial_speed.pop(0)))
+            veh = other_vehicles_type(road, road.network.get_lane(("a", "b", 1)).position(
+                    spawn_point_s_h2.pop(0) + loc_noise.pop(0), 0), speed=initial_speed.pop(0))
+            # veh.route = [('a', 'b', 1), ('b', 'c', 2), ('c', 'o', 0)]
+            veh.RIGHT_BIAS = 4.0
+            road.vehicles.append(veh)
 
         """spawn the rest HDV on the merging road"""
         for _ in range(num_HDV - 2 * num_HDV // 3):
-            road.vehicles.append(
-                other_vehicles_type(road, road.network.get_lane(("j", "k", 0)).position(
+            veh = other_vehicles_type(road, road.network.get_lane(("j", "k", 0)).position(
                     spawn_point_m_h.pop(0) + loc_noise.pop(0), 0),
-                                    speed=initial_speed.pop(0)))
+                                    speed=initial_speed.pop(0))
+            # veh.route = [('j', 'k', 0), ('k', 'b', 0), ('b', 'c', 1), ('c', 'd', 0)]
+            veh.RIGHT_BIAS = -4.0
+            road.vehicles.append(veh)
 
 register(
     id='merge-single-agent-v0',

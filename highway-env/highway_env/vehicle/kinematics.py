@@ -221,7 +221,10 @@ class Vehicle(object):
     @property
     def destination(self) -> np.ndarray:
         if getattr(self, "route", None):
-            last_lane = self.road.network.get_lane(self.route[-1])
+            # last_lane = self.road.network.get_lane(self.route[-1])
+            last_lane_index = self.route[-1]
+            last_lane_index = last_lane_index if last_lane_index[-1] is not None else (*last_lane_index[:-1], 0)
+            last_lane = self.road.network.get_lane(last_lane_index)
             return last_lane.position(last_lane.length, 0)
         else:
             return self.position
@@ -236,7 +239,6 @@ class Vehicle(object):
     @property
     def on_road(self) -> bool:
         """ Is the vehicle on its current lane, or off-road ? """
-        print("calling on_road")
         return self.lane.on_lane(self.position)
 
     def front_distance_to(self, other: "Vehicle") -> float:
@@ -264,7 +266,8 @@ class Vehicle(object):
         return d
 
     def __str__(self):
-        return "{} #{}: {}".format(self.__class__.__name__, id(self) % 1000, self.position)
+        # return "{} #{}: {}".format(self.__class__.__name__, id(self) % 1000, self.position)
+        return f"#{self.id}"
 
     def __repr__(self):
         return self.__str__()

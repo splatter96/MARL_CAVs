@@ -132,6 +132,12 @@ class LaneGraphics(object):
             elif lane.line_types[side] == LineType.CONTINUOUS_LINE:
                 cls.continuous_line(lane, surface, stripes_count, s0, side)
 
+        pygame.draw.line(surface, surface.YELLOW,
+                         (surface.vec2pix(lane.position(0, -2))),
+                         (surface.vec2pix(lane.position(0, 2))),
+                         max(surface.pix(cls.STRIPE_WIDTH), 1))
+
+
     @classmethod
     def striped_line(cls, lane: AbstractLane, surface: WorldSurface, stripes_count: int, longitudinal: float,
                      side: int) -> None:
