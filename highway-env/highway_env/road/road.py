@@ -71,7 +71,7 @@ class RoadNetwork(object):
         Get the index of the next lane that should be followed after finishing the current lane.
 
         - If a plan is available and matches with current lane, follow it.
-        - Else, pick next road randomly.
+        - Else, pick closest next road
         - If it has the same number of lanes as current road, stay in the same lane.
         - Else, pick next road's closest lane.
         :param current_index: the index of the current lane.
@@ -90,24 +90,32 @@ class RoadNetwork(object):
                 _, next_to, _ = route[0]
             # elif route:
                 # logger.warning("Route {} does not start after current road {}.".format(route[0], current_index))
-        # Randomly pick next road
+
+        # pick closest next road
         if not next_to:
             try:
-                next_to = list(self.graph[_to].keys())[np.random.randint(len(self.graph[_to]))]
+                # next_to = list(self.graph[_to].keys())[np.random.randint(len(self.graph[_to]))]
+
+                lane_candidates = []
+                for next_to in list(self.graph[_to].keys()):
+                    for l in range(len(self.graph[_to][next_to])):
+                        lane_candidates.append((_to, next_to, l))
+
+                next_lane = min(lane_candidates, key=lambda l: self.get_lane(l).distance(position))
+                return next_lane
             except KeyError:
-                # logger.warning("End of lane reached.")
                 return current_index
 
         # If next road has same number of lane, stay on the same lane
-        if len(self.graph[_from][_to]) == len(self.graph[_to][next_to]):
-            next_id = _id
-        # Else, pick closest lane
-        else:
-            lanes = range(len(self.graph[_to][next_to]))
-            next_id = min(lanes,
-                          key=lambda l: self.get_lane((_to, next_to, l)).distance(position))
+        # if len(self.graph[_from][_to]) == len(self.graph[_to][next_to]):
+            # next_id = _id
+        # # Else, pick closest lane
+        # else:
+            # lanes = range(len(self.graph[_to][next_to]))
+            # next_id = min(lanes,
+                          # key=lambda l: self.get_lane((_to, next_to, l)).distance(position))
 
-        return _to, next_to, next_id
+        # return _to, next_to, next_id
 
     def bfs_paths(self, start: str, goal: str) -> List[List[str]]:
         """

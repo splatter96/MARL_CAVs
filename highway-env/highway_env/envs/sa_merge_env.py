@@ -7,6 +7,7 @@ from highway_env.envs.common.abstract import AbstractEnv
 from highway_env.road.lane import LineType, StraightLane, SineLane, HorizontalLane
 from highway_env.road.road import Road, RoadNetwork
 from highway_env.vehicle.controller import ControlledVehicle
+from highway_env.vehicle.graphics import VehicleGraphics
 #from highway_env.vehicle.objects import Obstacle
 from highway_env.road.objects import Obstacle
 
@@ -89,7 +90,8 @@ class SingleAgentMergeEnv(AbstractEnv):
 
     def _is_terminal(self) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
-        return self.vehicle.crashed or self.vehicle.position[0] > 370 #or self.steps >= 200
+        # return self.vehicle.crashed or self.vehicle.position[0] > 370 #or self.steps >= 200
+        return self.vehicle.crashed or self.vehicle.position[0] > 530 #or self.steps >= 200
         # return self.vehicle.crashed \
                # or self.steps >= self.config["duration"] * self.config["policy_frequency"]
 
@@ -109,6 +111,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         elif self.config["traffic_density"] == 3:
             # easy mode: 13-15 HDVs
             num_HDV = np.random.choice(np.arange(13, 16), 1)[0]
+            # num_HDV = np.random.choice(np.arange(16, 19), 1)[0]
         self._make_vehicles(num_CAV, num_HDV)
         self.T = int(self.config["duration"] * self.config["policy_frequency"])
 
@@ -121,7 +124,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         net = RoadNetwork()
 
         # Highway lanes
-        self.ends = [150, 80, 80, 150]  # Before, converging, merge, after
+        self.ends = [150, 80, 200, 150]  # Before, converging, merge, after
         # self.ends = [150, 80, 40, 40, 150]  # Before, converging, merge, after
 
         c, s, n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
@@ -169,14 +172,15 @@ class SingleAgentMergeEnv(AbstractEnv):
         other_vehicles_type = utils.class_from_path(self.config["other_vehicles_type"])
         # self.controlled_vehicles = []
 
-        spawn_points_s1 = [10, 50, 90, 130, 170, 210]
-        spawn_points_s2 = [0, 40, 80, 120, 160, 200]
-        spawn_points_m = [5, 45, 85, 125, 165, 205]
+        spawn_points_s1 = [10, 50, 90, 130, 170, 210, 215]
+        spawn_points_s2 = [0, 40, 80, 120, 160, 200, 220]
+        spawn_points_m = [5, 45, 85, 125, 165, 205, 225]
         # spawn_points_m = [5, 45, 65, 85, 100, 125]
+        spawn_points_m_cav = [125, 165]
 
         # initial speed with noise and location noise
-        initial_speed = np.random.rand(num_CAV + num_HDV) * 5 + 25  # range from [25, 30]
-        loc_noise = np.random.rand(num_CAV + num_HDV) * 3 - 1.5  # range from [-1.5, 1.5]
+        initial_speed = np.random.rand(num_CAV + num_HDV) * 8 + 22  # range from [25, 30]
+        loc_noise = np.random.rand(num_CAV + num_HDV) * 6 - 3  # range from [-1.5, 1.5]
         initial_speed = list(initial_speed)
         loc_noise = list(loc_noise)
 
@@ -213,7 +217,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             road.vehicles.append(ego_vehicle2)
         else:
             # spawn point indexes on the merging road
-            spawn_point_m_c = np.random.choice(spawn_points_m, num_CAV, replace=False)
+            spawn_point_m_c = np.random.choice(spawn_points_m_cav, num_CAV, replace=False)
             spawn_point_m_c = list(spawn_point_m_c)
             for c in spawn_point_m_c:
                 spawn_points_m.remove(c)
@@ -232,34 +236,49 @@ class SingleAgentMergeEnv(AbstractEnv):
         spawn_point_s_h1 = np.random.choice(spawn_points_s1, num_HDV // 3, replace=False)
         spawn_point_s_h2 = np.random.choice(spawn_points_s2, num_HDV // 3, replace=False)
         # spawn point indexes on the merging road
-        spawn_point_m_h = np.random.choice(spawn_points_m, num_HDV - 2 * num_HDV // 3,
-                                           replace=False)
+        spawn_point_m_h = np.random.choice(spawn_points_m, num_HDV - 2 * num_HDV // 3, replace=False)
         spawn_point_s_h1 = list(spawn_point_s_h1)
         spawn_point_s_h2 = list(spawn_point_s_h2)
         spawn_point_m_h = list(spawn_point_m_h)
+
+        right_bias = 4.0
+        offramp_percentage = 0.3
+        biases = list(np.random.choice([-right_bias, right_bias], num_HDV, p=[1-offramp_percentage, offramp_percentage]))
 
         """spawn the HDV on the main road first"""
         for _ in range(num_HDV // 3):
             veh = other_vehicles_type(road, road.network.get_lane(("a", "b", 0)).position(
                     spawn_point_s_h1.pop(0) + loc_noise.pop(0), 0), speed=initial_speed.pop(0))
             # veh.route = [('a', 'b', 0), ('b', 'c', 2), ('c', 'o', 0)]
-            veh.RIGHT_BIAS = 4.0
+
+            # veh.RIGHT_BIAS = 4.0
+            # veh.RIGHT_BIAS = np.random.choice([-right_bias, right_bias], 1, p=[1-offramp_percentage, offramp_percentage])
+            veh.RIGHT_BIAS = biases.pop(0)
+            veh.color = VehicleGraphics.BLUE if veh.RIGHT_BIAS == right_bias else VehicleGraphics.GREEN
             road.vehicles.append(veh)
 
         for _ in range(num_HDV // 3):
             veh = other_vehicles_type(road, road.network.get_lane(("a", "b", 1)).position(
                     spawn_point_s_h2.pop(0) + loc_noise.pop(0), 0), speed=initial_speed.pop(0))
             # veh.route = [('a', 'b', 1), ('b', 'c', 2), ('c', 'o', 0)]
-            veh.RIGHT_BIAS = 4.0
+
+            # veh.RIGHT_BIAS = 4.0
+            # veh.RIGHT_BIAS = np.random.choice([-right_bias, right_bias], 1, p=[1-offramp_percentage, offramp_percentage])
+            veh.RIGHT_BIAS = biases.pop(0)
+            veh.color = VehicleGraphics.BLUE if veh.RIGHT_BIAS == right_bias else VehicleGraphics.GREEN
             road.vehicles.append(veh)
 
         """spawn the rest HDV on the merging road"""
         for _ in range(num_HDV - 2 * num_HDV // 3):
+        # for _ in range(num_HDV // 5):
             veh = other_vehicles_type(road, road.network.get_lane(("j", "k", 0)).position(
                     spawn_point_m_h.pop(0) + loc_noise.pop(0), 0),
                                     speed=initial_speed.pop(0))
             # veh.route = [('j', 'k', 0), ('k', 'b', 0), ('b', 'c', 1), ('c', 'd', 0)]
+
+            # all merging vehicles want on main road (left bias)
             veh.RIGHT_BIAS = -4.0
+            veh.color = VehicleGraphics.GREEN
             road.vehicles.append(veh)
 
 register(

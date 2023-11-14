@@ -23,21 +23,24 @@ class IDMVehicle(ControlledVehicle):
     # Maximum acceleration.
     ACC_MAX = 6.0  # [m/s2]
     # Desired maximum acceleration.
-    COMFORT_ACC_MAX = 3.0  # [m/s2]
+    # COMFORT_ACC_MAX = 3.0  # [m/s2]
+    COMFORT_ACC_MAX = 0.3  # [m/s2]
     # Desired maximum deceleration.
     COMFORT_ACC_MIN = -5.0  # [m/s2]
+    # COMFORT_ACC_MIN = -3.0  # [m/s2]
     # Desired jam distance to the front vehicle.
     DISTANCE_WANTED = 5.0 + ControlledVehicle.LENGTH  # [m]
     # Desired time gap to the front vehicle.
-    TIME_WANTED = 1.5  # [s]
+    TIME_WANTED = 1.4  # [s]
     # Exponent of the velocity term.
     DELTA = 4.0  # []
 
     """Lateral policy parameters"""
-    POLITENESS = 0.  # in [0, 1]
+    POLITENESS = 0.0  # in [0, 1]
     LANE_CHANGE_MIN_ACC_GAIN = 0.1  # [m/s2]
     # LANE_CHANGE_MAX_BRAKING_IMPOSED = 9.0  # [m/s2]
-    LANE_CHANGE_MAX_BRAKING_IMPOSED = 50.0  # [m/s2]
+    # LANE_CHANGE_MAX_BRAKING_IMPOSED = 50.0  # [m/s2]
+    LANE_CHANGE_MAX_BRAKING_IMPOSED = 2.0  # [m/s2]
     LANE_CHANGE_DELAY = 1.0  # [s]
     RIGHT_BIAS = 0.0 # bias for lane changes to the right
 
@@ -93,6 +96,22 @@ class IDMVehicle(ControlledVehicle):
         action['steering'] = self.steering_control(self.target_lane_index)
         action['steering'] = utils.clip(action['steering'], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
 
+
+        duTactical = 200
+        exit_lane = self.road.network.get_lane(('c','d', 1))
+
+        distance_to_exit = exit_lane.distance(self.position)
+        # print(f"{self} {distance_to_exit}")
+        # only decelearte if we are on the wrong lane
+        # print(f"{self} {self.lane_index} {self.target_lane_index}")
+        next_index = self.road.network.next_lane(self.target_lane_index, route=self.route, position=self.position)
+
+        if not self.on_track():
+            # print(f"{self} decel needed {distance_to_exit/duTactical}")
+            self.alpha_v0 = max(0.2, distance_to_exit/duTactical)
+        else: # reset after passing exit
+            self.alpha_v0 = 1
+
         # Longitudinal: IDM
         action['acceleration'] = self.acceleration(ego_vehicle=self,
                                                    front_vehicle=front_vehicle,
@@ -100,6 +119,16 @@ class IDMVehicle(ControlledVehicle):
         # action['acceleration'] = self.recover_from_stop(action['acceleration'])
         action['acceleration'] = utils.clip(action['acceleration'], -self.ACC_MAX, self.ACC_MAX)
         Vehicle.act(self, action)  # Skip ControlledVehicle.act(), or the command will be overriden.
+
+    def on_track(self):
+        if not (self.lane_index[0] == 'b' or self.lane_index[1] == 'c'):
+            return True
+        if (self.lane_index == ('b', 'c', 0) or self.lane_index == ('b', 'c', 1)) and self.RIGHT_BIAS < -0.1:
+            return True
+        elif self.lane_index == ('b', 'c', 2) and self.RIGHT_BIAS > 0.1:
+            return True
+        else:
+            return False
 
     def step(self, dt: float):
         """
@@ -131,6 +160,10 @@ class IDMVehicle(ControlledVehicle):
         if not ego_vehicle or isinstance(ego_vehicle, RoadObject):
             return 0
         ego_target_speed = utils.not_zero(getattr(ego_vehicle, "target_speed", 0))
+
+        # adjust target speed for special circumstances
+        ego_target_speed *= ego_vehicle.alpha_v0
+
         acceleration = self.COMFORT_ACC_MAX * (
                 1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
 
@@ -233,9 +266,13 @@ class IDMVehicle(ControlledVehicle):
         new_preceding, new_following = self.road.surrounding_vehicles(self, lane_index)
         old_preceding, old_following = self.road.surrounding_vehicles(self)
 
+        # print(f"{self} {new_preceding} {new_following} {old_preceding} {old_following}")
+
         self_pred_a = self.acceleration(ego_vehicle=self, front_vehicle=new_preceding)
         new_following_a = self.acceleration(ego_vehicle=new_following, front_vehicle=new_preceding)
         new_following_pred_a = self.acceleration(ego_vehicle=new_following, front_vehicle=self)
+
+        # print(f"{self} {new_following_pred_a}")
 
         # unsafe braking required?
         if new_following_pred_a < -self.LANE_CHANGE_MAX_BRAKING_IMPOSED:
