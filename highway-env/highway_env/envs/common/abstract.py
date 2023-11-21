@@ -665,9 +665,14 @@ class AbstractEnv(gym.Env):
         self.vehicle_speed = [v.speed for v in self.controlled_vehicles]
         self.vehicle_pos = [v.position for v in self.controlled_vehicles]
 
+        # did any other vehicle on the road crash?
+        other_vehciles = filter(lambda v: v != self.vehicle, self.road.vehicles)
+        crashes = [veh.crashed for veh in other_vehciles]
+
         info = {
             "speed": self.vehicle.speed,
             "crashed": self.vehicle.crashed,
+            "other_crashes": any(crashes),
             "action": action,
             "new_action": self.new_action,
             "action_mask": available_actions,

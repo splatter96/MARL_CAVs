@@ -23,24 +23,25 @@ class IDMVehicle(ControlledVehicle):
     # Maximum acceleration.
     ACC_MAX = 6.0  # [m/s2]
     # Desired maximum acceleration.
-    # COMFORT_ACC_MAX = 3.0  # [m/s2]
-    COMFORT_ACC_MAX = 0.3  # [m/s2]
+    COMFORT_ACC_MAX = 3.0  # [m/s2]
+    # COMFORT_ACC_MAX = 0.3  # [m/s2]
     # Desired maximum deceleration.
     COMFORT_ACC_MIN = -5.0  # [m/s2]
     # COMFORT_ACC_MIN = -3.0  # [m/s2]
     # Desired jam distance to the front vehicle.
     DISTANCE_WANTED = 5.0 + ControlledVehicle.LENGTH  # [m]
     # Desired time gap to the front vehicle.
-    TIME_WANTED = 1.4  # [s]
+    TIME_WANTED = 1.5  # [s]
+    # TIME_WANTED = 1.7  # [s]
     # Exponent of the velocity term.
     DELTA = 4.0  # []
 
     """Lateral policy parameters"""
     POLITENESS = 0.0  # in [0, 1]
     LANE_CHANGE_MIN_ACC_GAIN = 0.1  # [m/s2]
-    # LANE_CHANGE_MAX_BRAKING_IMPOSED = 9.0  # [m/s2]
-    # LANE_CHANGE_MAX_BRAKING_IMPOSED = 50.0  # [m/s2]
-    LANE_CHANGE_MAX_BRAKING_IMPOSED = 2.0  # [m/s2]
+    LANE_CHANGE_MAX_BRAKING_IMPOSED = 9.0  # [m/s2]
+    # LANE_CHANGE_MAX_BRAKING_IMPOSED = 40.0  # [m/s2]
+    # LANE_CHANGE_MAX_BRAKING_IMPOSED = 1.0  # [m/s2]
     LANE_CHANGE_DELAY = 1.0  # [s]
     RIGHT_BIAS = 0.0 # bias for lane changes to the right
 
@@ -88,7 +89,8 @@ class IDMVehicle(ControlledVehicle):
         if self.crashed:
             return
         action = {}
-        front_vehicle, rear_vehicle = self.road.neighbour_vehicles(self)
+        # front_vehicle, rear_vehicle = self.road.neighbour_vehicles(self)
+        front_vehicle, rear_vehicle = self.road.surrounding_vehicles(self)
         # Lateral: MOBIL
         self.follow_road()
         if self.enable_lane_change:
@@ -96,21 +98,23 @@ class IDMVehicle(ControlledVehicle):
         action['steering'] = self.steering_control(self.target_lane_index)
         action['steering'] = utils.clip(action['steering'], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
 
-
         duTactical = 200
         exit_lane = self.road.network.get_lane(('c','d', 1))
 
         distance_to_exit = exit_lane.distance(self.position)
-        # print(f"{self} {distance_to_exit}")
-        # only decelearte if we are on the wrong lane
-        # print(f"{self} {self.lane_index} {self.target_lane_index}")
-        next_index = self.road.network.next_lane(self.target_lane_index, route=self.route, position=self.position)
 
+        # only decelearte if we are on the wrong lane
         if not self.on_track():
-            # print(f"{self} decel needed {distance_to_exit/duTactical}")
             self.alpha_v0 = max(0.2, distance_to_exit/duTactical)
         else: # reset after passing exit
             self.alpha_v0 = 1
+
+        # currently lane change happening
+        if self.target_lane_index != self.lane_index:
+            front_vehicle, _ =  self.road.surrounding_vehicles(self, self.target_lane_index)
+            # _, front_vehicle =  self.road.surrounding_vehicles(self, self.target_lane_index)
+            # if self.id == 3:
+                # print("LC happeing")
 
         # Longitudinal: IDM
         action['acceleration'] = self.acceleration(ego_vehicle=self,
@@ -118,6 +122,8 @@ class IDMVehicle(ControlledVehicle):
                                                    rear_vehicle=rear_vehicle)
         # action['acceleration'] = self.recover_from_stop(action['acceleration'])
         action['acceleration'] = utils.clip(action['acceleration'], -self.ACC_MAX, self.ACC_MAX)
+        # if self.id == 3:
+            # print(f"accel {action['acceleration']} speed {self.speed} front veh {front_vehicle}")
         Vehicle.act(self, action)  # Skip ControlledVehicle.act(), or the command will be overriden.
 
     def on_track(self):
@@ -167,12 +173,23 @@ class IDMVehicle(ControlledVehicle):
         acceleration = self.COMFORT_ACC_MAX * (
                 1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
 
+
+        # if self.id == 7:
+            # print(f"{self} front before {front_vehicle}")
+
         # currently lane change happening
-        if not front_vehicle and (self.target_lane_index != self.lane_index):
-            _, front_vehicle =  self.road.neighbour_vehicles(self, self.target_lane_index)
+        # if not front_vehicle and (self.target_lane_index != self.lane_index):
+            # # _, front_vehicle =  self.road.neighbour_vehicles(self, self.target_lane_index)
+            # _, front_vehicle =  self.road.surrounding_vehicles(self, self.target_lane_index)
+
+        # if self.id == 9:
+            # print(f"{self} front after {front_vehicle}")
 
         if front_vehicle:
             d = ego_vehicle.lane_distance_to(front_vehicle)
+            # if self.id == 3:
+                # print(f"looking at {ego_vehicle} {front_vehicle}")
+                # print(f"current gap {d} desired gap {self.desired_gap(ego_vehicle, front_vehicle)}")
             acceleration -= self.COMFORT_ACC_MAX * \
                             np.power(self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d), 2)
         return acceleration
@@ -191,6 +208,8 @@ class IDMVehicle(ControlledVehicle):
         ab = -self.COMFORT_ACC_MAX * self.COMFORT_ACC_MIN
         dv = np.dot(ego_vehicle.velocity - front_vehicle.velocity, ego_vehicle.direction) if projected \
             else ego_vehicle.speed - front_vehicle.speed
+        # if (ego_vehicle.id == 3 and front_vehicle.id == 6) or (ego_vehicle.id == 7 and front_vehicle.id ==6):
+            # print(f"Deltav dv {dv} between {ego_vehicle.id} {ego_vehicle.speed} and {front_vehicle.id} {front_vehicle.speed}")
         d_star = d0 + ego_vehicle.speed * tau + ego_vehicle.speed * dv / (2 * np.sqrt(ab))
         return d_star
 
@@ -266,13 +285,16 @@ class IDMVehicle(ControlledVehicle):
         new_preceding, new_following = self.road.surrounding_vehicles(self, lane_index)
         old_preceding, old_following = self.road.surrounding_vehicles(self)
 
-        # print(f"{self} {new_preceding} {new_following} {old_preceding} {old_following}")
+        # if self.id == 13:
+            # print(f"{self} {new_preceding} {new_following} {old_preceding} {old_following}")
 
         self_pred_a = self.acceleration(ego_vehicle=self, front_vehicle=new_preceding)
         new_following_a = self.acceleration(ego_vehicle=new_following, front_vehicle=new_preceding)
         new_following_pred_a = self.acceleration(ego_vehicle=new_following, front_vehicle=self)
 
-        # print(f"{self} {new_following_pred_a}")
+        # if self.id == 13:
+            # print(f"{self} {new_following_pred_a}")
+            # print(f"{self} {self_pred_a}")
 
         # unsafe braking required?
         if new_following_pred_a < -self.LANE_CHANGE_MAX_BRAKING_IMPOSED:
@@ -280,6 +302,8 @@ class IDMVehicle(ControlledVehicle):
 
         # Is there an acceleration advantage for me and/or my followers to change lane?
         self_a = self.acceleration(ego_vehicle=self, front_vehicle=old_preceding)
+        # if self.id == 8:
+            # print(f"{self} {self_a=}")
         old_following_a = self.acceleration(ego_vehicle=old_following, front_vehicle=self)
         old_following_pred_a = self.acceleration(ego_vehicle=old_following, front_vehicle=old_preceding)
         jerk = self_pred_a - self_a + self.POLITENESS * (new_following_pred_a - new_following_a

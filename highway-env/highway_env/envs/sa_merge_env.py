@@ -129,8 +129,8 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         c, s, n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
         y = [0, StraightLane.DEFAULT_WIDTH]
-        line_type = [[c, s], [n, c]]
-        line_type_merge = [[c, s], [n, s]]
+        line_type = [(c, s), (n, c)]
+        line_type_merge = [(c, s), (n, s)]
         for i in range(2):
             net.add_lane("a", "b", HorizontalLane([0, y[i]], [sum(self.ends[:2]), y[i]], line_types=line_type[i]))
             net.add_lane("b", "c", HorizontalLane([sum(self.ends[:2]), y[i]], [sum(self.ends[:3]), y[i]], line_types=line_type_merge[i]))
@@ -139,19 +139,19 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         # Merging lane
         amplitude = 3.25
-        ljk = HorizontalLane([0, 6.5 + 4 + 4], [self.ends[0], 6.5 + 4 + 4], line_types=[c, c], forbidden=True)
+        ljk = HorizontalLane([0, 6.5 + 4 + 4], [self.ends[0], 6.5 + 4 + 4], line_types=(c, c), forbidden=True)
 
         lkb = SineLane(ljk.position(self.ends[0], -amplitude), ljk.position(sum(self.ends[:2]), -amplitude),
-                       amplitude, 2 * np.pi / (2*self.ends[1]), np.pi / 2, line_types=[c, c], forbidden=True)
+                       amplitude, 2 * np.pi / (2*self.ends[1]), np.pi / 2, line_types=(c, c), forbidden=True)
 
         lbc = HorizontalLane(lkb.position(self.ends[1], 0), lkb.position(self.ends[1], 0) + [self.ends[2], 0],
-                           line_types=[n, c], forbidden=False)
+                           line_types=(n, c), forbidden=False)
         # lcd = HorizontalLane(lbc.position(self.ends[2], 0), lbc.position(self.ends[2], 0) + [self.ends[3], 0],
                            # line_types=[n, c], forbidden=True)
         #off ramp
         # lco = StraightLane(lcd.position(self.ends[2], 0), lcd.position(self.ends[2]+80, 6.5), line_types=[c, c], forbidden=True)
-        lco = StraightLane(lbc.position(self.ends[2], 0), lbc.position(self.ends[2]+80, 6.5), line_types=[c, c], forbidden=True)
-        lou = HorizontalLane([sum(self.ends[:3])+80, 6.5+4+4], [sum(self.ends[:3])+80+70, 6.5+4+4], line_types=[c, c], forbidden=True)
+        lco = StraightLane(lbc.position(self.ends[2], 0), lbc.position(self.ends[2]+80, 6.5), line_types=(c, c), forbidden=True)
+        lou = HorizontalLane([sum(self.ends[:3])+80, 6.5+4+4], [sum(self.ends[:3])+80+70, 6.5+4+4], line_types=(c, c), forbidden=True)
 
         net.add_lane("j", "k", ljk)
         net.add_lane("k", "b", lkb)
@@ -172,7 +172,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         other_vehicles_type = utils.class_from_path(self.config["other_vehicles_type"])
         # self.controlled_vehicles = []
 
-        spawn_points_s1 = [10, 50, 90, 130, 170, 210, 215]
+        spawn_points_s1 = [10, 50, 90, 130, 170, 210, 225]
         spawn_points_s2 = [0, 40, 80, 120, 160, 200, 220]
         spawn_points_m = [5, 45, 85, 125, 165, 205, 225]
         # spawn_points_m = [5, 45, 65, 85, 100, 125]
@@ -241,7 +241,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         spawn_point_s_h2 = list(spawn_point_s_h2)
         spawn_point_m_h = list(spawn_point_m_h)
 
-        right_bias = 4.0
+        right_bias = 8.0
         offramp_percentage = 0.3
         biases = list(np.random.choice([-right_bias, right_bias], num_HDV, p=[1-offramp_percentage, offramp_percentage]))
 
