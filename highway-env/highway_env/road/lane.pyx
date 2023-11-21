@@ -15,7 +15,7 @@ class AbstractLane(object):
     DEFAULT_WIDTH: float = 4
     VEHICLE_LENGTH: float = 5
     length: float = 0
-    line_types: List["LineType"]
+    line_types: Tuple["LineType"]
 
     @abstractmethod
     def position(self, longitudinal: float, lateral: float) -> np.ndarray:
@@ -90,7 +90,7 @@ class AbstractLane(object):
             0 <= longitudinal < self.length + self.VEHICLE_LENGTH
         return is_close
 
-    def after_end(self, position: np.ndarray, longitudinal: float = None, lateral: float = None) -> bool:
+    def after_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None) -> bool:
         if not longitudinal:
             longitudinal, _ = self.local_coordinates(position)
         # return longitudinal > self.length - self.VEHICLE_LENGTH / 2
@@ -104,12 +104,18 @@ class AbstractLane(object):
     # @profile
     def distance_with_heading(self, position: np.ndarray, heading: Optional[float], heading_weight: float = 1.0):
         """Compute a weighted distance in position and heading to the lane."""
-        if heading is None:
-            return self.distance(position)
-        s, r = self.local_coordinates(position)
-        angle = abs(wrap_to_pi(heading - self.heading_at(s)))
-        return abs(r) + max(s - self.length, 0) + max(0 - s, 0) + heading_weight*angle
+        # if heading is None:
+            # return self.distance(position)
+        # s, r = self.local_coordinates(position)
+        # # angle = abs(wrap_to_pi(heading - self.heading_at(s)))
+        # return abs(r) + max(s - self.length, 0) + max(0 - s, 0) #+ heading_weight*angle
 
+        cdef float s, r, length
+        coords = self.local_coordinates(position)
+        s = coords[0]
+        r = coords[1]
+        length = self.length
+        return abs(r) + max(s - length, 0) + max( -s, 0) #+ heading_weight*angle
 
 class LineType:
 
@@ -169,8 +175,22 @@ class StraightLane(AbstractLane):
     # @profile
     def local_coordinates(self, position: np.ndarray) -> Tuple[float, float]:
         delta = position - self.start
-        longitudinal = np.dot(delta, self.direction)
-        lateral = np.dot(delta, self.direction_lateral)
+        _dir = self.direction
+        _dir_lat = self.direction_lateral
+
+        cdef float dx, dy, dir_x, dir_y, dir_lat_x, dir_lat_y
+        dx = delta[0]
+        dy = delta[1]
+        dir_x = _dir[0]
+        dir_y = _dir[1]
+        dir_lat_x = _dir_lat[0]
+        dir_lat_y = _dir_lat[1]
+
+        longitudinal = dx * dir_x + dy * dir_y
+        lateral  = dx * dir_lat_x + dy * dir_lat_y
+
+        # longitudinal = np.dot(delta, self.direction)
+        # lateral = np.dot(delta, self.direction_lateral)
         # print(f"{self.__class__.__name__}{longitudinal=}{lateral=}")
         return longitudinal, lateral
 
@@ -190,6 +210,13 @@ class HorizontalLane(StraightLane):
         assert(start[1] == end[1])
         super().__init__(start, end,  width, line_types, forbidden, speed_limit, priority)
 
+        # self.cos_heading = np.cos(self.heading)
+        # self.sin_heading = np.sin(self.heading)
+
+        self.vec = self.end - self.start
+        self.norm_vec = np.linalg.norm(self.vec)
+
+
     # @profile
     def local_coordinates(self, position: np.ndarray) -> Tuple[float, float]:
         return position[0] - self.start[0], position[1] - self.start[1]
@@ -199,11 +226,34 @@ class HorizontalLane(StraightLane):
         """Compute a weighted distance in position and heading to the lane."""
         # if heading is None:
             # return self.distance(position)
-        s, r = self.local_coordinates(position)
-        angle = abs(wrap_to_pi(heading))
-        # print(abs(r))
-        # print(max(s-self.length,0) + max(-s, 0))
-        return abs(r) + max(s - self.length, 0) + max(-s, 0) + heading_weight*angle
+        cdef float s, r, length
+        # s, r = self.local_coordinates(position)
+        # angle = abs(wrap_to_pi(heading))
+
+        d = position - self.start
+        s = d[0]
+        r = d[1]
+        length = self.length
+
+        # return abs(r) + max(s - self.length, 0) + max(-s, 0) #+ heading_weight*angle
+        return abs(r) + max(s - length, 0) + max(-s, 0) #+ heading_weight*angle
+
+        ## Version only works for infinite lines, not line segments :(
+        # a = self.vec
+        # b = position-self.start
+        # # fast hacky cross product
+        # c = a[0]*b[1] - a[1]*b[0]
+
+        # # return np.cross(self.vec, position-self.start) / self.norm_vec
+        # return c / self.norm_vec
+
+        # Version 3
+        # d = position - self.start
+        # return np.abs(d[1]) + np.max([-d[0], d[0] - self.norm_vec])
+        # return 0
+        # return d[1] + np.max([-d[0], d[0] - self.norm_vec])
+        # return np.sum([np.abs(d[1]),  np.max([-d[0], d[0] - self.norm_vec])])
+
 
 
 class SineLane(StraightLane):
@@ -217,7 +267,7 @@ class SineLane(StraightLane):
                  pulsation: float,
                  phase: float,
                  width: float = StraightLane.DEFAULT_WIDTH,
-                 line_types: List[LineType] = None,
+                 line_types: Tuple[LineType] = None,
                  forbidden: bool = False,
                  speed_limit: float = 20,
                  priority: int = 0) -> None:
@@ -259,7 +309,7 @@ class CircularLane(AbstractLane):
                  end_phase: float,
                  clockwise: bool = True,
                  width: float = AbstractLane.DEFAULT_WIDTH,
-                 line_types: List[LineType] = None,
+                 line_types: Tuple[LineType] = None,
                  forbidden: bool = False,
                  speed_limit: float = 20,
                  priority: int = 0) -> None:

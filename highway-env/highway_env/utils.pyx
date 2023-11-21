@@ -14,10 +14,21 @@ def clip(value, low, high):
     return min(max(low, value), high)
 
 def norm(p1, p2):
-    return (
-            ((p1[0] - p2[0]) ** 2) +
-            ((p1[1] - p2[1]) ** 2)
-            ) ** 0.5
+    # dont use the sqrt to save some time (comparison need to be made against squares)
+    # return ((p1[0] - p2[0]) ** 2) + ((p1[1] - p2[1]) ** 2)
+
+    cdef float x1, y1, x2, y2
+    x1 = p1[0]
+    y1 = p1[1]
+    x2 = p2[0]
+    y2 = p2[1]
+
+    return ((x1 - x2) ** 2) + ((y1 - y2) ** 2)
+
+    # return (
+            # ((p1[0] - p2[0]) ** 2) +
+            # ((p1[1] - p2[1]) ** 2)
+            # ) ** 0.5
 
 
 def do_every(duration: float, timer: float) -> bool:

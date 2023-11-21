@@ -26,6 +26,7 @@ class Vehicle(object):
     """ Enable collision detection between vehicles """
 
     LENGTH = 5.0
+    LENGTH_SQUARE = LENGTH ** 2 # Nedded for faster distance comparison
     """ Vehicle length [m] """
     WIDTH = 2.0
     """ Vehicle width [m] """
@@ -37,14 +38,14 @@ class Vehicle(object):
     def __init__(self,
                  road: Road,
                  position: Vector,
-                 heading: float = 0,
-                 speed: float = 0):
+                 heading: float = 0.0,
+                 speed: float = 0.0):
         self.road = road
         # self.position = np.array(position, dtype=float)
         self.position = position
         self.heading = heading
         self.speed = speed
-        self.lane_index = self.road.network.get_closest_lane_index(self.position, self.heading) if self.road else np.nan
+        self.lane_index = self.road.network.get_closest_lane_index(self.position, float(self.heading)) if self.road else np.nan
         self.lane = self.road.network.get_lane(self.lane_index) if self.road else None
         self.action = {'steering': 0, 'acceleration': 0}
         self.trajectories = []
@@ -155,7 +156,7 @@ class Vehicle(object):
 
     def on_state_update(self) -> None:
         if self.road:
-            self.lane_index = self.road.network.get_closest_lane_index(self.position, self.heading)
+            self.lane_index = self.road.network.get_closest_lane_index(self.position, float(self.heading))
             self.lane = self.road.network.get_lane(self.lane_index)
             if self.road.record_history:
                 self.history.appendleft(self.create_from(self))
@@ -203,7 +204,8 @@ class Vehicle(object):
 
     def _is_colliding(self, other):
         # Fast spherical pre-check
-        if utils.norm(other.position, self.position) > self.LENGTH:
+        # if utils.norm(other.position, self.position) > self.LENGTH:
+        if utils.norm(other.position, self.position) > self.LENGTH_SQUARE:
             return False
         # Accurate rectangular check
         return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),

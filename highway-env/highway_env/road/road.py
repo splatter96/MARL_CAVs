@@ -19,6 +19,9 @@ Route = List[LaneIndex]
 
 class RoadNetwork(object):
     graph: Dict[str, Dict[str, List[AbstractLane]]]
+    lane_indices: List[LaneIndex]
+
+    lane_indices = []
 
     def __init__(self):
         self.graph = {}
@@ -57,13 +60,25 @@ class RoadNetwork(object):
         :param heading: a heading angle [rad].
         :return: the index of the closest lane.
         """
-        indexes, distances = [], []
-        for _from, to_dict in self.graph.items():
-            for _to, lanes in to_dict.items():
-                for _id, l in enumerate(lanes):
-                    distances.append(l.distance_with_heading(position, heading))
-                    indexes.append((_from, _to, _id))
-        return indexes[utils.argmin(distances)]
+        # indexes, distances = [], []
+        # for _from, to_dict in self.graph.items():
+            # for _to, lanes in to_dict.items():
+                # for _id, l in enumerate(lanes):
+                    # distances.append(l.distance_with_heading(position, heading))
+                    # indexes.append((_from, _to, _id))
+        # return indexes[utils.argmin(distances)]
+
+        if not self.lane_indices:
+            for _from, to_dict in self.graph.items():
+                for _to, lanes in to_dict.items():
+                    for _id, l in enumerate(lanes):
+                        self.lane_indices.append((_from, _to, _id))
+
+        # for l in self.lane_indices:
+            # print(l)
+            # print(self.get_lane(l).distance_with_heading(position, heading))
+
+        return min(self.lane_indices, key=lambda l:self.get_lane(l).distance_with_heading(position, float(heading)))
 
     def next_lane(self, current_index: LaneIndex, route: Route = None, position: np.ndarray = None,
                   np_random: np.random.RandomState = np.random) -> LaneIndex:
