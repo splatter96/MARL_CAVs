@@ -280,6 +280,8 @@ class Road(object):
 
     def close_vehicles_to(self, vehicle: 'kinematics.Vehicle', distance: float, count: int = None,
                           see_behind: bool = True) -> object:
+
+        distance = distance**2 #need to square it, because hacky norm does not use sqrt
         vehicles = [v for v in self.vehicles
                     # if np.linalg.norm(v.position - vehicle.position) < distance
                     if utils.norm(v.position, vehicle.position) < distance
