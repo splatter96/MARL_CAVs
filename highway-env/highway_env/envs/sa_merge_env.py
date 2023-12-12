@@ -90,8 +90,8 @@ class SingleAgentMergeEnv(AbstractEnv):
 
     def _is_terminal(self) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
-        # return self.vehicle.crashed or self.vehicle.position[0] > 370 #or self.steps >= 200
-        return self.vehicle.crashed or self.vehicle.position[0] > 530 #or self.steps >= 200
+        return self.vehicle.crashed or self.vehicle.position[0] > 370 #or self.steps >= 200
+        # return self.vehicle.crashed or self.vehicle.position[0] > 530 #or self.steps >= 200
         # return self.vehicle.crashed \
                # or self.steps >= self.config["duration"] * self.config["policy_frequency"]
 
@@ -124,7 +124,8 @@ class SingleAgentMergeEnv(AbstractEnv):
         net = RoadNetwork()
 
         # Highway lanes
-        self.ends = [150, 80, 200, 150]  # Before, converging, merge, after
+        #self.ends = [150, 80, 200, 150]  # Before, converging, merge, after
+        self.ends = [150, 80, 80, 150]  # Before, converging, merge, after
         # self.ends = [150, 80, 40, 40, 150]  # Before, converging, merge, after
 
         c, s, n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
@@ -156,11 +157,11 @@ class SingleAgentMergeEnv(AbstractEnv):
         net.add_lane("j", "k", ljk)
         net.add_lane("k", "b", lkb)
         net.add_lane("b", "c", lbc)
-        net.add_lane("c", "o", lco)
+        #net.add_lane("c", "o", lco)
         # net.add_lane("d", "o", ldo) #off ramp
-        net.add_lane("o", "u", lou) #off ramp
+        #net.add_lane("o", "u", lou) #off ramp
         road = Road(network=net, np_random=self.np_random, record_history=self.config["show_trajectories"])
-        # road.objects.append(Obstacle(road, lbc.position(self.ends[2], 0)))
+        road.objects.append(Obstacle(road, lbc.position(self.ends[2], 0)))
         self.road = road
 
     def _make_vehicles(self, num_CAV=1, num_HDV=3) -> None:
