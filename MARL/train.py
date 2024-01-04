@@ -148,7 +148,6 @@ def train(args):
 
     eval_callback = EveryNTimesteps(n_steps=500, callback=custom_eval)
 
-
     checkpoint_log_speed = TensorboardCallback()
     model = SACD('MlpPolicy', env,
                   policy_kwargs=dict(net_arch=[256, 256]),

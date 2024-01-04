@@ -22,9 +22,11 @@ done  = False
 action = env.action_type.actions_indexes["SLOWER"]
 
 #warmup step
-for _ in range(5):
+for _ in range(50):
     env.step(action)
 
+
+env.reset()
 
 # import cProfile, pstats
 # profiler = cProfile.Profile()
@@ -35,12 +37,12 @@ for _ in range(1000):
     env.step(action)
     # obs, reward, done, info = env.step(action)
     # print(obs)
-    time.sleep(0.1)
-    env.render()
+    # time.sleep(0.1)
+    # env.render()
 
 end = time.time()
 print(f"Took {(end-start)/1000 * 1000}")
 
 # profiler.disable()
 # stats = pstats.Stats(profiler)
-# stats.dump_stats('myProfile_opt1.log')
+# stats.dump_stats('new_distance_with_heading.log')

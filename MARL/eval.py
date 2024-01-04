@@ -51,6 +51,7 @@ def eval_policy(args):
 
     num_tries = args.num_runs
     crashes = 0
+    other_crashes = 0
     speed = 0
     road_speed = 0
     total_steps = 0
@@ -59,7 +60,13 @@ def eval_policy(args):
     if args.traj_dir != '' and not os.path.exists(args.traj_dir):
         os.mkdir(args.traj_dir)
 
+    j = 0
     t = tqdm(range(num_tries))
+    start = time.time()
+    # import cProfile, pstats
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+
     for i in t:
       done = truncated = False
       obs, info = env.reset()
@@ -79,6 +86,7 @@ def eval_policy(args):
             action = None
         obs, reward, done, truncated, info = env.step(action)
         ret += reward
+        # print(obs)
 
         speed += info["average_speed"]
         road_speed += info["average_road_speed"]
@@ -92,20 +100,34 @@ def eval_policy(args):
             env.render()
             time.sleep(0.1)
 
+      if info["other_crashes"]:
+          # print("crash happened")
+          other_crashes += 1
+
       if info['crashed']:
           crashes += 1
 
+      j += 1
+
+      if info['crashed']:
+      # if info["other_crashes"]:
           # only save trajectories if we didn't load any in the first place
           if args.initial_pos == '':
               np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
 
-      if args.traj_dir != '':
-          np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(position_list))
+      # if args.traj_dir != '':
+          # np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(position_list))
 
       # print(f"Episode done crashed:{info['crashed']}")
       # print(f"Current crashrate {crashes/(i+1)}")
-      t.set_description(f"Crashrate {crashes/(i+1)}")
+      t.set_description(f"Crashrate {crashes/(i+1)} Other crashes {other_crashes/(i+1)}")
 
+    # profiler.disable()
+    # stats = pstats.Stats(profiler)
+    # stats.dump_stats('eval_new.log')
+
+    end = time.time()
+    print(f"Took {(end-start)/j}")
     print(f"Crashrate {crashes/num_tries}")
     print(f"Average ego vehicle speed {speed/total_steps}")
     print(f"Average speed of all cars {road_speed/total_steps}")
