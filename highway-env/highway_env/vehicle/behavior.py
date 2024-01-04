@@ -105,9 +105,9 @@ class IDMVehicle(ControlledVehicle):
 
         # only decelearte if we are on the wrong lane
         if not self.on_track():
-            self.alpha_v0 = max(0.2, distance_to_exit/duTactical)
+          self.alpha_v0 = max(0.2, distance_to_exit/duTactical)
         else: # reset after passing exit
-            self.alpha_v0 = 1
+          self.alpha_v0 = 1
 
         # currently lane change happening
         if self.target_lane_index != self.lane_index:
@@ -129,9 +129,9 @@ class IDMVehicle(ControlledVehicle):
     def on_track(self):
         if not (self.lane_index[0] == 'b' or self.lane_index[1] == 'c'):
             return True
-        if (self.lane_index == ('b', 'c', 0) or self.lane_index == ('b', 'c', 1)) and self.RIGHT_BIAS < -0.1:
+        if (self.lane_index == ('b', 'c', 0) or self.lane_index == ('b', 'c', 1)) and self.RIGHT_BIAS < -0.01:
             return True
-        elif self.lane_index == ('b', 'c', 2) and self.RIGHT_BIAS > 0.1:
+        elif self.lane_index == ('b', 'c', 2): # Merging vehicles #and self.RIGHT_BIAS > 0.1:
             return True
         else:
             return False
@@ -167,8 +167,10 @@ class IDMVehicle(ControlledVehicle):
             return 0
         ego_target_speed = utils.not_zero(getattr(ego_vehicle, "target_speed", 0))
 
+
         # adjust target speed for special circumstances
         ego_target_speed *= ego_vehicle.alpha_v0
+        
 
         acceleration = self.COMFORT_ACC_MAX * (
                 1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
@@ -194,7 +196,7 @@ class IDMVehicle(ControlledVehicle):
                             np.power(self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d), 2)
         return acceleration
 
-    def desired_gap(self, ego_vehicle: Vehicle, front_vehicle: Vehicle = None, projected: bool = True) -> float:
+    def desired_gap(self, ego_vehicle: Vehicle, front_vehicle: Vehicle = None, projected: bool = False) -> float:
         """
         Compute the desired distance between a vehicle and its leading vehicle.
 
