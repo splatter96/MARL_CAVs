@@ -39,6 +39,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             "reward_speed_range": [10, 30],
             "collision_reward": 200,
             "high_speed_reward": 1,
+            "offramp_reward": 100,
             "HEADWAY_COST": 4,  # default=1
             #"HEADWAY_COST": 1,  # default=1
             "HEADWAY_TIME": 1.2,  # default=1.2[s]
@@ -72,6 +73,12 @@ class SingleAgentMergeEnv(AbstractEnv):
         else:
             Merging_lane_cost = 0
 
+        # give penalty if the agent drives on the offramp
+        if vehicle.lane_index == ("c", "o", 0):
+            offramp_cost = self.config["offramp_reward"]
+        else:
+            offramp_cost = 0
+
         # lane change cost to avoid unnecessary/frequent lane changes
         Lane_change_cost = -1 * self.config["LANE_CHANGE_COST"] if action == 0 or action == 2 else 0
         # compute headway cost
@@ -84,14 +91,16 @@ class SingleAgentMergeEnv(AbstractEnv):
                  + (self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1)) \
                  + self.config["MERGING_LANE_COST"] * Merging_lane_cost \
                  + self.config["HEADWAY_COST"] * (Headway_cost if Headway_cost < 0 else 0) \
-                 + Lane_change_cost
+                 + Lane_change_cost \
+                 + offramp_cost
         return reward
 
 
     def _is_terminal(self) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
         # return self.vehicle.crashed or self.vehicle.position[0] > 370 #or self.steps >= 200
-        return self.vehicle.crashed or self.vehicle.position[0] > 500 #or self.steps >= 200
+        return self.vehicle.crashed or self.vehicle.position[0] > 500 \
+                or self.vehicle.lane_index == ('c', 'o', 0) # end the episode if the vehicle drives off ramp
         # return self.vehicle.crashed \
                # or self.steps >= self.config["duration"] * self.config["policy_frequency"]
 

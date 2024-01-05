@@ -669,6 +669,10 @@ class AbstractEnv(gym.Env):
         other_vehciles = filter(lambda v: v != self.vehicle, self.road.vehicles)
         crashes = [veh.crashed for veh in other_vehciles]
 
+        # did the ego vehicle merge succesfully
+        ego_veh_lane = self.road.network.get_closest_lane_index(self.controlled_vehicles[0].position, 0.0)
+        merged = ego_veh_lane == ('c', 'd', 0) or ego_veh_lane == ('c', 'd', 1)
+
         info = {
             "speed": self.vehicle.speed,
             "crashed": self.vehicle.crashed,
@@ -679,7 +683,8 @@ class AbstractEnv(gym.Env):
             "average_speed": average_speed,
             "average_road_speed": average_road_speed,
             "vehicle_speed": self.vehicle_speed,
-            "vehicle_position": self.vehicle_pos
+            "vehicle_position": self.vehicle_pos,
+            "merged": merged
         }
 
         # if terminal:

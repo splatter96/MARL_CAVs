@@ -55,6 +55,7 @@ def eval_policy(args):
     speed = 0
     road_speed = 0
     total_steps = 0
+    sucessfull_merges = 0
 
     # create the output directory if we need to save the trajectories
     if args.traj_dir != '' and not os.path.exists(args.traj_dir):
@@ -107,6 +108,9 @@ def eval_policy(args):
       if info['crashed']:
           crashes += 1
 
+      if info['merged']:
+          sucessfull_merges += 1
+
       j += 1
 
       if info['crashed']:
@@ -120,7 +124,8 @@ def eval_policy(args):
 
       # print(f"Episode done crashed:{info['crashed']}")
       # print(f"Current crashrate {crashes/(i+1)}")
-      t.set_description(f"Crashrate {crashes/(i+1)} Other crashes {other_crashes/(i+1)}")
+      # t.set_description(f"Crashrate {crashes/(i+1)} Other crashes {other_crashes/(i+1)}")
+      t.set_description(f"Crashrate {crashes/(i+1)} Mergerate {sucessfull_merges/(i+1)}")
 
     # profiler.disable()
     # stats = pstats.Stats(profiler)
