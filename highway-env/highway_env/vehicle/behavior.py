@@ -58,6 +58,9 @@ class IDMVehicle(ControlledVehicle):
         super().__init__(road, position, heading, speed, target_lane_index, target_speed, route)
         self.enable_lane_change = enable_lane_change
         self.timer = timer or (np.sum(self.position) * np.pi) % self.LANE_CHANGE_DELAY
+        self.duTactical = 200
+        self.exit_lane = self.road.network.get_lane(('c','d', 1))
+
 
     def randomize_behavior(self):
         pass
@@ -98,14 +101,11 @@ class IDMVehicle(ControlledVehicle):
         action['steering'] = self.steering_control(self.target_lane_index)
         action['steering'] = utils.clip(action['steering'], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
 
-        duTactical = 200
-        exit_lane = self.road.network.get_lane(('c','d', 1))
-
-        distance_to_exit = exit_lane.distance(self.position)
+        distance_to_exit = self.exit_lane.distance(self.position)
 
         # only decelearte if we are on the wrong lane
         if not self.on_track():
-          self.alpha_v0 = max(0.2, distance_to_exit/duTactical)
+          self.alpha_v0 = max(0.2, distance_to_exit/self.duTactical)
         else: # reset after passing exit
           self.alpha_v0 = 1
 
@@ -173,7 +173,7 @@ class IDMVehicle(ControlledVehicle):
         
 
         acceleration = self.COMFORT_ACC_MAX * (
-                1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
+                1 - max(ego_vehicle.speed, 0) / ego_target_speed ** self.DELTA)
 
 
         # if self.id == 7:

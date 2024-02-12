@@ -189,7 +189,7 @@ class Vehicle(object):
                 return
 
             if self._is_colliding(other):
-                self.speed = other.speed = min([self.speed, other.speed], key=abs)
+                self.speed = other.speed = min(self.speed, other.speed)
                 self.crashed = other.crashed = True
         elif isinstance(other, Obstacle):
             if not self.COLLISIONS_ENABLED:
@@ -207,10 +207,18 @@ class Vehicle(object):
         # if utils.norm(other.position, self.position) > self.LENGTH:
         if utils.norm(other.position, self.position) > self.LENGTH_SQUARE:
             return False
+
         # Accurate rectangular check
+        #old
         return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),
                                                   (
                                                   other.position, 0.9 * other.LENGTH, 0.9 * other.WIDTH, other.heading))
+
+        #new
+        # rect = utils.middle_to_vertices(self.position, self.LENGTH, self.WIDTH, self.heading)
+        # other_rect = utils.middle_to_vertices(other.position, other.LENGTH, other.WIDTH, other.heading)
+
+        # return utils.separating_axis_theorem(self.rect, other.rect)
 
     @property
     def direction(self) -> np.ndarray:
@@ -247,17 +255,18 @@ class Vehicle(object):
         return self.direction.dot(other.position - self.position)
 
     def to_dict(self, origin_vehicle: "Vehicle" = None, observe_intentions: bool = True) -> dict:
+        vel = self.velocity
         d = {
             'presence': 1,
             'x': self.position[0],
             'y': self.position[1],
-            'vx': self.velocity[0],
-            'vy': self.velocity[1],
+            'vx': vel[0],
+            'vy': vel[1],
             'heading': self.heading,
-            'cos_h': self.direction[0],
-            'sin_h': self.direction[1],
-            'cos_d': self.destination_direction[0],
-            'sin_d': self.destination_direction[1]
+            #'cos_h': self.direction[0],
+            #'sin_h': self.direction[1],
+            #'cos_d': self.destination_direction[0],
+            #'sin_d': self.destination_direction[1]
         }
         if not observe_intentions:
             d["cos_d"] = d["sin_d"] = 0

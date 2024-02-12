@@ -13,7 +13,7 @@ def argmin(lst):
 def clip(value, low, high):
     return min(max(low, value), high)
 
-def norm(p1, p2):
+cpdef norm(p1, p2):
     # dont use the sqrt to save some time (comparison need to be made against squares)
     # return ((p1[0] - p2[0]) ** 2) + ((p1[1] - p2[1]) ** 2)
 
@@ -228,3 +228,89 @@ def is_consistent_dataset(data: dict, parameter_box: np.ndarray = None) -> bool:
         return is_valid_observation(y, phi, theta, gramian, beta)
     else:
         return True
+###
+# New SAT approach
+###
+from math import sqrt
+
+cdef normalize(vector):
+    """
+    :return: The vector scaled to a length of 1
+    """
+    norm = sqrt(vector[0] ** 2 + vector[1] ** 2)
+    return vector[0] / norm, vector[1] / norm
+
+
+cdef dot(vector1, vector2):
+    """
+    :return: The dot (or scalar) product of the two vectors
+    """
+    return vector1[0] * vector2[0] + vector1[1] * vector2[1]
+
+
+cdef edge_direction(point0, point1):
+    """
+    :return: A vector going from point0 to point1
+    """
+    return point1[0] - point0[0], point1[1] - point0[1]
+
+
+cdef orthogonal(vector):
+    """
+    :return: A new vector which is orthogonal to the given vector
+    """
+    return vector[1], -vector[0]
+
+
+cdef vertices_to_edges(vertices):
+    """
+    :return: A list of the edges of the vertices as vectors
+    """
+    return [edge_direction(vertices[i], vertices[(i + 1) % len(vertices)])
+            for i in range(len(vertices))]
+
+
+cdef project(vertices, axis):
+    """
+    :return: A vector showing how much of the vertices lies along the axis
+    """
+    dots = [dot(vertex, axis) for vertex in vertices]
+    return [min(dots), max(dots)]
+
+
+cdef overlap(projection1, projection2):
+    """
+    :return: Boolean indicating if the two projections overlap
+    """
+    return min(projection1) <= max(projection2) and \
+           min(projection2) <= max(projection1)
+
+
+cpdef separating_axis_theorem(vertices_a, vertices_b):
+    edges = vertices_to_edges(vertices_a) + vertices_to_edges(vertices_b)
+    axes = [normalize(orthogonal(edge)) for edge in edges]
+
+    for axis in axes:
+        projection_a = project(vertices_a, axis)
+        projection_b = project(vertices_b, axis)
+
+        overlapping = overlap(projection_a, projection_b)
+
+        if not overlapping:
+            return False
+
+    return True
+
+cpdef middle_to_vertices(middle, length, width, angle):
+    # convert the old represantation of the rectangle to vertices
+    angle -= np.deg2rad(90)
+
+    u = np.array([width/2. * np.cos(angle), width/2. * np.sin(angle)])
+    v = np.array([-length/2. * np.sin(angle), length/2. * np.cos(angle)])
+
+    a = middle - u + v
+    b = middle + u + v
+    c = middle + u - v
+    d = middle - u - v
+
+    return [a, b, c, d]
