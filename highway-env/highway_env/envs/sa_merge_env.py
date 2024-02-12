@@ -75,7 +75,7 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         # give penalty if the agent drives on the offramp
         if vehicle.lane_index == ("c", "o", 0):
-            offramp_cost = self.config["offramp_reward"]
+            offramp_cost = -self.config["offramp_reward"]
         else:
             offramp_cost = 0
 
