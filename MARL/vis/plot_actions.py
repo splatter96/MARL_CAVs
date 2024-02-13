@@ -27,7 +27,9 @@ df['action'] = df['action'].astype(str).astype(int)
 
 df['action'] = df['action'].map(actions_map)
 
-ax = sns.scatterplot(df, x="x", y="y", hue="action", palette="Set2", s=200)
+print(df.query("action=='LANE_LEFT'"))
+
+ax = sns.scatterplot(df, x="x", y="y", hue="action", palette="tab10", s=200)
 # ax = sns.scatterplot(df.query("action == 'LANE_LEFT'"), x="x", y="y", hue="action", palette="Set2", s=200)
 ax.grid(False)
 
