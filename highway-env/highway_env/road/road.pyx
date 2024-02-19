@@ -1,3 +1,6 @@
+# cython: profile=True
+
+from numba import jit
 import numpy as np
 import pandas as pd
 import logging
@@ -20,11 +23,14 @@ Route = List[LaneIndex]
 class RoadNetwork(object):
     graph: Dict[str, Dict[str, List[AbstractLane]]]
     lane_indices: List[LaneIndex]
+    lanes: List[AbstractLane]
 
     lane_indices = []
 
     def __init__(self):
         self.graph = {}
+        self.lane_indices = []
+        self.lanes = []
 
     def add_lane(self, _from: str, _to: str, lane: AbstractLane) -> None:
         """
@@ -52,6 +58,7 @@ class RoadNetwork(object):
             _id = 0
         return self.graph[_from][_to][_id]
 
+    # @jit
     def get_closest_lane_index(self, position: np.ndarray, heading: Optional[float] = None) -> LaneIndex:
         """
         Get the index of the lane closest to a world position.
@@ -73,12 +80,16 @@ class RoadNetwork(object):
                 for _to, lanes in to_dict.items():
                     for _id, l in enumerate(lanes):
                         self.lane_indices.append((_from, _to, _id))
+                        self.lanes.append(self.get_lane((_from, _to, _id)))
+                        # self.lane_indices.append(((_from, _to, _id), self.get_lane((_from, _to, _id))))
 
         # for l in self.lane_indices:
             # print(l)
             # print(self.get_lane(l).distance_with_heading(position, heading))
 
-        return min(self.lane_indices, key=lambda l:self.get_lane(l).distance_with_heading(position, float(heading)))
+        # return min(self.lane_indices, key=lambda l:self.get_lane(l).distance_with_heading(position, float(heading)))
+        return utils.get_closest_lane(self.lane_indices, self.lanes, position, heading)
+
 
     def next_lane(self, current_index: LaneIndex, route: Route = None, position: np.ndarray = None,
                   np_random: np.random.RandomState = np.random) -> LaneIndex:
@@ -329,8 +340,9 @@ class Road(object):
         lane_index = lane_index or vehicle.lane_index
         if not lane_index:
             return None, None
-        s = vehicle.position[0]  # x position
-        s_front = s_rear = None
+        cdef float s_v, s_front, s_rear
+        cdef float s = vehicle.position[0]  # x position
+        # s_front = s_rear = None
         v_front = v_rear = None
 
         # we do not consider obstacles
@@ -340,52 +352,63 @@ class Road(object):
                         "c", "d", 0):
                     if lane_index == ("a", "b", 0) and (
                             v.lane_index == ("a", "b", 0) or v.lane_index == ("b", "c", 0)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     elif lane_index == ("b", "c", 0) and (
                             v.lane_index == ("a", "b", 0) or v.lane_index == ("b", "c", 0) or v.lane_index == (
                     "c", "d", 0)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     elif lane_index == ("c", "d", 0) and (v.lane_index == ("b", "c", 0) or v.lane_index == (
                     "c", "d", 0)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     else:
                         continue
                 elif lane_index == ("a", "b", 1) or lane_index == ("b", "c", 1) or lane_index == (
                         "c", "d", 1):
                     if lane_index == ("a", "b", 1) and (
                             v.lane_index == ("a", "b", 1) or v.lane_index == ("b", "c", 1)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     elif lane_index == ("b", "c", 1) and (
                             v.lane_index == ("a", "b", 1) or v.lane_index == ("b", "c", 1) or v.lane_index == (
                     "c", "d", 1)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     elif lane_index == ("c", "d", 1) and (v.lane_index == ("b", "c", 1) or v.lane_index == (
                     "c", "d", 1)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     else:
                         continue
                 elif lane_index == ("b", "c", 2):
                     if v.lane_index == ("b", "c", 2) or v.lane_index == ("k", "b", 0):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     else:
                         continue
                 elif lane_index == ("c", "o", 0):
                     if v.lane_index == ("c", "o", 0) or v.lane_index == ("b", "c", 2):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     else:
                         continue
                 else:
                     if lane_index == ("j", "k", 0) and (
                             v.lane_index == ("j", "k", 0) or v.lane_index == ("k", "b", 0)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     elif lane_index == ("k", "b", 0) and (
                             v.lane_index == ("j", "k", 0) or v.lane_index == ("k", "b", 0) or v.lane_index == (
                     "b", "c", 1)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     elif lane_index == ("b", "c", 1) and (
                             v.lane_index == ("k", "b", 0) or v.lane_index == (
                     "b", "c", 1)):
-                        s_v, lat_v = v.position
+                        # s_v, lat_v = v.position
+                        s_v = v.position[0]
                     else:
                         continue
 

@@ -1,3 +1,4 @@
+# cython: profile=True
 from typing import List, Tuple, Union
 
 import numpy as np
@@ -125,20 +126,23 @@ class ControlledVehicle(Vehicle):
         :param target_lane_index: index of the lane to follow
         :return: a steering wheel angle command [rad]
         """
+        cdef float speed = self.speed
         target_lane = self.road.network.get_lane(target_lane_index)
         lane_coords = target_lane.local_coordinates(self.position)
-        lane_next_coords = lane_coords[0] + self.speed * self.PURSUIT_TAU
-        lane_future_heading = target_lane.heading_at(lane_next_coords)
+        lane_next_coords = lane_coords[0] + speed * self.PURSUIT_TAU
+        cdef float lane_future_heading = target_lane.heading_at(lane_next_coords)
+
+        cdef float lateral_speed_command, heading_command, headin_ref, heading_rate_command, steering_angle
 
         # Lateral position control
         lateral_speed_command = - self.KP_LATERAL * lane_coords[1]
         # Lateral speed to heading
-        heading_command = np.arcsin(utils.clip(lateral_speed_command / utils.not_zero(self.speed), -1, 1))
+        heading_command = np.arcsin(utils.clip(lateral_speed_command / utils.not_zero(speed), -1, 1))
         heading_ref = lane_future_heading + utils.clip(heading_command, -np.pi/4, np.pi/4)
         # Heading control
         heading_rate_command = self.KP_HEADING * utils.wrap_to_pi(heading_ref - self.heading)
         # Heading rate to steering angle
-        steering_angle = np.arcsin(utils.clip(self.LENGTH / 2 / utils.not_zero(self.speed) * heading_rate_command,
+        steering_angle = np.arcsin(utils.clip(self.LENGTH / 2 / utils.not_zero(speed) * heading_rate_command,
                                            -1, 1))
         steering_angle = utils.clip(steering_angle, -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         return float(steering_angle)
@@ -208,7 +212,7 @@ class MDPVehicle(ControlledVehicle):
 
     def __init__(self,
                  road: Road,
-                 position: List[float],
+                 position: np.ndarray,
                  heading: float = 0,
                  speed: float = 0,
                  target_lane_index: LaneIndex = None,

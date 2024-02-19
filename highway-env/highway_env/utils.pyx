@@ -1,9 +1,13 @@
+# cython: profile=True
+from numba import jit
+
 import copy
 import importlib
 import itertools
 from typing import Tuple, Dict, Callable
 
 import numpy as np
+cimport numpy as cnp
 
 from highway_env.types import Vector, Interval
 
@@ -13,7 +17,7 @@ def argmin(lst):
 def clip(value, low, high):
     return min(max(low, value), high)
 
-cpdef norm(p1, p2):
+def norm(p1, p2):
     # dont use the sqrt to save some time (comparison need to be made against squares)
     # return ((p1[0] - p2[0]) ** 2) + ((p1[1] - p2[1]) ** 2)
 
@@ -50,7 +54,8 @@ def constrain(x: float, a: float, b: float) -> np.ndarray:
     return np.clip(x, a, b)
 
 
-def not_zero(x: float, eps: float = 1e-2) -> float:
+# def not_zero(x: float, eps: float = 1e-2) -> float:
+cpdef not_zero(x: float, eps: float = 1e-2):
     if abs(x) > eps:
         return x
     elif x > 0:
@@ -233,7 +238,7 @@ def is_consistent_dataset(data: dict, parameter_box: np.ndarray = None) -> bool:
 ###
 from math import sqrt
 
-cdef normalize(vector):
+def normalize(vector):
     """
     :return: The vector scaled to a length of 1
     """
@@ -241,28 +246,28 @@ cdef normalize(vector):
     return vector[0] / norm, vector[1] / norm
 
 
-cdef dot(vector1, vector2):
+def dot(vector1, vector2):
     """
     :return: The dot (or scalar) product of the two vectors
     """
     return vector1[0] * vector2[0] + vector1[1] * vector2[1]
 
 
-cdef edge_direction(point0, point1):
+def edge_direction(point0, point1):
     """
     :return: A vector going from point0 to point1
     """
     return point1[0] - point0[0], point1[1] - point0[1]
 
 
-cdef orthogonal(vector):
+def orthogonal(vector):
     """
     :return: A new vector which is orthogonal to the given vector
     """
     return vector[1], -vector[0]
 
 
-cdef vertices_to_edges(vertices):
+def vertices_to_edges(vertices):
     """
     :return: A list of the edges of the vertices as vectors
     """
@@ -270,7 +275,7 @@ cdef vertices_to_edges(vertices):
             for i in range(len(vertices))]
 
 
-cdef project(vertices, axis):
+def project(vertices, axis):
     """
     :return: A vector showing how much of the vertices lies along the axis
     """
@@ -278,7 +283,7 @@ cdef project(vertices, axis):
     return [min(dots), max(dots)]
 
 
-cdef overlap(projection1, projection2):
+def overlap(projection1, projection2):
     """
     :return: Boolean indicating if the two projections overlap
     """
@@ -286,7 +291,7 @@ cdef overlap(projection1, projection2):
            min(projection2) <= max(projection1)
 
 
-cpdef separating_axis_theorem(vertices_a, vertices_b):
+def separating_axis_theorem(vertices_a, vertices_b):
     edges = vertices_to_edges(vertices_a) + vertices_to_edges(vertices_b)
     axes = [normalize(orthogonal(edge)) for edge in edges]
 
@@ -301,7 +306,7 @@ cpdef separating_axis_theorem(vertices_a, vertices_b):
 
     return True
 
-cpdef middle_to_vertices(middle, length, width, angle):
+def middle_to_vertices(middle, length, width, angle):
     # convert the old represantation of the rectangle to vertices
     angle -= np.deg2rad(90)
 
@@ -314,3 +319,29 @@ cpdef middle_to_vertices(middle, length, width, angle):
     d = middle - u - v
 
     return [a, b, c, d]
+
+import cython
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef get_closest_lane(list lane_indices, list lanes, cnp.ndarray  position, heading):
+    # return min(lane_indices, key=lambda l:self.get_lane(l).distance_with_heading(position, float(heading)))
+
+   cdef float current_smallest = 1e8
+   cdef Tuple [str, str, int] closest_lane_index
+   cdef float curr_dist
+   cdef int i, l_len
+
+   l_len = len(lane_indices)
+
+   # for index, lane in lane_indices:
+   for i in range(l_len):
+       # index, lane = lane_indices[i]
+       index = lane_indices[i]
+       lane = lanes[i]
+       curr_dist = lane.distance_with_heading(position, heading)
+       if  curr_dist < current_smallest:
+           current_smallest = curr_dist
+           closest_lane_index = index
+
+   return closest_lane_index
+

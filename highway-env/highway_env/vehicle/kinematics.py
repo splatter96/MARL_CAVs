@@ -210,15 +210,15 @@ class Vehicle(object):
 
         # Accurate rectangular check
         #old
-        return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),
-                                                  (
-                                                  other.position, 0.9 * other.LENGTH, 0.9 * other.WIDTH, other.heading))
+        #return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),
+                                                  #(
+                                                  #other.position, 0.9 * other.LENGTH, 0.9 * other.WIDTH, other.heading))
 
         #new
-        # rect = utils.middle_to_vertices(self.position, self.LENGTH, self.WIDTH, self.heading)
-        # other_rect = utils.middle_to_vertices(other.position, other.LENGTH, other.WIDTH, other.heading)
+        rect = utils.middle_to_vertices(self.position, self.LENGTH, self.WIDTH, self.heading)
+        other_rect = utils.middle_to_vertices(other.position, other.LENGTH, other.WIDTH, other.heading)
 
-        # return utils.separating_axis_theorem(self.rect, other.rect)
+        return utils.separating_axis_theorem(rect, other_rect)
 
     @property
     def direction(self) -> np.ndarray:
