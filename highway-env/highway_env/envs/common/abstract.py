@@ -36,9 +36,12 @@ class AbstractEnv(gym.Env):
     action_type: ActionType
     automatic_rendering_callback: Optional[Callable]
     metadata = {'render.modes': ['human', 'rgb_array']}
+    render_mode = 'human'
 
     PERCEPTION_DISTANCE = 6.0 * MDPVehicle.SPEED_MAX
     """The maximum distance of any vehicle present in the observation [m]"""
+
+    config = {}
 
     def __init__(self, config: dict = None) -> None:
         # Configuration
@@ -82,6 +85,10 @@ class AbstractEnv(gym.Env):
                             'SLOWER': 4}
 
         self.reset()
+
+    def set_config(self, config_):
+        print(f"setting external config to {config_}")
+        self.config = config_
 
     @property
     def vehicle(self) -> Vehicle:
@@ -626,6 +633,7 @@ class AbstractEnv(gym.Env):
         :param action: the action performed by the ego-vehicle
         :return: a tuple (observation, reward, terminal, info)
         """
+    #    print(f"Stepping env with {self.config}")
         average_speed = 0
         if self.road is None or self.vehicle is None:
             raise NotImplementedError("The road and vehicle must be initialized in the environment implementation")

@@ -1,6 +1,5 @@
 # cython: profile=True
 
-from numba import jit
 import numpy as np
 import pandas as pd
 import logging
@@ -58,7 +57,6 @@ class RoadNetwork(object):
             _id = 0
         return self.graph[_from][_to][_id]
 
-    # @jit
     def get_closest_lane_index(self, position: np.ndarray, heading: Optional[float] = None) -> LaneIndex:
         """
         Get the index of the lane closest to a world position.
@@ -81,8 +79,6 @@ class RoadNetwork(object):
                     for _id, l in enumerate(lanes):
                         self.lane_indices.append((_from, _to, _id))
                         self.lanes.append(self.get_lane((_from, _to, _id)))
-                        # self.lane_indices.append(((_from, _to, _id), self.get_lane((_from, _to, _id))))
-
         # for l in self.lane_indices:
             # print(l)
             # print(self.get_lane(l).distance_with_heading(position, heading))
@@ -340,9 +336,9 @@ class Road(object):
         lane_index = lane_index or vehicle.lane_index
         if not lane_index:
             return None, None
-        cdef float s_v, s_front, s_rear
+        cdef float s_v
         cdef float s = vehicle.position[0]  # x position
-        # s_front = s_rear = None
+        s_front = s_rear = None
         v_front = v_rear = None
 
         # we do not consider obstacles

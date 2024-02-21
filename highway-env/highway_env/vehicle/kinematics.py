@@ -189,7 +189,7 @@ class Vehicle(object):
                 return
 
             if self._is_colliding(other):
-                self.speed = other.speed = min(self.speed, other.speed)
+                self.speed = other.speed = min([self.speed, other.speed], key=abs)
                 self.crashed = other.crashed = True
         elif isinstance(other, Obstacle):
             if not self.COLLISIONS_ENABLED:
@@ -207,7 +207,6 @@ class Vehicle(object):
         # if utils.norm(other.position, self.position) > self.LENGTH:
         if utils.norm(other.position, self.position) > self.LENGTH_SQUARE:
             return False
-
         # Accurate rectangular check
         #old
         #return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),

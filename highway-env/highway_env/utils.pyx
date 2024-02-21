@@ -1,6 +1,4 @@
 # cython: profile=True
-from numba import jit
-
 import copy
 import importlib
 import itertools
@@ -54,8 +52,7 @@ def constrain(x: float, a: float, b: float) -> np.ndarray:
     return np.clip(x, a, b)
 
 
-# def not_zero(x: float, eps: float = 1e-2) -> float:
-cpdef not_zero(x: float, eps: float = 1e-2):
+def not_zero(x: float, eps: float = 1e-2) -> float:
     if abs(x) > eps:
         return x
     elif x > 0:

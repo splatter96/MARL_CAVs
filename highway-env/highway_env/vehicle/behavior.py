@@ -173,7 +173,7 @@ class IDMVehicle(ControlledVehicle):
         
 
         acceleration = self.COMFORT_ACC_MAX * (
-                1 - max(ego_vehicle.speed, 0) / ego_target_speed ** self.DELTA)
+                1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
 
 
         # if self.id == 7:

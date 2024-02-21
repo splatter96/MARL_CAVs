@@ -1,4 +1,3 @@
-from numba import jit
 from abc import ABCMeta, abstractmethod
 from typing import Tuple, List, Optional
 import numpy as np
@@ -12,7 +11,7 @@ class AbstractLane(object):
 
     """A lane on the road, described by its central curve."""
 
-    # metaclass__ = ABCMeta
+    metaclass__ = ABCMeta
     DEFAULT_WIDTH: float = 4
     VEHICLE_LENGTH: float = 5
     length: float = 0
@@ -223,7 +222,6 @@ class HorizontalLane(StraightLane):
         return position[0] - self.start[0], position[1] - self.start[1]
 
     # @profile
-    #@jit
     def distance_with_heading(self, position: np.ndarray, heading: Optional[float], heading_weight: float = 1.0):
         """Compute a weighted distance in position and heading to the lane."""
         # if heading is None:
