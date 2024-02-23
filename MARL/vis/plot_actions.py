@@ -29,8 +29,12 @@ df['action'] = df['action'].map(actions_map)
 
 print(df.query("action=='LANE_LEFT'"))
 
-ax = sns.scatterplot(df, x="x", y="y", hue="action", palette="tab10", s=200)
+#ax = sns.scatterplot(df, x="x", y="y", hue="action", palette="tab10", s=200)
 # ax = sns.scatterplot(df.query("action == 'LANE_LEFT'"), x="x", y="y", hue="action", palette="Set2", s=200)
+dis = sns.displot(df.query("action == 'LANE_LEFT'"), x="x", y="y", kind="kde", fill=True, cbar=True)
+# dis = sns.displot(df.query("action == 'LANE_LEFT'"), x="x", y="y", kind="hist", binwidth=(1, 1),  cbar=True)
+ax = dis.axes[0,0]
+
 ax.grid(False)
 
 import matplotlib.image as mpimg
