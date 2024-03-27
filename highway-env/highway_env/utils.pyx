@@ -66,6 +66,76 @@ def wrap_to_pi(x: float) -> float:
     return ((x + 3.14) % (2 * 3.14)) - 3.14
 
 
+def rect_corners(
+    center: np.ndarray,
+    length: float,
+    width: float,
+    angle: float,
+    include_midpoints: bool = False,
+    include_center: bool = False,
+) -> List[np.ndarray]:
+    """
+    Returns the positions of the corners of a rectangle.
+    :param center: the rectangle center
+    :param length: the rectangle length
+    :param width: the rectangle width
+    :param angle: the rectangle angle
+    :param include_midpoints: include middle of edges
+    :param include_center: include the center of the rect
+    :return: a list of positions
+    """
+    center = np.array(center)
+    half_l = np.array([length / 2, 0])
+    half_w = np.array([0, width / 2])
+    corners = [-half_l - half_w, -half_l + half_w, +half_l + half_w, +half_l - half_w]
+    if include_center:
+        corners += [[0, 0]]
+    if include_midpoints:
+        corners += [-half_l, half_l, -half_w, half_w]
+
+    c, s = np.cos(angle), np.sin(angle)
+    rotation = np.array([[c, -s], [s, c]])
+    return (rotation @ np.array(corners).T).T + np.tile(center, (len(corners), 1))
+
+
+def distance_to_rect(line: Tuple[np.ndarray, np.ndarray], rect: List[np.ndarray]):
+    """
+    Compute the intersection between a line segment and a rectangle.
+
+    See https://math.stackexchange.com/a/2788041.
+    :param line: a line segment [R, Q]
+    :param rect: a rectangle [A, B, C, D]
+    :return: the distance between R and the intersection of the segment RQ with the rectangle ABCD
+    """
+    r, q = line
+    a, b, c, d = rect
+    u = b - a
+    v = d - a
+    u, v = u / np.linalg.norm(u), v / np.linalg.norm(v)
+    rqu = (q - r) @ u
+    rqv = (q - r) @ v
+    interval_1 = [(a - r) @ u / rqu, (b - r) @ u / rqu]
+    interval_2 = [(a - r) @ v / rqv, (d - r) @ v / rqv]
+    interval_1 = interval_1 if rqu >= 0 else list(reversed(interval_1))
+    interval_2 = interval_2 if rqv >= 0 else list(reversed(interval_2))
+    if (
+        interval_distance(*interval_1, *interval_2) <= 0
+        and interval_distance(0, 1, *interval_1) <= 0
+        and interval_distance(0, 1, *interval_2) <= 0
+    ):
+        return max(interval_1[0], interval_2[0]) * np.linalg.norm(q - r)
+    else:
+        return np.inf
+
+def interval_distance(min_a: float, max_a: float, min_b: float, max_b: float):
+    """
+    Calculate the distance between [minA, maxA] and [minB, maxB]
+    The distance will be negative if the intervals overlap
+    """
+    return min_b - max_a if min_a < min_b else min_a - max_b
+
+
+
 def point_in_rectangle(point: Vector, rect_min: Vector, rect_max: Vector) -> bool:
     """
     Check if a point is inside a rectangle

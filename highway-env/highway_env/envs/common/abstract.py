@@ -110,7 +110,8 @@ class AbstractEnv(gym.Env):
         """
         return {
             "observation": {
-                "type": "Kinematics"
+                # "type": "Kinematics"
+                "type": "LidarObservation"
             },
             "action": {
                 "type": "DiscreteMetaAction"
