@@ -443,9 +443,13 @@ class LidarObservation(ObservationType):
     def space(self) -> spaces.Space:
         high = 1 if self.normalize else self.maximum_range
         # return spaces.Box(shape=(self.cells, 2), low=-high, high=high, dtype=np.float32)
-        return spaces.Box(shape=(self.cells+1, 2), low=-high, high=high, dtype=np.float32)
+        # return spaces.Box(shape=(self.cells+1, 2), low=-high, high=high, dtype=np.float32)
+        return spaces.Dict({
+                "lidar": spaces.Box(shape=(self.cells, 2), low=-high, high=high, dtype=np.float32),
+                "ego": spaces.Box(shape=(2,), low=-1, high=1)
+                })
 
-    def observe(self) -> np.ndarray:
+    def observe(self):
         # obs = self.trace(
             # self.observer_vehicle.position, self.observer_vehicle.velocity
         # ).copy()
@@ -463,7 +467,8 @@ class LidarObservation(ObservationType):
         ego_obs = self.observer_vehicle.to_dict()
         ego_pos = np.array([ego_obs["x"], ego_obs["y"]])
 
-        obs = np.vstack([obs, ego_pos])
+        # obs = np.vstack([obs, ego_pos])
+        obs = {"lidar": obs, "ego": ego_pos}
 
         return obs
 

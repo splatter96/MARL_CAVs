@@ -148,6 +148,7 @@ def train(args):
 
     eval_callback = EveryNTimesteps(n_steps=500, callback=custom_eval)
 
+
     checkpoint_log_speed = TensorboardCallback()
     # model = SACD('MlpPolicy', env,
     model = SACD('MultiInputPolicy', env,
@@ -173,13 +174,25 @@ def train(args):
     if curriculum_learning == True:
         learn_steps = 3e5
 
+    #warmup jit
+    model.learn(50)
+
+    learn_steps = 4000
+    import cProfile, pstats
+    profiler = cProfile.Profile()
+    profiler.enable()
+
     model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", callback=callback_list)
 
-    if curriculum_learning == True:
-        env.config['traffic_density'] = 2
-        model.learn(int(3e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list)
-        env.config['traffic_density'] = 3
-        model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list)
+    profiler.disable()
+    stats = pstats.Stats(profiler)
+    stats.dump_stats('train_prof_laptop_lidarobservation_new_alg.log')
+
+    #if curriculum_learning == True:
+        #env.config['traffic_density'] = 2
+        #model.learn(int(3e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list)
+        #env.config['traffic_density'] = 3
+        #model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list)
 
     model.save(dirs['models'] + f"/model_{args.exp_tag}_seed_{seed_}")
 
