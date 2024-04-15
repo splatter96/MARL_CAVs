@@ -308,19 +308,34 @@ class Road(object):
         for vehicle in self.vehicles:  # all the vehicles on the road
             vehicle.act()
 
-    def step(self, dt: float) -> None:
+    def step(self, dt) -> None:
         """
         Step the dynamics of each entity on the road.
 
         :param dt: timestep [s]
         """
-        for vehicle in self.vehicles:
-            vehicle.step(dt)
-        for vehicle in self.vehicles:
-            for other in self.vehicles:
-                vehicle.check_collision(other)
-            for other in self.objects:
-                vehicle.check_collision(other)
+        vehicles = self.vehicles
+        objects = self.objects
+        cdef int i, j
+        cdef int len_v = len(vehicles)
+        cdef int len_o = len(objects)
+
+        for i in range(len_v):
+            vehicles[i].step(dt)
+        # for vehicle in self.vehicles:
+            # vehicle.step(dt)
+
+        for i in range(len_v):
+            v = vehicles[i]
+            for j in range(len_v):
+               v.check_collision(vehicles[j])
+            for j in range(len_o):
+                v.check_collision(objects[j])
+        # for vehicle in self.vehicles:
+            # for other in self.vehicles:
+                # vehicle.check_collision(other)
+            # for other in self.objects:
+                # vehicle.check_collision(other)
 
     def surrounding_vehicles(self, vehicle: 'kinematics.Vehicle', lane_index: LaneIndex = None) \
             -> Tuple[Optional['kinematics.Vehicle'], Optional['kinematics.Vehicle']]:
@@ -343,7 +358,7 @@ class Road(object):
 
         # we do not consider obstacles
         for v in self.vehicles:
-            if v is not vehicle and not isinstance(v, Landmark):
+            if v is not vehicle:# and not isinstance(v, Landmark):
                 if lane_index == ("a", "b", 0) or lane_index == ("b", "c", 0) or lane_index == (
                         "c", "d", 0):
                     if lane_index == ("a", "b", 0) and (

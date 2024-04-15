@@ -426,7 +426,7 @@ class LidarObservation(ObservationType):
         self,
         env,
         cells: int = 16,
-        maximum_range: float = 60,
+        maximum_range: float = 150,
         normalize: bool = True,
         **kwargs
     ):
@@ -434,21 +434,31 @@ class LidarObservation(ObservationType):
         self.cells = cells
         self.maximum_range = maximum_range
         self.normalize = normalize
-        self.angle = 2 * np.pi / self.cells
+        self.angle = np.array(2 * np.pi / self.cells)
         self.grid = np.ones((self.cells, 1)) * float("inf")
         self.origin = None
+
+        self.directions = [np.array([np.cos(index * self.angle), np.sin(index * self.angle)]) for index in range(self.cells)]
 
     def space(self) -> spaces.Space:
         high = 1 if self.normalize else self.maximum_range
         return spaces.Box(shape=(self.cells, 2), low=-high, high=high, dtype=np.float32)
 
     def observe(self) -> np.ndarray:
-        obs = self.trace(
-            self.observer_vehicle.position, self.observer_vehicle.velocity
-        ).copy()
+        # obs = self.trace(
+            # self.observer_vehicle.position, self.observer_vehicle.velocity
+        # ).copy()
+        # if self.normalize:
+            # obs /= self.maximum_range
+        # return obs
+
+        self.grid = utils.trace(self.observer_vehicle.position, self.observer_vehicle.velocity, self.maximum_range, self.cells, self.angle, self.env.road.vehicles + self.env.road.objects, self.observer_vehicle)
+        self.origin = self.observer_vehicle.position.copy()
+        obs = self.grid.copy()
         if self.normalize:
             obs /= self.maximum_range
         return obs
+
 
     def trace(self, origin: np.ndarray, origin_velocity: np.ndarray) -> np.ndarray:
         self.origin = origin.copy()
@@ -490,7 +500,10 @@ class LidarObservation(ObservationType):
             for index in indexes:
                 direction = self.index_to_direction(index)
                 ray = (origin, origin + self.maximum_range * direction)
-                distance = utils.distance_to_rect(ray, corners)
+                # distance = utils.distance_to_rect(*ray, corners)
+                distance = utils.distance_to_rect2(*ray, corners, self.maximum_range)
+                # distance2 = utils.distance_to_rect(*ray, corners)
+                # assert abs(distance - distance2) < 0.0001 or distance == distance2
                 if distance <= self.grid[index, self.DISTANCE]:
                     velocity = (obstacle.velocity - origin_velocity).dot(direction)
                     self.grid[index, :] = [distance, velocity]
@@ -508,8 +521,9 @@ class LidarObservation(ObservationType):
     def angle_to_index(self, angle: float) -> int:
         return int(np.floor(angle / self.angle)) % self.cells
 
-    def index_to_direction(self, index: int) -> np.ndarray:
-        return np.array([np.cos(index * self.angle), np.sin(index * self.angle)])
+    def index_to_direction(self, index: np.ndarray) -> np.ndarray:
+        # return np.array([np.cos(index * self.angle), np.sin(index * self.angle)])
+        return self.directions[index]
 
 
 class MultiAgentObservation(ObservationType):

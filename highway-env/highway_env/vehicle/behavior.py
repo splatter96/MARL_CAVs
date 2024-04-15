@@ -165,35 +165,22 @@ class IDMVehicle(ControlledVehicle):
         """
         if not ego_vehicle or isinstance(ego_vehicle, RoadObject):
             return 0
-        ego_target_speed = utils.not_zero(getattr(ego_vehicle, "target_speed", 0))
-
+        ego_target_speed = utils.not_zero(ego_vehicle.target_speed)
 
         # adjust target speed for special circumstances
         ego_target_speed *= ego_vehicle.alpha_v0
-        
 
-        acceleration = self.COMFORT_ACC_MAX * (
-                1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
-
-
-        # if self.id == 7:
-            # print(f"{self} front before {front_vehicle}")
+        acceleration = self.COMFORT_ACC_MAX * (1 - (max(ego_vehicle.speed, 0) / ego_target_speed) ** self.DELTA)
 
         # currently lane change happening
         # if not front_vehicle and (self.target_lane_index != self.lane_index):
             # # _, front_vehicle =  self.road.neighbour_vehicles(self, self.target_lane_index)
             # _, front_vehicle =  self.road.surrounding_vehicles(self, self.target_lane_index)
 
-        # if self.id == 9:
-            # print(f"{self} front after {front_vehicle}")
-
         if front_vehicle:
             d = ego_vehicle.lane_distance_to(front_vehicle)
-            # if self.id == 3:
-                # print(f"looking at {ego_vehicle} {front_vehicle}")
-                # print(f"current gap {d} desired gap {self.desired_gap(ego_vehicle, front_vehicle)}")
-            acceleration -= self.COMFORT_ACC_MAX * \
-                            np.power(self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d), 2)
+
+            acceleration -= self.COMFORT_ACC_MAX * (self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d)) ** 2
         return acceleration
 
     def desired_gap(self, ego_vehicle: Vehicle, front_vehicle: Vehicle = None, projected: bool = False) -> float:
