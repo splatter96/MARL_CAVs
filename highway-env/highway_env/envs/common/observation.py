@@ -442,7 +442,8 @@ class LidarObservation(ObservationType):
 
     def space(self) -> spaces.Space:
         high = 1 if self.normalize else self.maximum_range
-        return spaces.Box(shape=(self.cells, 2), low=-high, high=high, dtype=np.float32)
+        # return spaces.Box(shape=(self.cells, 2), low=-high, high=high, dtype=np.float32)
+        return spaces.Box(shape=(self.cells+1, 2), low=-high, high=high, dtype=np.float32)
 
     def observe(self) -> np.ndarray:
         # obs = self.trace(
@@ -457,8 +458,14 @@ class LidarObservation(ObservationType):
         obs = self.grid.copy()
         if self.normalize:
             obs /= self.maximum_range
-        return obs
 
+        # add the current position of the ego vehicle to the observation
+        ego_obs = self.observer_vehicle.to_dict()
+        ego_pos = np.array([ego_obs["x"], ego_obs["y"]])
+
+        obs = np.vstack([obs, ego_pos])
+
+        return obs
 
     def trace(self, origin: np.ndarray, origin_velocity: np.ndarray) -> np.ndarray:
         self.origin = origin.copy()
