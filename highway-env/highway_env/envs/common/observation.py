@@ -467,6 +467,10 @@ class LidarObservation(ObservationType):
         ego_obs = self.observer_vehicle.to_dict()
         ego_pos = np.array([ego_obs["x"], ego_obs["y"]])
 
+        # normalize ego_pos same as in KinematicObservation
+        ego_pos[0] = utils.lmap(ego_pos[0], [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX], [-1, 1])
+        ego_pos[1] = utils.lmap(ego_pos[1], [-12, 12], [-1, 1])
+
         # obs = np.vstack([obs, ego_pos])
         obs = {"lidar": obs, "ego": ego_pos}
 
