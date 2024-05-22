@@ -1,6 +1,3 @@
-import os
-import matplotlib
-import argparse
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -11,11 +8,15 @@ data = np.load("crash_pos.npy")
 df = pd.DataFrame(data, columns=["x", "y"])
 
 sns.set_theme()
-sns.set(font_scale=2)
+sns.set_context("paper")
+# sns.set(font_scale=0.5)
 
-dis = sns.displot(df, x="x", y="y", kind="kde", fill=True, bw_adjust=0.5)
-ax = dis.axes[0,0]
-# ax.set_aspect(4)
+ax = sns.kdeplot(df, x="x", y="y", fill=True, bw_adjust=0.4, thresh=0.1, cbar=True, cbar_kws={"location": "bottom", "label": "probability density for crash"})
+ax.set_aspect(10)
+ax.grid(False)
+
+cbar = plt.gcf().get_axes()[1]._colorbar
+cbar.ax.tick_params(rotation=-45)
 
 import matplotlib.image as mpimg
 map_img = mpimg.imread('road.png')
@@ -25,19 +26,5 @@ ax.imshow(map_img,
           extent = [150,460,16,-2],
           zorder = 0) #put the map under the heatmap
 
-# road segments
-ax.axvline(x=150)
-ax.axvline(x=230)
-ax.axvline(x=310)
-ax.axvline(x=460)
+plt.savefig("crash_map.png", dpi=600, bbox_inches="tight")
 
-ax.set_ylim(15, -2)
-ax.set_xlim(150, 450)
-
-# straight roads
-ax.axhline(y=0, linestyle='dashed', color='red')
-ax.axhline(y=4, linestyle='dashed', color='red')
-ax.axhline(y=14, linestyle='dashed', color='red')
-
-plt.tight_layout()
-plt.show()
