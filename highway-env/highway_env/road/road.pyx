@@ -365,10 +365,12 @@ class Road(object):
         s_front = s_rear = None
         v_front = v_rear = None
 
+        from highway_env.vehicle.kinematics import RealVehicle
+
         # we do not consider obstacles
         for v in self.vehicles:
             # if v is not vehicle:# and not isinstance(v, Landmark):
-            if v is not vehicle:
+            if v is not vehicle and not isinstance(v, RealVehicle):
                 if lane_index == ("a", "b", 0) or lane_index == ("b", "c", 0) or lane_index == (
                         "c", "d", 0):
                     if lane_index == ("a", "b", 0) and (
