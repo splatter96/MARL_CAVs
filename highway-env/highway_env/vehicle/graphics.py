@@ -5,7 +5,7 @@ import numpy as np
 import pygame
 
 from highway_env.types import Vector
-from highway_env.vehicle.dynamics import BicycleVehicle
+# from highway_env.vehicle.dynamics import BicycleVehicle
 from highway_env.vehicle.kinematics import Vehicle
 from highway_env.vehicle.controller import ControlledVehicle, MDPVehicle
 from highway_env.vehicle.behavior import IDMVehicle, LinearVehicle
@@ -52,7 +52,8 @@ class VehicleGraphics(object):
         pygame.draw.rect(vehicle_surface, cls.BLACK, rect, 1)
 
         # Tires
-        if type(vehicle) in [Vehicle, BicycleVehicle]:
+        # if type(vehicle) in [Vehicle, BicycleVehicle]:
+        if type(vehicle) in [Vehicle]:
             tire_positions = [[surface.pix(tire_length), surface.pix(length / 2 - v.WIDTH / 2)],
                               [surface.pix(tire_length), surface.pix(length / 2 + v.WIDTH / 2)],
                               [surface.pix(length - tire_length), surface.pix(length / 2 - v.WIDTH / 2)],

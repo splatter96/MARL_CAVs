@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from highway_env import utils
-from highway_env.envs.common.finite_mdp import compute_ttc_grid
+# from highway_env.envs.common.finite_mdp import compute_ttc_grid
 from highway_env.road.lane import AbstractLane
 from highway_env.vehicle.controller import MDPVehicle
 
