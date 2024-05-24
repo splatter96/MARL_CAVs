@@ -37,11 +37,13 @@ for i in range(10, 1000):
 
     v["x_normalized"] = v.apply(lambda r: (r["x"] * np.cos(alpha)) - (r["y"] * np.sin(alpha)) + (x_center-x_min), axis=1)
     v["y_normalized"] = v.apply(lambda r: 2-((r["x"] * np.sin(alpha)) + (r["y"] * np.cos(alpha))), axis=1)
+    v["angle_normalized"] = v.apply(lambda r: r["Angle [rad]"] + alpha, axis=1)
+
 
     # Check if it is the lane we are looking for
     if v["y_normalized"].between(-2, 5).all() and  v["Time [s]"].between(0, 50).all():
         ax = sns.lineplot(data=v, x="x_normalized", y="y_normalized")
-        traj = v[["Time [s]", "x_normalized", "y_normalized", "Speed [km/h]"]].to_numpy()
+        traj = v[["Time [s]", "x_normalized", "y_normalized", "Speed [km/h]", "angle_normalized"]].to_numpy()
         np.save(f"traj{i}.npy", traj)
 
 plt.show()

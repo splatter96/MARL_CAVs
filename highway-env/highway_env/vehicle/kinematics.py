@@ -294,15 +294,16 @@ class RealVehicle(Vehicle):
         self.position = np.zeros(2,)
         self.crashed = False
 
-        # Order of each row is: time, x_pos, y_pos, speed in kph
+        # Order of each row is: time, x_pos, y_pos, speed in kph, heading
         self.position[0] = self.traj[0][1]
         self.position[1] = self.traj[0][2]
         self.speed = self.traj[0][3]
-        self.heading = 0
+        self.heading = self.traj[0][4]
 
         self.fx = interpolate.interp1d(self.traj[:,0], self.traj[:,1])
         self.fy = interpolate.interp1d(self.traj[:,0], self.traj[:,2])
         self.fv = interpolate.interp1d(self.traj[:,0], self.traj[:,3])
+        self.fa = interpolate.interp1d(self.traj[:,0], self.traj[:,4])
 
         self.time = 0
 
@@ -313,6 +314,7 @@ class RealVehicle(Vehicle):
             self.position[0] = self.fx(self.time)
             self.position[1] = self.fy(self.time)
             self.speed = self.fv(self.time) / 3.6 # Conversion from kph to m/s
+            self.heading = self.fa(self.time)
         except ValueError:
             # print("Value outside interpolation limit")
             pass

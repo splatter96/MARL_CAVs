@@ -184,9 +184,9 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         spawn_points_s1 = [10, 50, 90, 130, 170, 210, 225]
         spawn_points_s2 = [0, 40, 80, 120, 160, 200, 220]
-        spawn_points_m = [5, 45, 85, 125, 165, 205, 225]
+        spawn_points_m = [5, 45, 85, 125, 130, 145, 150, 165, 205, 225]
         # spawn_points_m = [5, 45, 65, 85, 100, 125]
-        spawn_points_m_cav = [125, 165]
+        spawn_points_m_cav = [125, 130, 145, 150, 165]
 
         # initial speed with noise and location noise
         initial_speed = np.random.rand(num_CAV + num_HDV) * 8 + 22  # range from [25, 30]
