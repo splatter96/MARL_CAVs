@@ -217,8 +217,8 @@ def eval_policy(args):
 
 
 
-      #if info['merged']: # and not info["other_crashes"]:
-          #sucessfull_merges += 1
+      if info['merged']: # and not info["other_crashes"]:
+          sucessfull_merges += 1
 
       j += 1
 

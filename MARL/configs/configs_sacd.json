@@ -9,11 +9,7 @@
              "collision_reward": 200,
              "high_speed_reward": 1,
              "safety_guarantee": false,
-             "traffic_density": 3,
-             "observation":{
-                 "type": "LidarObservation",
-                 "maximum_range": 150
-             }
+             "traffic_density": 3
     },
     "curriculum": false,
     "seed": 42

@@ -288,15 +288,13 @@ class Vehicle(object):
 
 class RealVehicle(Vehicle):
 
-    def __init__(self,
-                 traj_file: str):
+    def __init__(self, traj_file: str):
 
         self.traj = np.load(traj_file)
         self.position = np.zeros(2,)
         self.crashed = False
 
-        # Order of each row is: time, x_pos, y_pos, x_speed
-
+        # Order of each row is: time, x_pos, y_pos, speed in kph
         self.position[0] = self.traj[0][1]
         self.position[1] = self.traj[0][2]
         self.speed = self.traj[0][3]
@@ -304,28 +302,20 @@ class RealVehicle(Vehicle):
 
         self.fx = interpolate.interp1d(self.traj[:,0], self.traj[:,1])
         self.fy = interpolate.interp1d(self.traj[:,0], self.traj[:,2])
+        self.fv = interpolate.interp1d(self.traj[:,0], self.traj[:,3])
 
-        self.current_index = 1
         self.time = 0
 
-    #TODO interpolate data to match timesteps of simulation
     def step(self, dt: float) -> None:
         self.time += dt
-
-        # print(self.time)
 
         try:
             self.position[0] = self.fx(self.time)
             self.position[1] = self.fy(self.time)
+            self.speed = self.fv(self.time) / 3.6 # Conversion from kph to m/s
         except ValueError:
-            print("Value outside interpolation limit")
-
-        # self.position[0] = self.traj[self.current_index][1]
-        # self.position[1] = self.traj[self.current_index][2]
-
-        # self.speed = self.traj[self.current_index][3]
-
-        # self.current_index += 1
+            # print("Value outside interpolation limit")
+            pass
 
     def act(self):
         pass
