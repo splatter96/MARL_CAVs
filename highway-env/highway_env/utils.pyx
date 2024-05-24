@@ -10,7 +10,6 @@ cimport cython
 from libc.math cimport sqrt, sin, cos, floor, atan2, M_PI, abs, asin
 
 # from highway_env.road.lane cimport AbstractLane
-#from highway_env.road.lane import AbstractLane
 
 np.import_array()
 
@@ -540,13 +539,14 @@ def middle_to_vertices(middle, float length, float width, float angle):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def get_closest_lane(list lane_indices, list lanes, np.ndarray[double, ndim=1] position, heading) -> Tuple[str, str, int]:
+def get_closest_lane(list lane_indices not None, list lanes not None, np.ndarray[double, ndim=1] position, heading) -> Tuple[str, str, int]:
     # return min(lane_indices, key=lambda l:self.get_lane(l).distance_with_heading(position, float(heading)))
 
    cdef float current_smallest = 1e8
    cdef Tuple [str, str, int] closest_lane_index
    cdef float curr_dist
    cdef int i, l_len
+   # cdef AbstractLane lane
    cdef object lane
 
    l_len = len(lane_indices)

@@ -11,13 +11,13 @@ from queue import PriorityQueue
 from highway_env import utils
 from highway_env.envs.common.action import action_factory, Action, DiscreteMetaAction, ActionType
 from highway_env.envs.common.observation import observation_factory, ObservationType
-from highway_env.envs.common.finite_mdp import finite_mdp
+# from highway_env.envs.common.finite_mdp import finite_mdp
 from highway_env.envs.common.graphics import EnvViewer
 from highway_env.vehicle.behavior import IDMVehicle, LinearVehicle
 from highway_env.vehicle.controller import MDPVehicle
 from highway_env.vehicle.kinematics import Vehicle
-from highway_env.envs.common.idm_controller import idm_controller, generate_actions
-from highway_env.envs.common.mdp_controller import mdp_controller
+# from highway_env.envs.common.idm_controller import idm_controller, generate_actions
+# from highway_env.envs.common.mdp_controller import mdp_controller
 from highway_env.road.objects import Obstacle, Landmark
 
 Observation = np.ndarray

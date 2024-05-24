@@ -1,4 +1,5 @@
-import cv2, os
+# import cv2, os
+import os
 import torch as th
 from torch.autograd import Variable
 import numpy as np

@@ -42,8 +42,38 @@ def parse_args():
     return args
 
 last_action_prob = None
+last_observation = None
+last_info = None
 
 def display_action(action_surface, sim_surface):
+
+    def angle_to_position(angle, _range):
+        x = np.cos(angle) * _range
+        y = np.sin(angle) * _range
+
+        return np.array([x, y])
+
+    global last_observation
+    # TODO get these parameters from the actual agent
+    cells = 16
+    maximum_range = 150
+    angle = 2 * np.pi / cells
+
+    lidar_color = (255,0,0)
+
+    if last_info is None or last_observation is None or not "vehicle_position" in last_info:
+        return
+
+    ranges = last_observation[:,0]
+
+    for i, _range in enumerate(ranges):
+        pos = angle_to_position(angle*i, _range*maximum_range)
+        pos += last_info['vehicle_position'][0]
+
+        pos = sim_surface.pos2pix(pos[0], pos[1])
+        #TODO account for heading of the vehicle
+        pygame.draw.rect(sim_surface, lidar_color, (pos[0],pos[1], 10, 10))
+
     cell_size = [action_surface.get_width()/5, 300]
 
     action_map = [
@@ -113,8 +143,9 @@ def eval_policy(args):
       done = truncated = False
       obs, info = env.reset()
       #set the envviewr in the env
-      env.render()
-      env.viewer.set_agent_display(display_action)
+      if args.render:
+          env.render()
+          # env.viewer.set_agent_display(display_action)
       skip_run = False
 
       if args.initial_pos != '':
@@ -125,18 +156,25 @@ def eval_policy(args):
 
       ret = 0
       position_list = []
+      action_buffer = []
       while not (done or truncated):
         if not args.mobil:
             action, _states = model.predict(obs, deterministic=True)
-            t_obs = torch.tensor(obs)
-            t_obs = t_obs[None, :]
-            action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
-            global last_action_prob
-            last_action_prob = action_prob.detach().numpy()
+            # t_obs = torch.tensor(obs)
+            # t_obs = t_obs[None, :]
+            # action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
+            # global last_action_prob
+            # last_action_prob = action_prob.detach().numpy()
+            # action_buffer.append(last_action_prob[0])
         else:
             action = None
         obs, reward, done, truncated, info = env.step(action)
         ret += reward
+
+        global last_observation
+        last_observation = obs
+        global last_info
+        last_info = info
 
         speed += info["average_speed"]
         road_speed += info["average_road_speed"]
@@ -151,28 +189,33 @@ def eval_policy(args):
             time.sleep(0.1)
 
         # also end the episode when another vehicle crashed
-        #if info["other_crashes"] and not info["crashed"]:
-            # frame = env.render()
-            # im = Image.fromarray(frame)
-            # im.save(f"crash_{i}.png")
-            #skip_run = True
-            #print("other crash")
+        # if info["other_crashes"] and not info["crashed"]:
+            # # frame = env.render()
+            # # im = Image.fromarray(frame)
+            # # im.save(f"crash_{i}.png")
+            # skip_run = True
+            # #print("other crash")
 
       #if info['crashed']:
       # if info["other_crashes"]:
-      if skip_run:
+      # if skip_run:
           # only save trajectories if we didn't load any in the first place
-          if args.initial_pos == '':
-              np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
+          # if args.initial_pos == '':
+              # np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
 
       if skip_run:
         continue
 
-      #if info["other_crashes"]:
-          #other_crashes += 1
+      #`if info["other_crashes"] and not info["crashed"]:
+          #`other_crashes += 1
 
       if info['crashed']:
           crashes += 1
+          #np.save(f"action_before_crash_{j}.npy", action_buffer)
+      #else:
+          #np.save(f"action_without_crash_{j}.npy", action_buffer)
+
+
 
       #if info['merged']: # and not info["other_crashes"]:
           #sucessfull_merges += 1
@@ -186,7 +229,7 @@ def eval_policy(args):
       # print(f"Current crashrate {crashes/(i+1)}")
       # t.set_description(f"Crashrate {crashes/(i+1)} Other crashes {other_crashes/(i+1)}")
       # t.set_description(f"Crashrate {crashes/(i+1)} Mergerate {sucessfull_merges/(i+1-other_crashes)}")
-      t.set_description(f"Crashrate {crashes/(i+1)} Mergerate {sucessfull_merges/(i+1)}")
+      t.set_description(f"Crashrate {crashes/(j+1)} Mergerate {sucessfull_merges/(j+1)} other_crashes {other_crashes/(j+1)}")
 
     end = time.time()
     print(f"Took {(end-start)/j}")

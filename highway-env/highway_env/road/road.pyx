@@ -9,6 +9,8 @@ from highway_env.road.lane import LineType, StraightLane, AbstractLane
 from highway_env.road.objects import Landmark
 from highway_env import utils
 
+# from highway_env.road.lane cimport AbstractLane
+
 if TYPE_CHECKING:
     from highway_env.vehicle import kinematics
     from highway_env.road import objects
@@ -65,13 +67,6 @@ class RoadNetwork(object):
         :param heading: a heading angle [rad].
         :return: the index of the closest lane.
         """
-        # indexes, distances = [], []
-        # for _from, to_dict in self.graph.items():
-            # for _to, lanes in to_dict.items():
-                # for _id, l in enumerate(lanes):
-                    # distances.append(l.distance_with_heading(position, heading))
-                    # indexes.append((_from, _to, _id))
-        # return indexes[utils.argmin(distances)]
 
         if not self.lane_indices:
             for _from, to_dict in self.graph.items():
@@ -79,13 +74,27 @@ class RoadNetwork(object):
                     for _id, l in enumerate(lanes):
                         self.lane_indices.append((_from, _to, _id))
                         self.lanes.append(self.get_lane((_from, _to, _id)))
-        # for l in self.lane_indices:
-            # print(l)
-            # print(self.get_lane(l).distance_with_heading(position, heading))
 
-        # return min(self.lane_indices, key=lambda l:self.get_lane(l).distance_with_heading(position, float(heading)))
-        return utils.get_closest_lane(self.lane_indices, self.lanes, position, heading)
+        cdef float current_smallest = 1e8
+        cdef Tuple [str, str, int] closest_lane_index
+        cdef float curr_dist
+        cdef int i, l_len
+        # cdef AbstractLane lane
+        cdef object lane
 
+        l_len = len(self.lane_indices)
+
+        for i in range(l_len):
+            index = self.lane_indices[i]
+            lane = self.lanes[i]
+            curr_dist = lane.distance_with_heading(position, heading)
+            if  curr_dist < current_smallest:
+                current_smallest = curr_dist
+                closest_lane_index = index
+
+        # print("Done \n\n")
+
+        return closest_lane_index
 
     def next_lane(self, current_index: LaneIndex, route: Route = None, position: np.ndarray = None,
                   np_random: np.random.RandomState = np.random) -> LaneIndex:
@@ -139,41 +148,41 @@ class RoadNetwork(object):
 
         # return _to, next_to, next_id
 
-    def bfs_paths(self, start: str, goal: str) -> List[List[str]]:
-        """
-        Breadth-first search of all routes from start to goal.
+    # def bfs_paths(self, start: str, goal: str) -> List[List[str]]:
+        # """
+        # Breadth-first search of all routes from start to goal.
 
-        :param start: starting node
-        :param goal: goal node
-        :return: list of paths from start to goal.
-        """
-        queue = [(start, [start])]
-        while queue:
-            (node, path) = queue.pop(0)
-            if node not in self.graph:
-                yield []
-            for _next in set(self.graph[node].keys()) - set(path):
-                if _next == goal:
-                    yield path + [_next]
-                elif _next in self.graph:
-                    queue.append((_next, path + [_next]))
+        # :param start: starting node
+        # :param goal: goal node
+        # :return: list of paths from start to goal.
+        # """
+        # queue = [(start, [start])]
+        # while queue:
+            # (node, path) = queue.pop(0)
+            # if node not in self.graph:
+                # yield []
+            # for _next in set(self.graph[node].keys()) - set(path):
+                # if _next == goal:
+                    # yield path + [_next]
+                # elif _next in self.graph:
+                    # queue.append((_next, path + [_next]))
 
-    def shortest_path(self, start: str, goal: str) -> List[str]:
-        """
-        Breadth-first search of shortest path from start to goal.
+    # def shortest_path(self, start: str, goal: str) -> List[str]:
+        # """
+        # Breadth-first search of shortest path from start to goal.
 
-        :param start: starting node
-        :param goal: goal node
-        :return: shortest path from start to goal.
-        """
-        return next(self.bfs_paths(start, goal), [])
+        # :param start: starting node
+        # :param goal: goal node
+        # :return: shortest path from start to goal.
+        # """
+        # return next(self.bfs_paths(start, goal), [])
 
-    def all_side_lanes(self, lane_index: LaneIndex) -> List[LaneIndex]:
-        """
-        :param lane_index: the index of a lane.
-        :return: all lanes belonging to the same road.
-        """
-        return [(lane_index[0], lane_index[1], i) for i in range(len(self.graph[lane_index[0]][lane_index[1]]))]
+    # def all_side_lanes(self, lane_index: LaneIndex) -> List[LaneIndex]:
+        # """
+        # :param lane_index: the index of a lane.
+        # :return: all lanes belonging to the same road.
+        # """
+        # return [(lane_index[0], lane_index[1], i) for i in range(len(self.graph[lane_index[0]][lane_index[1]]))]
 
     def side_lanes(self, lane_index: LaneIndex) -> List[LaneIndex]:
         """
@@ -228,37 +237,37 @@ class RoadNetwork(object):
                             for l1_to in self.graph.get(_to, {}).keys()])
         return False
 
-    def lanes_list(self) -> List[AbstractLane]:
-        return [lane for to in self.graph.values() for ids in to.values() for lane in ids]
+    # def lanes_list(self) -> List[AbstractLane]:
+        # return [lane for to in self.graph.values() for ids in to.values() for lane in ids]
 
-    @staticmethod
-    def straight_road_network(lanes: int = 4, length: float = 10000, angle: float = 0) -> 'RoadNetwork':
-        net = RoadNetwork()
-        for lane in range(lanes):
-            origin = np.array([0, lane * StraightLane.DEFAULT_WIDTH])
-            end = np.array([length, lane * StraightLane.DEFAULT_WIDTH])
-            rotation = np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
-            origin = rotation @ origin
-            end = rotation @ end
-            line_types = [LineType.CONTINUOUS_LINE if lane == 0 else LineType.STRIPED,
-                          LineType.CONTINUOUS_LINE if lane == lanes - 1 else LineType.NONE]
-            net.add_lane("0", "1", StraightLane(origin, end, line_types=line_types))
-        return net
+    # @staticmethod
+    # def straight_road_network(lanes: int = 4, length: float = 10000, angle: float = 0) -> 'RoadNetwork':
+        # net = RoadNetwork()
+        # for lane in range(lanes):
+            # origin = np.array([0, lane * StraightLane.DEFAULT_WIDTH])
+            # end = np.array([length, lane * StraightLane.DEFAULT_WIDTH])
+            # rotation = np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
+            # origin = rotation @ origin
+            # end = rotation @ end
+            # line_types = [LineType.CONTINUOUS_LINE if lane == 0 else LineType.STRIPED,
+                          # LineType.CONTINUOUS_LINE if lane == lanes - 1 else LineType.NONE]
+            # net.add_lane("0", "1", StraightLane(origin, end, line_types=line_types))
+        # return net
 
-    def position_heading_along_route(self, route: Route, longitudinal: float, lateral: float) \
-            -> Tuple[np.ndarray, float]:
-        """
-        Get the absolute position and heading along a route composed of several lanes at some local coordinates.
+    # def position_heading_along_route(self, route: Route, longitudinal: float, lateral: float) \
+            # -> Tuple[np.ndarray, float]:
+        # """
+        # Get the absolute position and heading along a route composed of several lanes at some local coordinates.
 
-        :param route: a planned route, list of lane indexes
-        :param longitudinal: longitudinal position
-        :param lateral: : lateral position
-        :return: position, heading
-        """
-        while len(route) > 1 and longitudinal > self.get_lane(route[0]).length:
-            longitudinal -= self.get_lane(route[0]).length
-            route = route[1:]
-        return self.get_lane(route[0]).position(longitudinal, lateral), self.get_lane(route[0]).heading_at(longitudinal)
+        # :param route: a planned route, list of lane indexes
+        # :param longitudinal: longitudinal position
+        # :param lateral: : lateral position
+        # :return: position, heading
+        # """
+        # while len(route) > 1 and longitudinal > self.get_lane(route[0]).length:
+            # longitudinal -= self.get_lane(route[0]).length
+            # route = route[1:]
+        # return self.get_lane(route[0]).position(longitudinal, lateral), self.get_lane(route[0]).heading_at(longitudinal)
 
 
 class Road(object):
@@ -358,7 +367,8 @@ class Road(object):
 
         # we do not consider obstacles
         for v in self.vehicles:
-            if v is not vehicle:# and not isinstance(v, Landmark):
+            # if v is not vehicle:# and not isinstance(v, Landmark):
+            if v is not vehicle:
                 if lane_index == ("a", "b", 0) or lane_index == ("b", "c", 0) or lane_index == (
                         "c", "d", 0):
                     if lane_index == ("a", "b", 0) and (
