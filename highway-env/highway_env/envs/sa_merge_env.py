@@ -4,7 +4,7 @@ from gymnasium.envs.registration import register
 
 from highway_env import utils
 from highway_env.envs.common.abstract import AbstractEnv
-from highway_env.road.lane import LineType, StraightLane, SineLane, HorizontalLane
+from highway_env.road.lane import LineType, StraightLane, SineLane, HorizontalLane, DEFAULT_WIDTH
 from highway_env.road.road import Road, RoadNetwork
 from highway_env.vehicle.controller import ControlledVehicle
 from highway_env.vehicle.graphics import VehicleGraphics
@@ -138,7 +138,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         # self.ends = [150, 80, 40, 40, 150]  # Before, converging, merge, after
 
         c, s, n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
-        y = [0, StraightLane.DEFAULT_WIDTH]
+        y = [0, DEFAULT_WIDTH]
         line_type = [(c, s), (n, c)]
         line_type_merge = [(c, s), (n, s)]
         for i in range(2):

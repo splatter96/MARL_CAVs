@@ -15,7 +15,7 @@ from highway_env.envs.common.observation import observation_factory, Observation
 from highway_env.envs.common.graphics import EnvViewer
 from highway_env.vehicle.behavior import IDMVehicle, LinearVehicle
 from highway_env.vehicle.controller import MDPVehicle
-from highway_env.vehicle.kinematics import Vehicle, RealVehicle
+from highway_env.vehicle.kinematics import Vehicle
 # from highway_env.envs.common.idm_controller import idm_controller, generate_actions
 # from highway_env.envs.common.mdp_controller import mdp_controller
 from highway_env.road.objects import Obstacle, Landmark
@@ -820,8 +820,6 @@ class AbstractEnv(gym.Env):
     def _compute_headway_distance(self, vehicle, ):
         headway_distance = 60
         for v in self.road.vehicles:
-            if isinstance(v, RealVehicle):
-                continue
             if (v.lane_index == vehicle.lane_index) and (v.position[0] > vehicle.position[0]):
                 hd = v.position[0] - vehicle.position[0]
                 if hd < headway_distance:
