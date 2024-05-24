@@ -166,7 +166,8 @@ def train(args):
     callback_list = CallbackList([eval_callback, checkpoint_log_speed])
 
     # configure logging
-    custom_logger = configure(dirs['logs'], ["stdout", "csv", "tensorboard"])
+    # custom_logger = configure(dirs['logs'], ["stdout", "csv", "tensorboard"])
+    custom_logger = configure(dirs['logs'], ["stdout", "csv"])
     model.set_logger(custom_logger)
 
     # split up total learning steps when using curriculum learning
@@ -175,18 +176,19 @@ def train(args):
         learn_steps = 3e5
 
     #warmup jit
-    model.learn(50)
+    #model.learn(50)
 
-    learn_steps = 4000
+    learn_steps = 10000
     import cProfile, pstats
     profiler = cProfile.Profile()
     profiler.enable()
 
-    model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", callback=callback_list)
+    # model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", callback=callback_list)
+    model.learn(int(learn_steps))
 
     profiler.disable()
     stats = pstats.Stats(profiler)
-    stats.dump_stats('train_prof_laptop_lidarobservation_new_alg.log')
+    stats.dump_stats('train_prof_laptop_python308.log')
 
     #if curriculum_learning == True:
         #env.config['traffic_density'] = 2

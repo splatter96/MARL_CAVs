@@ -1,0 +1,63 @@
+import os
+import matplotlib
+import argparse
+import seaborn as sns
+import pandas as pd
+import numpy as np
+
+import matplotlib.pyplot as plt
+
+data = np.load("crash_pos.npy")
+df = pd.DataFrame(data, columns=["x", "y"])
+
+sns.set_theme()
+sns.set_context("paper")
+# sns.set(font_scale=0.5)
+
+ax = sns.kdeplot(df, x="x", y="y", fill=True, bw_adjust=0.5, cbar=True, cbar_kws={"location": "bottom"})
+# dis = sns.displot(df, x="x", y="y", kind="hist", cbar=True, cbar_kws={"location": "bottom"})
+#ax = dis.axes[0,0]
+ax.set_aspect(10)
+ax.grid(False)
+
+# print(dis.axes[0,0])
+# for i in range(9):
+    # print(ax.collections[i].__dict__)
+
+cbar = ax.collections[0].colorbar
+# here set the labelsize by 20
+cbar.ax.tick_params(labelsize=20)
+
+import matplotlib.image as mpimg
+map_img = mpimg.imread('road.png')
+
+ax.imshow(map_img,
+          aspect = ax.get_aspect(),
+          extent = [150,460,16,-2],
+          zorder = 0) #put the map under the heatmap
+
+# ax.tick_params(labelsize=10)
+# dis.colorbar
+# print(dis.figure.colorbar)
+# dis.figure.colorbar.ax.tick_params(rotation=45)
+
+ax = plt.gca()
+# print(ax.collections[-1].colorbar)
+
+# print(plt.gca().images[0])
+
+# road segments
+#ax.axvline(x=150)
+#ax.axvline(x=230)
+#ax.axvline(x=310)
+#ax.axvline(x=460)
+
+#ax.set_ylim(15, -2)
+#ax.set_xlim(150, 450)
+
+
+#plt.tight_layout()
+#plt.show()
+
+plt.savefig("crash_map.png", dpi=600, bbox_inches="tight")
+

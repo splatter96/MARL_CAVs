@@ -17,6 +17,7 @@ if __name__ == "__main__":
     args = parse_args()
 
     sns.set_theme()
+    sns.set_context("paper")
 
     run1_list = []
     for f in os.listdir(args.run1):
