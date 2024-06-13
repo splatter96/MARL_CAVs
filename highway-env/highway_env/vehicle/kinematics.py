@@ -288,7 +288,7 @@ class Vehicle(object):
 
 class RealVehicle(Vehicle):
 
-    def __init__(self, traj_file: str):
+    def __init__(self, traj_file: str, start_time: int):
 
         self.traj = np.load(traj_file)
         self.position = np.zeros(2,)
@@ -299,6 +299,8 @@ class RealVehicle(Vehicle):
         self.position[1] = self.traj[0][2]
         self.speed = self.traj[0][3]
         self.heading = self.traj[0][4]
+
+        self.traj[:,0] -= start_time
 
         self.fx = interpolate.interp1d(self.traj[:,0], self.traj[:,1])
         self.fy = interpolate.interp1d(self.traj[:,0], self.traj[:,2])
