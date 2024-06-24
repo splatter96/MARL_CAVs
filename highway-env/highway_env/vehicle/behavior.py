@@ -332,6 +332,45 @@ class IDMVehicle(ControlledVehicle):
         return acceleration
 
 
+class ModelVehicle(IDMVehicle):
+
+    def __init__(self,
+                 road: Road,
+                 position: Vector,
+                 heading: float = 0,
+                 speed: float = 0,
+                 target_lane_index: int = None,
+                 target_speed: float = None,
+                 route: Route = None,
+                 enable_lane_change: bool = True,
+                 timer: float = None):
+        super().__init__(road, position, heading, speed, target_lane_index, target_speed, route)
+        self.enable_lane_change = enable_lane_change
+
+        self.LENGTH = 0.17
+        self.MAX_STEERING_ANGLE = np.deg2rad(20)
+
+        self._actioncallback = None
+
+    def register_action_callback(self, callback):
+        self.action_callback = callback
+
+    # called externally to set from tracking system
+    def set_pose(self, position, heading, speed):
+        self.position = position
+        self.heading = heading
+        self.speed = speed
+
+    # Override the step fucntion of both IDMVehicle and Vehicle to get and set data from real world
+    def step(self, dt: float) -> None:
+        self.clip_actions()
+
+        # Execute actions in real world
+        if self.action_callback is not None:
+            self.action_callback(self.action)
+
+        self.on_state_update()
+
 class LinearVehicle(IDMVehicle):
     """A Vehicle whose longitudinal and lateral controllers are linear with respect to parameters."""
 
