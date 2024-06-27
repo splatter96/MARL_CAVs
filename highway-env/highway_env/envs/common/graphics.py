@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Callable, List
 import numpy as np
 import pygame
 from gymnasium.spaces import Discrete
+import cv2
 
 from highway_env.envs.common.action import ActionType, DiscreteMetaAction, ContinuousAction
 from highway_env.road.graphics import WorldSurface, RoadGraphics
@@ -137,6 +138,16 @@ class EnvViewer(object):
             self.screen.blit(self.sim_surface, (0, 0))
             if self.env.config["real_time_rendering"]:
                 self.clock.tick(self.env.config["simulation_frequency"])
+
+            # OpenCV test to project scene
+            """
+            view = pygame.surfarray.array3d(self.sim_surface)
+            view = view.transpose([1, 0, 2])
+            img_bgr = cv2.cvtColor(view, cv2.COLOR_RGB2BGR)
+            cv2.imshow("Simulation",img_bgr)
+            cv2.waitKey(1)
+            """
+
             pygame.display.flip()
 
         if self.SAVE_IMAGES and self.directory:

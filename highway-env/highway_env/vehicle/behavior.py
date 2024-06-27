@@ -171,7 +171,6 @@ class IDMVehicle(ControlledVehicle):
         ego_target_speed *= ego_vehicle.alpha_v0
 
         acceleration = self.COMFORT_ACC_MAX * (1 - (max(ego_vehicle.speed, 0) / ego_target_speed) ** self.DELTA)
-
         # currently lane change happening
         # if not front_vehicle and (self.target_lane_index != self.lane_index):
             # # _, front_vehicle =  self.road.neighbour_vehicles(self, self.target_lane_index)
@@ -332,6 +331,30 @@ class IDMVehicle(ControlledVehicle):
         return acceleration
 
 
+class ModelIDMVehicle(IDMVehicle):
+    """
+    Override the relevant parameters for small model cars
+    but keep the actual behavior
+    """
+
+    def __init__(self,
+                 road: Road,
+                 position: Vector,
+                 heading: float = 0,
+                 speed: float = 0,
+                 target_lane_index: int = None,
+                 target_speed: float = None,
+                 route: Route = None,
+                 enable_lane_change: bool = True,
+                 timer: float = None):
+        super().__init__(road, position, heading, speed, target_lane_index, target_speed, route)
+        self.enable_lane_change = enable_lane_change
+
+        self.WIDTH = 0.08
+        self.LENGTH = 0.17
+        self.DISTANCE_WANTED = 0.1
+        self.id = 0
+
 class ModelVehicle(IDMVehicle):
 
     def __init__(self,
@@ -348,7 +371,11 @@ class ModelVehicle(IDMVehicle):
         self.enable_lane_change = enable_lane_change
 
         self.LENGTH = 0.17
+        self.WIDTH = 0.08
+        self.DISTANCE_WANTED = 0.1
         self.MAX_STEERING_ANGLE = np.deg2rad(20)
+
+        self.id = 0 # to be set externally
 
         self._actioncallback = None
 
@@ -367,7 +394,7 @@ class ModelVehicle(IDMVehicle):
 
         # Execute actions in real world
         if self.action_callback is not None:
-            self.action_callback(self.action)
+            self.action_callback(self.action, self.id)
 
         self.on_state_update()
 
