@@ -383,14 +383,15 @@ class ModelVehicle(IDMVehicle):
         self.action_callback = callback
 
     # called externally to set from tracking system
-    def set_pose(self, position, heading, speed):
+    def set_pose(self, position, heading):
         self.position = position
         self.heading = heading
-        self.speed = speed
 
     # Override the step fucntion of both IDMVehicle and Vehicle to get and set data from real world
     def step(self, dt: float) -> None:
         self.clip_actions()
+
+        self.speed += self.action['acceleration'] * dt
 
         # Execute actions in real world
         if self.action_callback is not None:
