@@ -94,11 +94,17 @@ class AbstractLane(object):
             0 <= longitudinal < self.length + VEHICLE_LENGTH
         return is_close
 
-    def after_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None) -> bool:
+    def after_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None, vehicle_length: float = 5) -> bool:
         if not longitudinal:
             longitudinal, _ = self.local_coordinates(position)
-        # return longitudinal > self.length - self.VEHICLE_LENGTH / 2
-        return longitudinal > self.length - (10 + VEHICLE_LENGTH / 2)
+        return longitudinal > self.length - vehicle_length / 2
+        # return longitudinal > self.length - (10 + VEHICLE_LENGTH / 2)
+
+    def distance_to_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None) -> bool:
+        """Compute distance from position to the end of the lane"""
+        if not longitudinal:
+            longitudinal, _ = self.local_coordinates(position)
+        return self.length - longitudinal
 
     def distance(self, position: np.ndarray):
         """Compute the L1 distance [m] from a position to the lane."""

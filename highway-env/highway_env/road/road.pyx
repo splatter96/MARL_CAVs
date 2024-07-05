@@ -360,6 +360,27 @@ class Road(object):
         lane_index = lane_index or vehicle.lane_index
         if not lane_index:
             return None, None
+        lane = self.network.get_lane(lane_index)
+        s = self.network.get_lane(lane_index).local_coordinates(vehicle.position)[0]
+        s_front = s_rear = None
+        v_front = v_rear = None
+        for v in self.vehicles + self.objects:
+            if v is not vehicle and not isinstance(v, Landmark):  # self.network.is_connected_road(v.lane_index, lane_index, same_lane=True):
+                s_v, lat_v = lane.local_coordinates(v.position)
+                if not lane.on_lane(v.position, float(s_v), float(lat_v), margin=1) and not self.network.is_connected_road(v.lane_index, lane_index, same_lane=True):
+                    continue
+                if s <= s_v and (s_front is None or s_v <= s_front):
+                    s_front = s_v
+                    v_front = v
+                if s_v < s and (s_rear is None or s_v > s_rear):
+                    s_rear = s_v
+                    v_rear = v
+
+        return v_front, v_rear
+
+        lane_index = lane_index or vehicle.lane_index
+        if not lane_index:
+            return None, None
         cdef float s_v
         cdef float s = vehicle.position[0]  # x position
         s_front = s_rear = None

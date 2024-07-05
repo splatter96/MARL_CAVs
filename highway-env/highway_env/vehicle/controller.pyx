@@ -109,7 +109,7 @@ class ControlledVehicle(Vehicle):
 
     def follow_road(self) -> None:
         """At the end of a lane, automatically switch to a next one."""
-        if self.road.network.get_lane(self.target_lane_index).after_end(self.position):
+        if self.road.network.get_lane(self.target_lane_index).after_end(self.position, vehicle_length=self.LENGTH):
             self.target_lane_index = self.road.network.next_lane(self.target_lane_index,
                                                                  route=self.route,
                                                                  position=self.position,
