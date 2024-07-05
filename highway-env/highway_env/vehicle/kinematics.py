@@ -290,6 +290,8 @@ class Vehicle(object):
 class RealVehicle(Vehicle):
 
     def __init__(self, traj_file: str, start_time: int):
+        self.lane = None
+        self.lane_index = None
 
         self.traj = np.load(traj_file)
         self.position = np.zeros(2,)
