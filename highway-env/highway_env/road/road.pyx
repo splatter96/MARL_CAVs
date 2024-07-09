@@ -367,13 +367,16 @@ class Road(object):
         for v in self.vehicles + self.objects:
             if v is not vehicle and not isinstance(v, Landmark):  # self.network.is_connected_road(v.lane_index, lane_index, same_lane=True):
                 s_v, lat_v = lane.local_coordinates(v.position)
-                if not lane.on_lane(v.position, float(s_v), float(lat_v), margin=1) and not self.network.is_connected_road(v.lane_index, lane_index, same_lane=True):
+
+                d = lane.distance_between_points(vehicle.position, v.position)
+
+                if not lane.on_lane(v.position, float(s_v), float(lat_v), margin=0.05) and not self.network.is_connected_road(v.lane_index, lane_index, same_lane=True):
                     continue
-                if s <= s_v and (s_front is None or s_v <= s_front):
-                    s_front = s_v
+                if d >= 0 and (s_front is None or d <= s_front):
+                    s_front = d
                     v_front = v
-                if s_v < s and (s_rear is None or s_v > s_rear):
-                    s_rear = s_v
+                if d < 0 and (s_rear is None or d > s_rear):
+                    s_rear = d
                     v_rear = v
 
         return v_front, v_rear

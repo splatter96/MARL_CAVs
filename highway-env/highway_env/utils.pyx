@@ -116,6 +116,7 @@ cpdef float not_zero(x: float, eps: float = 1e-2):
         return -eps
 
 
+@cython.cdivision(False)
 cpdef inline float wrap_to_pi(x: float):
     # return ((x + np.pi) % (2 * np.pi)) - np.pi
     return ((x + 3.14) % (2 * 3.14)) - 3.14

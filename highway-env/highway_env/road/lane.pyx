@@ -97,7 +97,7 @@ class AbstractLane(object):
     def after_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None, vehicle_length: float = 5) -> bool:
         if not longitudinal:
             longitudinal, _ = self.local_coordinates(position)
-        return longitudinal > self.length - vehicle_length / 2
+        return longitudinal > self.length - vehicle_length
         # return longitudinal > self.length - (10 + VEHICLE_LENGTH / 2)
 
     def distance_to_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None) -> bool:
@@ -110,6 +110,10 @@ class AbstractLane(object):
         """Compute the L1 distance [m] from a position to the lane."""
         s, r = self.local_coordinates(position)
         return abs(r) + max(s - self.length, 0) + max(0 - s, 0)
+
+    def distance_between_points(self, position1: np.ndarray, position2: np.ndarray):
+        """Compute the lane distance between two points on the lane"""
+        return self.local_coordinates(position2)[0] - self.local_coordinates(position1)[0]
 
     # @profile
     # cpdef float distance_with_heading(self, position: np.ndarray, heading: Optional[float]):
@@ -361,3 +365,41 @@ class CircularLane(AbstractLane):
         longitudinal = self.direction*(phi - self.start_phase)*self.radius
         lateral = self.direction*(self.radius - r)
         return longitudinal, lateral
+
+    def distance_between_points(self, position1: np.ndarray, position2: np.ndarray):
+        delta1 = position1 - self.center
+        phi1 = np.arctan2(delta1[1], delta1[0])
+
+        delta2 = position2 - self.center
+        phi2 = np.arctan2(delta2[1], delta2[0])
+
+        phi = utils.wrap_to_pi(phi2 - phi1)
+
+        return self.radius * phi
+
+    def distance_to_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None) -> bool:
+        """Compute distance from position to the end of the lane"""
+        delta = position - self.center
+        phi = np.arctan2(delta[1], delta[0])
+
+        phi = utils.wrap_to_pi(self.end_phase - phi)
+
+        return self.radius * phi
+
+    def distance_with_heading(self, position: np.ndarray, heading: Optional[float]):
+        delta = position - self.center
+        phi = np.arctan2(delta[1], delta[0])
+
+        in_range = (phi-self.start_phase) % (2*np.pi) <= (self.end_phase - self.start_phase) % (2*np.pi)
+        # print(f"{in_range=}")
+        if in_range:
+            val = abs(np.linalg.norm(delta) - self.radius)
+            # print("on lane")
+            return val
+        else:
+            start = self.position(0, 0)
+            end = self.position(self.length, 0)
+            val =  min(np.linalg.norm(position - start), np.linalg.norm(position-end))
+            # print("not on lane")
+            return val
+

@@ -182,9 +182,8 @@ class Vehicle(object):
         # return lane.local_coordinates(vehicle.position)[0] - lane.local_coordinates(self.position)[0]
 
         # both vehicles on same lane
-        # if lane is vehicle.lane or vehicle.lane is None:
         if vehicle.lane_index is None or self.lane_index[:2] == vehicle.lane_index[:2]:
-            return lane.local_coordinates(vehicle.position)[0] - lane.local_coordinates(self.position)[0]
+            return lane.distance_between_points(self.position, vehicle.position)
 
         v_front_dist = vehicle.lane.local_coordinates(vehicle.position)[0]
         dist_to_end = lane.distance_to_end(self.position)

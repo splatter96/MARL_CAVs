@@ -184,9 +184,10 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         spawn_points_s1 = [10, 50, 90, 130, 170, 210, 225]
         spawn_points_s2 = [0, 40, 80, 120, 160, 200, 220]
-        spawn_points_m = [5, 45, 85, 125, 130, 145, 150, 165, 205, 225]
-        # spawn_points_m = [5, 45, 65, 85, 100, 125]
-        spawn_points_m_cav = [125, 130, 145, 150, 165]
+        # spawn_points_m = [5, 45, 85, 125, 130, 145, 150, 165, 205, 225]
+        spawn_points_m = [5, 45, 85, 125, 165, 205, 225]
+        # spawn_points_m_cav = [125, 130, 145, 150, 165]
+        spawn_points_m_cav = [125, 165]
 
         # initial speed with noise and location noise
         initial_speed = np.random.rand(num_CAV + num_HDV) * 8 + 22  # range from [25, 30]
@@ -265,7 +266,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             # veh.RIGHT_BIAS = np.random.choice([-right_bias, right_bias], 1, p=[1-offramp_percentage, offramp_percentage])
             veh.RIGHT_BIAS = biases.pop(0)
             veh.color = VehicleGraphics.BLUE if veh.RIGHT_BIAS == right_bias else VehicleGraphics.GREEN
-            # road.vehicles.append(veh)
+            road.vehicles.append(veh)
 
         for _ in range(num_HDV // 3):
             veh = other_vehicles_type(road, road.network.get_lane(("a", "b", 1)).position(
@@ -276,7 +277,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             # veh.RIGHT_BIAS = np.random.choice([-right_bias, right_bias], 1, p=[1-offramp_percentage, offramp_percentage])
             veh.RIGHT_BIAS = biases.pop(0)
             veh.color = VehicleGraphics.BLUE if veh.RIGHT_BIAS == right_bias else VehicleGraphics.GREEN
-            # road.vehicles.append(veh)
+            road.vehicles.append(veh)
 
         """spawn the rest HDV on the merging road"""
         for _ in range(num_HDV - 2 * num_HDV // 3):
@@ -289,16 +290,16 @@ class SingleAgentMergeEnv(AbstractEnv):
             # all merging vehicles want on main road (left bias)
             veh.RIGHT_BIAS = -4.0
             veh.color = VehicleGraphics.GREEN
-            # road.vehicles.append(veh)
+            road.vehicles.append(veh)
 
         """ create the vehicle from real data """
         # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131]
-        traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
+        # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
 
-        for traj in traj_list:
-            v = RealVehicle(f"../traj{traj}.npy", 13)
-            v.color = VehicleGraphics.BLACK
-            road.vehicles.append(v)
+        # for traj in traj_list:
+            # v = RealVehicle(f"../traj{traj}.npy", 13)
+            # v.color = VehicleGraphics.BLACK
+            # road.vehicles.append(v)
 
 
 register(
