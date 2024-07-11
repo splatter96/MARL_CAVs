@@ -94,6 +94,7 @@ class IDMVehicle(ControlledVehicle):
         action = {}
         # front_vehicle, rear_vehicle = self.road.neighbour_vehicles(self)
         front_vehicle, rear_vehicle = self.road.surrounding_vehicles(self)
+
         # Lateral: MOBIL
         self.follow_road()
         if self.enable_lane_change:
@@ -273,8 +274,6 @@ class IDMVehicle(ControlledVehicle):
         new_preceding, new_following = self.road.surrounding_vehicles(self, lane_index)
         old_preceding, old_following = self.road.surrounding_vehicles(self)
 
-        # if self.id == 13:
-            # print(f"{self} {new_preceding} {new_following} {old_preceding} {old_following}")
 
         self_pred_a = self.acceleration(ego_vehicle=self, front_vehicle=new_preceding)
         new_following_a = self.acceleration(ego_vehicle=new_following, front_vehicle=new_preceding)
@@ -398,6 +397,7 @@ class ModelVehicle(IDMVehicle):
             self.action_callback(self.action, self.id)
 
         self.on_state_update()
+        self.timer += dt
 
 class LinearVehicle(IDMVehicle):
     """A Vehicle whose longitudinal and lateral controllers are linear with respect to parameters."""

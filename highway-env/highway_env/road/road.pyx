@@ -370,7 +370,8 @@ class Road(object):
 
                 d = lane.distance_between_points(vehicle.position, v.position)
 
-                if not lane.on_lane(v.position, float(s_v), float(lat_v), margin=0.05) and not self.network.is_connected_road(v.lane_index, lane_index, same_lane=True):
+                if not lane.on_lane(v.position, float(s_v), float(lat_v), margin=0.05) and not self.network.is_connected_road(v.lane_index, lane_index, same_lane=True) \
+                        and not self.network.is_connected_road(lane_index, v.lane_index, same_lane=True) :
                     continue
                 if d >= 0 and (s_front is None or d <= s_front):
                     s_front = d
