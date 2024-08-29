@@ -635,7 +635,6 @@ class AbstractEnv(gym.Env):
         :param action: the action performed by the ego-vehicle
         :return: a tuple (observation, reward, terminal, info)
         """
-    #    print(f"Stepping env with {self.config}")
         average_speed = 0
         if self.road is None or self.vehicle is None:
             raise NotImplementedError("The road and vehicle must be initialized in the environment implementation")
@@ -673,11 +672,15 @@ class AbstractEnv(gym.Env):
         average_road_speed = average_road_speed / len(self.road.vehicles)
 
         self.vehicle_speed = [v.speed for v in self.controlled_vehicles]
-        self.vehicle_pos = [v.position for v in self.controlled_vehicles]
+        # self.vehicle_pos = [v.position for v in self.controlled_vehicles]
+        self.ego_vehicle_pos = [v.position for v in self.controlled_vehicles]
 
         # did any other vehicle on the road crash?
         other_vehciles = filter(lambda v: v != self.vehicle, self.road.vehicles)
         crashes = [veh.crashed for veh in other_vehciles]
+
+        other_vehciles = filter(lambda v: v != self.vehicle, self.road.vehicles)
+        self.vehicle_pos = [v.position for v in other_vehciles]
 
         # did the ego vehicle merge succesfully
         ego_veh_lane = self.road.network.get_closest_lane_index(self.controlled_vehicles[0].position, 0.0)
@@ -693,6 +696,7 @@ class AbstractEnv(gym.Env):
             "average_speed": average_speed,
             "average_road_speed": average_road_speed,
             "vehicle_speed": self.vehicle_speed,
+            "ego_vehicle_position": self.ego_vehicle_pos,
             "vehicle_position": self.vehicle_pos,
             "merged": merged
         }

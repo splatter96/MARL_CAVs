@@ -61,14 +61,14 @@ def display_action(action_surface, sim_surface):
 
     lidar_color = (255,0,0)
 
-    if last_info is None or last_observation is None or not "vehicle_position" in last_info:
+    if last_info is None or last_observation is None or not "ego_vehicle_position" in last_info:
         return
 
     ranges = last_observation[:,0]
 
     for i, _range in enumerate(ranges):
         pos = angle_to_position(angle*i, _range*maximum_range)
-        pos += last_info['vehicle_position'][0]
+        pos += last_info['ego_vehicle_position'][0]
 
         pos = sim_surface.pos2pix(pos[0], pos[1])
         #TODO account for heading of the vehicle
@@ -155,17 +155,20 @@ def eval_policy(args):
           env.set_vehicle(env.road.vehicles[0])
 
       ret = 0
-      position_list = []
+      ego_position_list = []
+      other_position_list = []
       action_buffer = []
       while not (done or truncated):
         if not args.mobil:
             action, _states = model.predict(obs, deterministic=True)
-            # t_obs = torch.tensor(obs)
-            # t_obs = t_obs[None, :]
-            # action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
-            # global last_action_prob
-            # last_action_prob = action_prob.detach().numpy()
+            t_obs = torch.tensor(obs)
+            t_obs = t_obs[None, :]
+            action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
+            global last_action_prob
+            last_action_prob = action_prob.detach().numpy()
             # action_buffer.append(last_action_prob[0])
+            if "ego_vehicle_position" in info:
+                action_buffer.append([info["ego_vehicle_position"][0][0], info["ego_vehicle_position"][0][1], np.max(last_action_prob[0])])
         else:
             action = None
         obs, reward, done, truncated, info = env.step(action)
@@ -181,8 +184,11 @@ def eval_policy(args):
         total_steps += 1
 
         if args.traj_dir != '':
-            veh_pos = info["vehicle_position"][0]
-            position_list.append(veh_pos.copy())
+            veh_pos = info["ego_vehicle_position"][0]
+            ego_position_list.append(veh_pos.copy())
+
+            other_veh_pos = info["vehicle_position"][0]
+            other_position_list.append(other_veh_pos.copy())
 
         if args.render:
             env.render()
@@ -196,7 +202,7 @@ def eval_policy(args):
             # skip_run = True
             # #print("other crash")
 
-      #if info['crashed']:
+      # if info['crashed']:
       # if info["other_crashes"]:
       # if skip_run:
           # only save trajectories if we didn't load any in the first place
@@ -211,9 +217,10 @@ def eval_policy(args):
 
       if info['crashed']:
           crashes += 1
-          #np.save(f"action_before_crash_{j}.npy", action_buffer)
-      #else:
-          #np.save(f"action_without_crash_{j}.npy", action_buffer)
+          np.save(f"action_before_crash_pos_{j}.npy", action_buffer)
+          np.save(f"crash_location{j}.npy", info["ego_vehicle_position"][0])
+      else:
+          np.save(f"action_without_crash_pos_{j}.npy", action_buffer)
 
 
 
@@ -222,8 +229,9 @@ def eval_policy(args):
 
       j += 1
 
-      # if args.traj_dir != '':
-          # np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(position_list))
+      if args.traj_dir != '':
+          np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(ego_position_list))
+          np.save(f"{args.traj_dir}/other_pos_{i}.npy", np.array(other_position_list))
 
       # print(f"Episode done crashed:{info['crashed']}")
       # print(f"Current crashrate {crashes/(i+1)}")

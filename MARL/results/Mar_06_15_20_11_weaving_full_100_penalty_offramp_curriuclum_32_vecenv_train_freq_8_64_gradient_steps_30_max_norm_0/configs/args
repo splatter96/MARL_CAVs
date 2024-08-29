@@ -1,0 +1,1 @@
+train_vec.py --gpu 0 --exp-tag weaving_full_100_penalty_offramp_curriuclum_32_vecenv_train_freq_8_64_gradient_steps_30_max_norm 
