@@ -1,0 +1,2 @@
+python eval.py results/Mar_06_15_20_11_weaving_full_100_penalty_offramp_curriuclum_32_vecenv_train_freq_8_64_gradient_steps_30_max_norm_0/models/model_weaving_full_100_penalty_offramp_curriuclum_32_vecenv_train_freq_8_64_gradient_steps_30_max_norm_seed_42.zip --difficulty 3 --num-runs 5000  --no-render
+
