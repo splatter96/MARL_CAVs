@@ -13,6 +13,8 @@ warnings.filterwarnings('ignore')
 import matplotlib.cm as cm
 import matplotlib as mpl
 
+import copy
+
 from PIL import Image
 
 sys.path.append("../highway-env")
@@ -183,12 +185,19 @@ def eval_policy(args):
         road_speed += info["average_road_speed"]
         total_steps += 1
 
+        veh_pos = info["ego_vehicle_position"][0]
+        print(veh_pos)
         if args.traj_dir != '':
             veh_pos = info["ego_vehicle_position"][0]
             ego_position_list.append(veh_pos.copy())
 
-            other_veh_pos = info["vehicle_position"][0]
-            other_position_list.append(other_veh_pos.copy())
+            # other_veh_pos = info["vehicle_position"][0]
+            other_veh_pos = info["vehicle_position"]
+            other_position_list.append(copy.deepcopy(other_veh_pos))
+            # print(other_position_list[0])
+            # print(other_veh_pos)
+            # print(other_position_list[-1])
+            # print("\n")
 
         if args.render:
             env.render()
@@ -206,8 +215,8 @@ def eval_policy(args):
       # if info["other_crashes"]:
       # if skip_run:
           # only save trajectories if we didn't load any in the first place
-          # if args.initial_pos == '':
-              # np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
+      # if args.initial_pos == '':
+          # np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
 
       if skip_run:
         continue
@@ -229,9 +238,9 @@ def eval_policy(args):
 
       j += 1
 
-      if args.traj_dir != '':
-          np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(ego_position_list))
-          np.save(f"{args.traj_dir}/other_pos_{i}.npy", np.array(other_position_list))
+      # if args.traj_dir != '':
+          # np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(ego_position_list))
+          # np.save(f"{args.traj_dir}/other_pos_{i}.npy", np.array(other_position_list))
 
       # print(f"Episode done crashed:{info['crashed']}")
       # print(f"Current crashrate {crashes/(i+1)}")

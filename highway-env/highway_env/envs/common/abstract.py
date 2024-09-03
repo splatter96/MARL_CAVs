@@ -681,6 +681,7 @@ class AbstractEnv(gym.Env):
 
         other_vehciles = filter(lambda v: v != self.vehicle, self.road.vehicles)
         self.vehicle_pos = [v.position for v in other_vehciles]
+        self.vehicle_pos.sort(key=lambda x: x.id)
 
         # did the ego vehicle merge succesfully
         ego_veh_lane = self.road.network.get_closest_lane_index(self.controlled_vehicles[0].position, 0.0)
