@@ -26,25 +26,24 @@ if __name__ == "__main__":
     width = 5.0
 
     runs = {
-            1: {'plot_until': [15, 17, 19], 'ids': [5,6], 'name': "crash"}, #crash
+            1: {'plot_until': [15, 17, 18], 'ids': [5,6], 'name': "crash"}, #crash
             3: {'plot_until': [15, 17, 20, 30], 'ids': [9, 3], 'name': "near_miss"}, #near miss
             4: {'plot_until': [23, 25, 29, 33], 'ids': [4,6], 'name': "nice_merge"} #nice merge
           }
 
-    run_number = 3 # 1=crash, 3=near miss, 4=nice merge
+    run_number = 4 # 1=crash, 3=near miss, 4=nice merge
 
     for plot_number in range(len(runs[run_number]['plot_until'])):
         print(plot_number)
 
         for f in glob.iglob(f"{args.runs}/pos_{run_number}.npy", recursive=True):
             data = np.load(f"{f}")
-            df = pd.DataFrame(data[:runs[run_number]['plot_until'][plot_number], :], columns=["x", "y"])
+            df = pd.DataFrame(data[:runs[run_number]['plot_until'][plot_number], :], columns=["x", "y", "yaw"])
             ax = sns.lineplot(data=df, x="x", y="y")
             r = Rectangle(
                     xy=(data[runs[run_number]['plot_until'][plot_number]-1,  0]-width/2, data[runs[run_number]['plot_until'][plot_number]-1,  1]-height/2),
                     width=width, height=height, linewidth=1, 
-                    # color=ax.get_lines()[0].get_color(), fill=True, angle=-17, rotation_point='center')
-                    color=ax.get_lines()[0].get_color(), fill=True)
+                    color=ax.get_lines()[0].get_color(), fill=True, angle=np.rad2deg(df.tail(1)["yaw"]), rotation_point='center')
             ax.add_patch(r)
 
         for f in glob.iglob(f"{args.runs}/other_pos_{run_number}.npy", recursive=True):
@@ -52,7 +51,7 @@ if __name__ == "__main__":
             j=0
             for i in range(data.shape[1]):
                 if i in runs[run_number]['ids']:
-                    df = pd.DataFrame(data[:runs[run_number]['plot_until'][plot_number],i,:], columns=["x", "y"])
+                    df = pd.DataFrame(data[:runs[run_number]['plot_until'][plot_number],i,:], columns=["x", "y", "yaw"])
                     ax = sns.lineplot(data=df, x="x", y="y")
                     r = Rectangle(xy=(data[runs[run_number]['plot_until'][plot_number]-1, i, 0]-width/2, data[runs[run_number]['plot_until'][plot_number]-1, i, 1]-height/2), width=width, height=height, linewidth=1, color=ax.get_lines()[j+1].get_color(), fill=True)
                     ax.add_patch(r)

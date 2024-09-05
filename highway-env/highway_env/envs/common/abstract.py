@@ -673,15 +673,16 @@ class AbstractEnv(gym.Env):
 
         self.vehicle_speed = [v.speed for v in self.controlled_vehicles]
         # self.vehicle_pos = [v.position for v in self.controlled_vehicles]
-        self.ego_vehicle_pos = [v.position for v in self.controlled_vehicles]
+        self.ego_vehicle_pos = [np.append(v.position, v.heading) for v in self.controlled_vehicles]
 
         # did any other vehicle on the road crash?
         other_vehciles = filter(lambda v: v != self.vehicle, self.road.vehicles)
         crashes = [veh.crashed for veh in other_vehciles]
 
+        other_vehicles = sorted(self.road.vehicles, key=lambda x: x.id)
         other_vehciles = filter(lambda v: v != self.vehicle, self.road.vehicles)
-        self.vehicle_pos = [v.position for v in other_vehciles]
-        self.vehicle_pos.sort(key=lambda x: x.id)
+        self.vehicle_pos = [np.append(v.position, v.heading) for v in other_vehciles]
+        # self.vehicle_pos.sort(key=lambda x: x.id)
 
         # did the ego vehicle merge succesfully
         ego_veh_lane = self.road.network.get_closest_lane_index(self.controlled_vehicles[0].position, 0.0)

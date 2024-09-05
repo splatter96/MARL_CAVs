@@ -186,7 +186,6 @@ def eval_policy(args):
         total_steps += 1
 
         veh_pos = info["ego_vehicle_position"][0]
-        print(veh_pos)
         if args.traj_dir != '':
             veh_pos = info["ego_vehicle_position"][0]
             ego_position_list.append(veh_pos.copy())
@@ -238,9 +237,15 @@ def eval_policy(args):
 
       j += 1
 
-      # if args.traj_dir != '':
-          # np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(ego_position_list))
-          # np.save(f"{args.traj_dir}/other_pos_{i}.npy", np.array(other_position_list))
+      if args.traj_dir != '':
+          if args.initial_pos != '':
+              import re
+              run_number = re.findall(r'\d+', args.initial_pos)[0]
+              np.save(f"{args.traj_dir}/pos_{run_number}.npy", np.array(ego_position_list))
+              np.save(f"{args.traj_dir}/other_pos_{run_number}.npy", np.array(other_position_list))
+          else:
+              np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(ego_position_list))
+              np.save(f"{args.traj_dir}/other_pos_{i}.npy", np.array(other_position_list))
 
       # print(f"Episode done crashed:{info['crashed']}")
       # print(f"Current crashrate {crashes/(i+1)}")
