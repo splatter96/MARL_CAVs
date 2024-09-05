@@ -7,6 +7,8 @@ import numpy as np
 import glob
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import matplotlib as mpl
 
 def parse_args():
     parser = argparse.ArgumentParser(description=('Plot two different runs against each other'))
@@ -19,45 +21,62 @@ if __name__ == "__main__":
 
     sns.set_theme()
 
-    # plot_until = 15 #17 #21 #29 #near miss
-    plot_until = 19 #15 #17  #crash
+    # vehicle shape
+    height = 2.0
+    width = 5.0
 
-    runs_list = []
-    for f in glob.iglob(f"{args.runs}/pos_1.npy", recursive=True):
-    # for f in glob.iglob(f"{args.runs}/pos_3.npy", recursive=True):
-    # for f in glob.iglob(f"{args.runs}/pos_4.npy", recursive=True):
-        data = np.load(f"{f}")
-        df = pd.DataFrame(data[:plot_until, :], columns=["x", "y"])
-        ax = sns.lineplot(data=df, x="x", y="y", marker="D", markevery=[-1])
+    runs = {
+            1: {'plot_until': [15, 17, 19], 'ids': [5,6], 'name': "crash"}, #crash
+            3: {'plot_until': [15, 17, 20, 30], 'ids': [9, 3], 'name': "near_miss"}, #near miss
+            4: {'plot_until': [23, 25, 29, 33], 'ids': [4,6], 'name': "nice_merge"} #nice merge
+          }
 
-    for f in glob.iglob(f"{args.runs}/other_pos_1.npy", recursive=True):
-    # for f in glob.iglob(f"{args.runs}/other_pos_3.npy", recursive=True):
-    # for f in glob.iglob(f"{args.runs}/other_pos_4.npy", recursive=True):
-        data = np.load(f"{f}")
-        for i in range(data.shape[1]):
-            if i in [5,6]: #for run 1, crash
-            # if i in [9, 3]: #for run 3, near miss
-            # if i in [4,6]: #for run 4, nice merge
-                df = pd.DataFrame(data[:plot_until,i,:], columns=["x", "y"])
-                ax = sns.lineplot(data=df, x="x", y="y", marker="o", markevery=[-1])
+    run_number = 3 # 1=crash, 3=near miss, 4=nice merge
 
-    ax.invert_yaxis()
-    ax.grid(False)
+    for plot_number in range(len(runs[run_number]['plot_until'])):
+        print(plot_number)
 
-    import matplotlib.image as mpimg
-    map_img = mpimg.imread('road.png')
+        for f in glob.iglob(f"{args.runs}/pos_{run_number}.npy", recursive=True):
+            data = np.load(f"{f}")
+            df = pd.DataFrame(data[:runs[run_number]['plot_until'][plot_number], :], columns=["x", "y"])
+            ax = sns.lineplot(data=df, x="x", y="y")
+            r = Rectangle(
+                    xy=(data[runs[run_number]['plot_until'][plot_number]-1,  0]-width/2, data[runs[run_number]['plot_until'][plot_number]-1,  1]-height/2),
+                    width=width, height=height, linewidth=1, 
+                    # color=ax.get_lines()[0].get_color(), fill=True, angle=-17, rotation_point='center')
+                    color=ax.get_lines()[0].get_color(), fill=True)
+            ax.add_patch(r)
 
-    ax.imshow(map_img,
-              aspect = ax.get_aspect(),
-              extent = [150,460,16,-2],
-              zorder = 0) #put the map under the plot
+        for f in glob.iglob(f"{args.runs}/other_pos_{run_number}.npy", recursive=True):
+            data = np.load(f"{f}")
+            j=0
+            for i in range(data.shape[1]):
+                if i in runs[run_number]['ids']:
+                    df = pd.DataFrame(data[:runs[run_number]['plot_until'][plot_number],i,:], columns=["x", "y"])
+                    ax = sns.lineplot(data=df, x="x", y="y")
+                    r = Rectangle(xy=(data[runs[run_number]['plot_until'][plot_number]-1, i, 0]-width/2, data[runs[run_number]['plot_until'][plot_number]-1, i, 1]-height/2), width=width, height=height, linewidth=1, color=ax.get_lines()[j+1].get_color(), fill=True)
+                    ax.add_patch(r)
+                    j+=1
 
-    # ax.set_xlim([225,300])
+        ax.invert_yaxis()
+        ax.grid(False)
 
-    # matplotlib.pyplot.show()
-    plt.tight_layout()
-    # plt.savefig("trajectory_crash.png", dpi=600, bbox_inches="tight")
-    # plt.savefig("trajectory_near_miss.png", dpi=600, bbox_inches="tight")
-    # plt.savefig("trajectory_nice_merge.png", dpi=600, bbox_inches="tight")
+        import matplotlib.image as mpimg
+        map_img = mpimg.imread('road.png')
 
-    plt.savefig("trajectory_crash_2.png", dpi=600, bbox_inches="tight")
+        ax.imshow(map_img,
+                  aspect = ax.get_aspect(),
+                  extent = [150,460,16,-2],
+                  zorder = 0) #put the map under the plot
+
+        # ax.set_xlim([225,300])
+        ax.set_xlim([150,300])
+
+        plt.gca().set_aspect('equal', adjustable='box')
+
+        # matplotlib.pyplot.show()
+
+        plt.tight_layout()
+        plt.savefig(f"trajectory_{runs[run_number]['name']}_{plot_number}.png", dpi=600, bbox_inches="tight")
+
+        plt.close()
