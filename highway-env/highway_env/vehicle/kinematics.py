@@ -1,4 +1,3 @@
-# cython: language_level=3, cdivision = True, profile=True
 from typing import Union, TYPE_CHECKING, Optional
 import numpy as np
 import pandas as pd
@@ -10,9 +9,6 @@ from highway_env.road.lane import AbstractLane
 from highway_env.road.road import Road, LaneIndex
 from highway_env.road.objects import Obstacle, Landmark
 from highway_env.types import Vector
-
-from scipy import interpolate
-
 
 if TYPE_CHECKING:
     from highway_env.road.objects import RoadObject
@@ -144,7 +140,6 @@ class Vehicle(object):
                                    math.sin(self.heading + beta)])
         self.position += v * dt
         self.heading += self.speed * math.sin(beta) / (self.LENGTH / 2) * dt
-        self.heading = utils.wrap_to_pi(self.heading)
         self.speed += self.action['acceleration'] * dt
         self.on_state_update()
 
@@ -286,44 +281,3 @@ class Vehicle(object):
 
     def __repr__(self):
         return self.__str__()
-
-class RealVehicle(Vehicle):
-
-    def __init__(self, traj_file: str, start_time: int):
-        self.lane = None
-        self.lane_index = None
-
-        self.traj = np.load(traj_file)
-        self.position = np.zeros(2,)
-        self.crashed = False
-
-        # Order of each row is: time, x_pos, y_pos, speed in kph, heading
-        self.position[0] = self.traj[0][1]
-        self.position[1] = self.traj[0][2]
-        self.speed = self.traj[0][3]
-        self.heading = self.traj[0][4]
-
-        self.traj[:,0] -= start_time
-
-        self.fx = interpolate.interp1d(self.traj[:,0], self.traj[:,1])
-        self.fy = interpolate.interp1d(self.traj[:,0], self.traj[:,2])
-        self.fv = interpolate.interp1d(self.traj[:,0], self.traj[:,3])
-        self.fa = interpolate.interp1d(self.traj[:,0], self.traj[:,4])
-
-        self.time = 0
-
-    def step(self, dt: float) -> None:
-        self.time += dt
-
-        try:
-            self.position[0] = self.fx(self.time)
-            self.position[1] = self.fy(self.time)
-            self.speed = self.fv(self.time) / 3.6 # Conversion from kph to m/s
-            self.heading = self.fa(self.time)
-        except ValueError:
-            # print("Value outside interpolation limit")
-            pass
-
-    def act(self):
-        pass
-

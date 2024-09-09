@@ -11,13 +11,13 @@ from queue import PriorityQueue
 from highway_env import utils
 from highway_env.envs.common.action import action_factory, Action, DiscreteMetaAction, ActionType
 from highway_env.envs.common.observation import observation_factory, ObservationType
-# from highway_env.envs.common.finite_mdp import finite_mdp
+from highway_env.envs.common.finite_mdp import finite_mdp
 from highway_env.envs.common.graphics import EnvViewer
 from highway_env.vehicle.behavior import IDMVehicle, LinearVehicle
 from highway_env.vehicle.controller import MDPVehicle
-from highway_env.vehicle.kinematics import Vehicle, RealVehicle
-# from highway_env.envs.common.idm_controller import idm_controller, generate_actions
-# from highway_env.envs.common.mdp_controller import mdp_controller
+from highway_env.vehicle.kinematics import Vehicle
+from highway_env.envs.common.idm_controller import idm_controller, generate_actions
+from highway_env.envs.common.mdp_controller import mdp_controller
 from highway_env.road.objects import Obstacle, Landmark
 
 Observation = np.ndarray
@@ -110,8 +110,7 @@ class AbstractEnv(gym.Env):
         """
         return {
             "observation": {
-                 "type": "Kinematics"
-                #"type": "LidarObservation"
+                "type": "Kinematics"
             },
             "action": {
                 "type": "DiscreteMetaAction"
@@ -205,8 +204,7 @@ class AbstractEnv(gym.Env):
         self.road.initial_vehicles = deepcopy(self.road.vehicles)
 
         # return np.asarray(obs).reshape((len(obs), -1)), np.array(available_actions)
-        # return np.asarray(obs).reshape((len(obs), -1)), {}
-        return obs, {}
+        return np.asarray(obs).reshape((len(obs), -1)), {}
 
     def _reset(self, num_CAV=1) -> None:
         """
@@ -820,8 +818,6 @@ class AbstractEnv(gym.Env):
     def _compute_headway_distance(self, vehicle, ):
         headway_distance = 60
         for v in self.road.vehicles:
-            if isinstance(v, RealVehicle):
-                continue
             if (v.lane_index == vehicle.lane_index) and (v.position[0] > vehicle.position[0]):
                 hd = v.position[0] - vehicle.position[0]
                 if hd < headway_distance:

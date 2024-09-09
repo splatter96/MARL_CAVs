@@ -165,21 +165,35 @@ class IDMVehicle(ControlledVehicle):
         """
         if not ego_vehicle or isinstance(ego_vehicle, RoadObject):
             return 0
-        ego_target_speed = utils.not_zero(ego_vehicle.target_speed)
+        ego_target_speed = utils.not_zero(getattr(ego_vehicle, "target_speed", 0))
+
 
         # adjust target speed for special circumstances
         ego_target_speed *= ego_vehicle.alpha_v0
+        
 
-        acceleration = self.COMFORT_ACC_MAX * (1 - (max(ego_vehicle.speed, 0) / ego_target_speed) ** self.DELTA)
+        acceleration = self.COMFORT_ACC_MAX * (
+                1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA))
+
+
+        # if self.id == 7:
+            # print(f"{self} front before {front_vehicle}")
+
         # currently lane change happening
         # if not front_vehicle and (self.target_lane_index != self.lane_index):
             # # _, front_vehicle =  self.road.neighbour_vehicles(self, self.target_lane_index)
             # _, front_vehicle =  self.road.surrounding_vehicles(self, self.target_lane_index)
 
+        # if self.id == 9:
+            # print(f"{self} front after {front_vehicle}")
+
         if front_vehicle:
             d = ego_vehicle.lane_distance_to(front_vehicle)
-
-            acceleration -= self.COMFORT_ACC_MAX * (self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d)) ** 2
+            # if self.id == 3:
+                # print(f"looking at {ego_vehicle} {front_vehicle}")
+                # print(f"current gap {d} desired gap {self.desired_gap(ego_vehicle, front_vehicle)}")
+            acceleration -= self.COMFORT_ACC_MAX * \
+                            np.power(self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d), 2)
         return acceleration
 
     def desired_gap(self, ego_vehicle: Vehicle, front_vehicle: Vehicle = None, projected: bool = False) -> float:
@@ -330,74 +344,6 @@ class IDMVehicle(ControlledVehicle):
                 return -self.COMFORT_ACC_MAX / 2
         return acceleration
 
-
-class ModelIDMVehicle(IDMVehicle):
-    """
-    Override the relevant parameters for small model cars
-    but keep the actual behavior
-    """
-
-    def __init__(self,
-                 road: Road,
-                 position: Vector,
-                 heading: float = 0,
-                 speed: float = 0,
-                 target_lane_index: int = None,
-                 target_speed: float = None,
-                 route: Route = None,
-                 enable_lane_change: bool = True,
-                 timer: float = None):
-        super().__init__(road, position, heading, speed, target_lane_index, target_speed, route)
-        self.enable_lane_change = enable_lane_change
-
-        self.WIDTH = 0.08
-        self.LENGTH = 0.17
-        self.DISTANCE_WANTED = 0.1
-        self.id = 0
-
-class ModelVehicle(IDMVehicle):
-
-    def __init__(self,
-                 road: Road,
-                 position: Vector,
-                 heading: float = 0,
-                 speed: float = 0,
-                 target_lane_index: int = None,
-                 target_speed: float = None,
-                 route: Route = None,
-                 enable_lane_change: bool = True,
-                 timer: float = None):
-        super().__init__(road, position, heading, speed, target_lane_index, target_speed, route)
-        self.enable_lane_change = enable_lane_change
-
-        self.LENGTH = 0.17
-        self.WIDTH = 0.08
-        self.DISTANCE_WANTED = 0.1
-        self.MAX_STEERING_ANGLE = np.deg2rad(20)
-
-        self.id = 0 # to be set externally
-
-        self._actioncallback = None
-
-    def register_action_callback(self, callback):
-        self.action_callback = callback
-
-    # called externally to set from tracking system
-    def set_pose(self, position, heading):
-        self.position = position
-        self.heading = heading
-
-    # Override the step fucntion of both IDMVehicle and Vehicle to get and set data from real world
-    def step(self, dt: float) -> None:
-        self.clip_actions()
-
-        self.speed += self.action['acceleration'] * dt
-
-        # Execute actions in real world
-        if self.action_callback is not None:
-            self.action_callback(self.action, self.id)
-
-        self.on_state_update()
 
 class LinearVehicle(IDMVehicle):
     """A Vehicle whose longitudinal and lateral controllers are linear with respect to parameters."""

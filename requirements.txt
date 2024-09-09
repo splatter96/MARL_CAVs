@@ -4,3 +4,5 @@ pygame
 stable-baselines3
 #tensorboard
 tqdm
+opencv-python
+scipy
