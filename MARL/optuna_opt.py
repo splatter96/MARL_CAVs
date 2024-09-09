@@ -18,13 +18,15 @@ from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.logger import configure
 
+from optuna.integration.tensorboard import TensorBoardCallback
+
 import torch
 
 import optuna
 from optuna.pruners import MedianPruner
 from optuna.samplers import TPESampler
 
-N_TRIALS = 100
+N_TRIALS = 2
 N_STARTUP_TRIALS = 5
 N_EVALUATIONS = 2
 N_TIMESTEPS = int(2e4)
@@ -111,11 +113,12 @@ def objective(trial, args):
     output_dir = base_dir + now
     if args.exp_tag != '':
         output_dir += '_' + args.exp_tag
-    if args.seed != '':
-        output_dir += '_' + str(args.seed)
+        
+    output_dir += '_' + str(trial.number)
     dirs = init_dir(output_dir, pathes=['configs', 'models', 'logs', 'output'])
 
     # copy all files to the results that have influence on it
+    print(dirs['configs'])
     copy_tree("../highway-env", dirs['configs'])
     copy('configs/configs_sacd.json', dirs['configs'])
     copy(__file__, dirs['configs'])
@@ -191,10 +194,14 @@ if __name__ == "__main__":
     # Do not prune before 1/3 of the max budget is used.
     pruner = MedianPruner(n_startup_trials=N_STARTUP_TRIALS, n_warmup_steps=N_EVALUATIONS // 3)
 
-    study = optuna.create_study(sampler=sampler, pruner=pruner, direction="maximize")
+    tensorboard_callback = TensorBoardCallback("optuna_logs/", metric_name="last_mean_reward")
+
+    #study = optuna.create_study(sampler=sampler, pruner=pruner, direction="maximize")
+    study = optuna.create_study(study_name=args.exp_tag, sampler=sampler, pruner=pruner, direction="maximize", storage="mysql+pymysql://optuna@localhost/optuna", load_if_exists=True)
     try:
         objective = partial(objective, args=args)
-        study.optimize(objective, n_trials=N_TRIALS, timeout=600)
+        study.optimize(objective, n_trials=N_TRIALS, timeout=600, callbacks=[tensorboard_callback])
+        #study.optimize(objective, n_trials=N_TRIALS, timeout=600, n_jobs=8)
     except KeyboardInterrupt:
         pass
 
@@ -212,6 +219,3 @@ if __name__ == "__main__":
     print("  User attrs:")
     for key, value in trial.user_attrs.items():
         print("    {}: {}".format(key, value))
-
-    # train(args)
-
