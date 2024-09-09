@@ -4,3 +4,4 @@ pygame
 stable-baselines3
 #tensorboard
 tqdm
+optuna==4.0.0
