@@ -30,7 +30,8 @@ N_TRIALS = 2
 N_STARTUP_TRIALS = 5
 N_EVALUATIONS = 2
 N_TIMESTEPS = int(2e4)
-EVAL_FREQ = int(N_TIMESTEPS / N_EVALUATIONS)
+# EVAL_FREQ = int(N_TIMESTEPS / N_EVALUATIONS)
+EVAL_FREQ = 1
 N_EVAL_EPISODES = 3
 
 def parse_args():
@@ -83,13 +84,24 @@ class TrialEvalCallback(EvalCallback):
         )
         self.trial = trial
         self.eval_idx = 0
+        self.crashes = 0
         self.is_pruned = False
+
+    def _log_success_callback(self, locals_, globals_) -> None:
+        info = locals_["info"]
+        done = locals_["done"]
+
+        if done:
+            if info["crashed"]:
+                self.crashes+=1
 
     def _on_step(self) -> bool:
         if self.eval_freq > 0 and self.n_calls % self.eval_freq == 0:
+            self.crashes = 0
             super()._on_step()
             self.eval_idx += 1
             self.trial.report(self.last_mean_reward, self.eval_idx)
+            self.logger.record("eval/crashrate", float(self.crashes/self.n_eval_episodes))
             # Prune trial if need.
             if self.trial.should_prune():
                 self.is_pruned = True
@@ -168,13 +180,13 @@ def objective(trial, args):
     if curriculum_learning == True:
         learn_steps = 3e5
 
-    model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", log_interval=20)
+    model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", log_interval=20, callback=eval_callback)
 
     if curriculum_learning == True:
         env.config['traffic_density'] = 2
-        model.learn(int(3e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list, log_interval=20)
+        model.learn(int(3e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=eval_callback, log_interval=20)
         env.config['traffic_density'] = 3
-        model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list, log_interval=20)
+        model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=eval_callback, log_interval=20)
 
     model.save(dirs['models'] + f"/model_{args.exp_tag}_seed_{seed_}")
 
@@ -196,8 +208,8 @@ if __name__ == "__main__":
 
     tensorboard_callback = TensorBoardCallback("optuna_logs/", metric_name="last_mean_reward")
 
-    #study = optuna.create_study(sampler=sampler, pruner=pruner, direction="maximize")
-    study = optuna.create_study(study_name=args.exp_tag, sampler=sampler, pruner=pruner, direction="maximize", storage="mysql+pymysql://optuna@localhost/optuna", load_if_exists=True)
+    study = optuna.create_study(sampler=sampler, pruner=pruner, direction="maximize")
+    # study = optuna.create_study(study_name=args.exp_tag, sampler=sampler, pruner=pruner, direction="maximize", storage="mysql+pymysql://optuna@localhost/optuna", load_if_exists=True)
     try:
         objective = partial(objective, args=args)
         study.optimize(objective, n_trials=N_TRIALS, timeout=600, callbacks=[tensorboard_callback])
