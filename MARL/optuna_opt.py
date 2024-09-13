@@ -90,6 +90,7 @@ class TrialEvalCallback(EvalCallback):
             super()._on_step()
             self.eval_idx += 1
             self.trial.report(self.last_mean_reward, self.eval_idx)
+            print(f"Scored {self.last_mean_reward}")
             # Prune trial if need.
             if self.trial.should_prune():
                 self.is_pruned = True
@@ -118,7 +119,6 @@ def objective(trial, args):
     dirs = init_dir(output_dir, pathes=['configs', 'models', 'logs', 'output'])
 
     # copy all files to the results that have influence on it
-    print(dirs['configs'])
     copy_tree("../highway-env", dirs['configs'])
     copy('configs/configs_sacd.json', dirs['configs'])
     copy(__file__, dirs['configs'])
@@ -168,13 +168,13 @@ def objective(trial, args):
     if curriculum_learning == True:
         learn_steps = 3e5
 
-    model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", log_interval=20)
+    model.learn(int(learn_steps), tb_log_name=args.exp_tag + f"_seed_{seed_}", log_interval=20, callback=eval_callback)
 
     if curriculum_learning == True:
         env.config['traffic_density'] = 2
-        model.learn(int(3e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list, log_interval=20)
+        model.learn(int(3e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, log_interval=20, callback=eval_callback)
         env.config['traffic_density'] = 3
-        model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, callback=callback_list, log_interval=20)
+        model.learn(int(4e5), tb_log_name=args.exp_tag + f"_seed_{seed_}", reset_num_timesteps=False, log_interval=20, callback=eval_callback)
 
     model.save(dirs['models'] + f"/model_{args.exp_tag}_seed_{seed_}")
 
