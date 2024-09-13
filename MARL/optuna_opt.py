@@ -130,7 +130,6 @@ def objective(trial, args):
     dirs = init_dir(output_dir, pathes=['configs', 'models', 'logs', 'output'])
 
     # copy all files to the results that have influence on it
-    print(dirs['configs'])
     copy_tree("../highway-env", dirs['configs'])
     copy('configs/configs_sacd.json', dirs['configs'])
     copy(__file__, dirs['configs'])
