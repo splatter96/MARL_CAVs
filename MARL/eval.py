@@ -113,8 +113,8 @@ def eval_policy(args):
       done = truncated = False
       obs, info = env.reset()
       #set the envviewr in the env
-      env.render()
-      env.viewer.set_agent_display(display_action)
+      # env.render()
+      # env.viewer.set_agent_display(display_action)
       skip_run = False
 
       if args.initial_pos != '':
