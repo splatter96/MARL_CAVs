@@ -27,11 +27,16 @@ if __name__ == "__main__":
 
     runs = {
             1: {'plot_until': [15, 17, 18], 'ids': [5,6], 'name': "crash"}, #crash
+            2: {'plot_until': [17, 19, 25, 40], 'ids': [18,19], 'name': "rear_end_collision_dataset"}, #rear end collision with real dataset
             3: {'plot_until': [15, 17, 20, 30], 'ids': [9, 3], 'name': "near_miss"}, #near miss
             4: {'plot_until': [23, 25, 29, 33], 'ids': [4,6], 'name': "nice_merge"} #nice merge
           }
 
-    run_number = 4 # 1=crash, 3=near miss, 4=nice merge
+    # from simulations
+    #run_number = 3 # 1=crash, 3=near miss, 4=nice merge
+
+    # real dataset
+    run_number = 2
 
     for plot_number in range(len(runs[run_number]['plot_until'])):
         print(plot_number)
@@ -58,6 +63,7 @@ if __name__ == "__main__":
                     j+=1
 
         ax.invert_yaxis()
+        ax.set_aspect(10)
         ax.grid(False)
 
         import matplotlib.image as mpimg
@@ -69,7 +75,8 @@ if __name__ == "__main__":
                   zorder = 0) #put the map under the plot
 
         # ax.set_xlim([225,300])
-        ax.set_xlim([150,300])
+        # ax.set_xlim([150,300])
+        ax.set_xlim([150,350])
 
         plt.gca().set_aspect('equal', adjustable='box')
 
