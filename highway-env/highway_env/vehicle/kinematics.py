@@ -316,7 +316,7 @@ class RealVehicle(Vehicle):
         self.time += dt
 
         try:
-            self.position[0] = self.fx(self.time)
+            self.position[0] = self.fx(self.time) - 400 # to align the merge segment with our simulation road
             self.position[1] = self.fy(self.time)
             self.speed = self.fv(self.time) / 3.6 # Conversion from kph to m/s
             self.heading = self.fa(self.time)

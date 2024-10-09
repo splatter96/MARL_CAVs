@@ -293,10 +293,11 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         """ create the vehicle from real data """
         # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131]
-        traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
+        # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
+        traj_list = [79, 80, 81, 85, 87, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
 
         for traj in traj_list:
-            v = RealVehicle(f"../traj{traj}.npy", 13)
+            v = RealVehicle(f"../traj{traj}.npy", 20)
             v.color = VehicleGraphics.BLACK
             road.vehicles.append(v)
 
