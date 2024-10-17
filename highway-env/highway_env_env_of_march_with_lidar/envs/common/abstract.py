@@ -205,8 +205,7 @@ class AbstractEnv(gym.Env):
         self.road.initial_vehicles = deepcopy(self.road.vehicles)
 
         # return np.asarray(obs).reshape((len(obs), -1)), np.array(available_actions)
-        #return np.asarray(obs).reshape((len(obs), -1)), {}
-        return obs, {}
+        return np.asarray(obs).reshape((len(obs), -1)), {}
 
     def _reset(self, num_CAV=1) -> None:
         """

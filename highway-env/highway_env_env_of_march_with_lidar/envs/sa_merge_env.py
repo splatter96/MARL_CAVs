@@ -43,8 +43,8 @@ class SingleAgentMergeEnv(AbstractEnv):
             "HEADWAY_COST": 4,  # default=1
             #"HEADWAY_COST": 1,  # default=1
             "HEADWAY_TIME": 1.2,  # default=1.2[s]
-            "MERGING_LANE_COST": 0,  # default=4
-            "LANE_CHANGE_COST": 4,  # default=0.5
+            "MERGING_LANE_COST": 4,  # default=4
+            "LANE_CHANGE_COST": 1,  # default=0.5
             #"LANE_CHANGE_COST": 0.5,  # default=0.5
             "traffic_density": 1,  # easy or hard modes
         })
