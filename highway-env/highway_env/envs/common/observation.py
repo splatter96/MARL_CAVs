@@ -524,7 +524,8 @@ class LidarObservation(ObservationType):
         self.origin = None
 
         self.num_radars = 4
-        self.overlap_prob = 1 / 10  # probability for resource access at the same time
+        # self.overlap_prob = 1 / 100  # probability for resource access at the same time
+        self.overlap_prob = 0  # probability for resource access at the same time
 
         self.directions = [
             np.array([np.cos(index * self.angle), np.sin(index * self.angle)])
@@ -565,7 +566,7 @@ class LidarObservation(ObservationType):
         obs = self.grid.copy()
 
         ######
-        # interfernce calculations
+        # interference calculations
         #####
 
         # add radar index to observation
@@ -593,12 +594,12 @@ class LidarObservation(ObservationType):
 
         # overwrite the measurments of the interfered with radars with the default values for no obstacle
         mask = np.isin(element=obs[:, 3], test_elements=affected_radars)
-        # obs[mask, 0] = self.maximum_range  # range
-        # obs[mask, 1] = 0  # velocity
+        obs[mask, 0] = self.maximum_range  # range
+        obs[mask, 1] = 0  # velocity
 
         # overwrite internal grid for visualization
-        # self.grid = obs[:, 0:1].copy()
-        #
+        self.grid = obs[:, 0:1].copy()
+
         ###
         # end interference calculations
         ###
@@ -620,9 +621,15 @@ class LidarObservation(ObservationType):
         ego_obs = self.observer_vehicle.to_dict()
         ego_pos = np.array([ego_obs["x"], ego_obs["y"], ego_obs["vx"], ego_obs["vy"]])
 
+        # replace x position with distance to exit
+        self.exit_lane = self.env.road.network.get_lane(("c", "d", 1))
+
+        distance_to_exit = self.exit_lane.distance(self.observer_vehicle.position)
+        ego_pos[0] = distance_to_exit
+
         # normalize ego_pos same as in KinematicObservation
         # ego_pos[0] = utils.lmap(ego_pos[0], [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX], [-1, 1])
-        ego_pos[0] = utils.lmap(ego_pos[0], [-460, 460], [-1, 1])
+        ego_pos[0] = utils.lmap(ego_pos[0], [-200, 200], [-1, 1])
         ego_pos[1] = utils.lmap(ego_pos[1], [-12, 12], [-1, 1])
         ego_pos[2] = utils.lmap(
             ego_pos[2],
