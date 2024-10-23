@@ -513,6 +513,7 @@ class LidarObservation(ObservationType):
         cells: int = 64,
         maximum_range: float = 150,
         normalize: bool = True,
+        overlap_prob: float = 1 / 100,
         **kwargs,
     ):
         super().__init__(env, **kwargs)
@@ -524,8 +525,9 @@ class LidarObservation(ObservationType):
         self.origin = None
 
         self.num_radars = 4
-        # self.overlap_prob = 1 / 100  # probability for resource access at the same time
-        self.overlap_prob = 0  # probability for resource access at the same time
+        self.overlap_prob = (
+            overlap_prob  # probability for resource access at the same time
+        )
 
         self.directions = [
             np.array([np.cos(index * self.angle), np.sin(index * self.angle)])
