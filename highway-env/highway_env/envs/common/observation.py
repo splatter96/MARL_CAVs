@@ -5,6 +5,7 @@ import gymnasium as gym
 gym.logger.set_level(40)
 import numpy as np
 import pandas as pd
+import random
 
 from highway_env import utils
 from highway_env.envs.common.finite_mdp import compute_ttc_grid
@@ -511,9 +512,10 @@ class LidarObservation(ObservationType):
         self,
         env,
         cells: int = 64,
-        maximum_range: float = 150,
+        # maximum_range: float = 150,
+        maximum_range: float = 500,
         normalize: bool = True,
-        overlap_prob: float = 1 / 100,
+        overlap_prob: float = 1 / 10,
         **kwargs,
     ):
         super().__init__(env, **kwargs)
@@ -591,16 +593,47 @@ class LidarObservation(ObservationType):
         # calculate which observations are affected by the interference
         affected_obs = obs[mask]
 
-        # calculate with radars are interfered with
-        affected_radars = np.unique(affected_obs[:, 3])
+        if affected_obs.shape[0] > 0:
+            # calculate which radars are interfered with
+            affected_radars = np.unique(affected_obs[:, 3])
 
-        # overwrite the measurments of the interfered with radars with the default values for no obstacle
-        mask = np.isin(element=obs[:, 3], test_elements=affected_radars)
-        obs[mask, 0] = self.maximum_range  # range
-        obs[mask, 1] = 0  # velocity
+            # calculate the distance to the interferers
+            distance_per_radar = np.split(
+                obs[mask, 0], np.unique(affected_obs[:, 3], return_index=True)[1][1:]
+            )
 
-        # overwrite internal grid for visualization
-        self.grid = obs[:, 0:1].copy()
+            # calculate minimum interferer distance per radar
+            # print(f"{affected_obs=}")
+            # target_int_ratios = []
+            with open("interference_distance.csv", "a") as f:
+                for i, radar in enumerate(affected_radars):
+                    min_interferer_dist = np.min(distance_per_radar[i])
+                    # print(f"Radar {radar} interferer distance {min_interferer_dist}")
+                    f.write(f"{min_interferer_dist},")
+                    dists = obs[np.where(obs[:, 3] == int(radar)), 0][0]
+                    dists = np.array2string(
+                        dists, precision=3, separator=",", max_line_width=np.inf
+                    )
+                    f.write(f"{dists[1:-1]}\n")
+
+                    # get target to interferer distance ratio
+                    target_int_ratio = (
+                        obs[np.where(obs[:, 3] == int(radar)), 0] / min_interferer_dist
+                    )
+                    # target_int_ratios.append(target_int_ratio)
+
+            # print("\n\n\n")
+            # target_int_ratio = np.array(target_int_ratios).flatten()
+            # print(target_int_ratio)
+            # np.save(f"target_int_ratio_{random.randint(0,100)}", target_int_ratio)
+
+            # overwrite the measurements of the interfered with radars with the default values for no obstacle
+            mask = np.isin(element=obs[:, 3], test_elements=affected_radars)
+            obs[mask, 0] = self.maximum_range  # range
+            obs[mask, 1] = 0  # velocity
+
+            # overwrite internal grid for visualization
+            self.grid = obs[:, 0:1].copy()
 
         ###
         # end interference calculations
