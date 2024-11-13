@@ -107,13 +107,17 @@ class ControlledVehicle(Vehicle):
         action['steering'] = np.clip(action['steering'], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         super().act(action)
 
-    def follow_road(self) -> None:
+    def follow_road(self) -> bool:
         """At the end of a lane, automatically switch to a next one."""
-        if self.road.network.get_lane(self.target_lane_index).after_end(self.position, vehicle_length=self.LENGTH):
-            self.target_lane_index = self.road.network.next_lane(self.target_lane_index,
+        if self.road.network.get_lane(self.lane_index).after_end(self.position, vehicle_length=self.LENGTH):
+            self.target_lane_index = self.road.network.next_lane(self.lane_index,
                                                                  route=self.route,
                                                                  position=self.position,
                                                                  np_random=self.road.np_random)
+            # if self.id == 1:
+            #     print(f"setting new lane index to {self.target_lane_index}")
+            return True
+        return False
 
     def steering_control(self, target_lane_index: LaneIndex) -> float:
         """
@@ -129,6 +133,8 @@ class ControlledVehicle(Vehicle):
         """
 
         target_lane = self.road.network.get_lane(target_lane_index)
+        #lane_coords = target_lane.local_coordinates(self.position)
+        #print(lane_coords)
         return utils.steering_control(self.speed, self.position, self.heading, target_lane, self.PURSUIT_TAU, self.KP_LATERAL, self.KP_HEADING, self.LENGTH, self.MAX_STEERING_ANGLE)
 
         # cdef float speed = self.speed

@@ -30,28 +30,32 @@ class Vehicle(object):
     """ Enable collision detection between vehicles """
 
     LENGTH = 5.0
-    LENGTH_SQUARE = LENGTH ** 2 # Nedded for faster distance comparison
+    LENGTH_SQUARE = LENGTH**2  # Nedded for faster distance comparison
     """ Vehicle length [m] """
     WIDTH = 2.0
     """ Vehicle width [m] """
     DEFAULT_SPEEDS = [23, 25]
     """ Range for random initial speeds [m/s] """
-    MAX_SPEED = 40.
+    MAX_SPEED = 40.0
     """ Maximum reachable speed [m/s] """
 
-    def __init__(self,
-                 road: Road,
-                 position: Vector,
-                 heading: float = 0.0,
-                 speed: float = 0.0):
+    def __init__(
+        self, road: Road, position: Vector, heading: float = 0.0, speed: float = 0.0
+    ):
         self.road = road
         # self.position = np.array(position, dtype=float)
         self.position = position
         self.heading = heading
         self.speed = speed
-        self.lane_index = self.road.network.get_closest_lane_index(self.position, float(self.heading)) if self.road else np.nan
+        self.lane_index = (
+            self.road.network.get_closest_lane_index(self.position, float(self.heading))
+            if self.road
+            else np.nan
+        )
+
+        print(f"initializing lane_index {self.lane_index}")
         self.lane = self.road.network.get_lane(self.lane_index) if self.road else None
-        self.action = {'steering': 0, 'acceleration': 0}
+        self.action = {"steering": 0, "acceleration": 0}
         self.trajectories = []
         self.crashed = False
         self.log = []
@@ -60,7 +64,9 @@ class Vehicle(object):
         self.history = deque(maxlen=30)
 
     @classmethod
-    def make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0) -> "Vehicle":
+    def make_on_lane(
+        cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0
+    ) -> "Vehicle":
         """
         Create a vehicle on a given lane at a longitudinal position.
 
@@ -73,11 +79,18 @@ class Vehicle(object):
         lane = road.network.get_lane(lane_index)
         if speed is None:
             speed = lane.speed_limit
-        return cls(road, lane.position(longitudinal, 0), lane.heading_at(longitudinal), speed)
+        return cls(
+            road, lane.position(longitudinal, 0), lane.heading_at(longitudinal), speed
+        )
 
     @classmethod
-    def create_random(cls, road: Road, speed: float = None, lane_id: Optional[int] = None, spacing: float = 1) \
-            -> "Vehicle":
+    def create_random(
+        cls,
+        road: Road,
+        speed: float = None,
+        lane_id: Optional[int] = None,
+        spacing: float = 1,
+    ) -> "Vehicle":
         """
         Create a random vehicle on the road.
 
@@ -91,15 +104,28 @@ class Vehicle(object):
         :return: A vehicle with random position and/or speed
         """
         if speed is None:
-            speed = road.np_random.uniform(Vehicle.DEFAULT_SPEEDS[0], Vehicle.DEFAULT_SPEEDS[1])
+            speed = road.np_random.uniform(
+                Vehicle.DEFAULT_SPEEDS[0], Vehicle.DEFAULT_SPEEDS[1]
+            )
         default_spacing = 1.5 * speed
         _from = road.np_random.choice(list(road.network.graph.keys()))
         _to = road.np_random.choice(list(road.network.graph[_from].keys()))
-        _id = lane_id if lane_id is not None else road.np_random.choice(len(road.network.graph[_from][_to]))
+        _id = (
+            lane_id
+            if lane_id is not None
+            else road.np_random.choice(len(road.network.graph[_from][_to]))
+        )
         lane = road.network.get_lane((_from, _to, _id))
-        offset = spacing * default_spacing * np.exp(-5 / 30 * len(road.network.graph[_from][_to]))
-        x0 = np.max([lane.local_coordinates(v.position)[0] for v in road.vehicles]) \
-            if len(road.vehicles) else 3 * offset
+        offset = (
+            spacing
+            * default_spacing
+            * np.exp(-5 / 30 * len(road.network.graph[_from][_to]))
+        )
+        x0 = (
+            np.max([lane.local_coordinates(v.position)[0] for v in road.vehicles])
+            if len(road.vehicles)
+            else 3 * offset
+        )
         x0 += offset * road.np_random.uniform(0.9, 1.1)
         v = cls(road, lane.position(x0, 0), lane.heading_at(x0), speed)
         return v
@@ -138,30 +164,37 @@ class Vehicle(object):
         :param dt: timestep of integration of the model [s]
         """
         self.clip_actions()
-        delta_f = self.action['steering']
+        delta_f = self.action["steering"]
         beta = math.atan(0.5 * math.tan(delta_f))
-        v = self.speed * np.array([math.cos(self.heading + beta),
-                                   math.sin(self.heading + beta)])
+        v = self.speed * np.array(
+            [math.cos(self.heading + beta), math.sin(self.heading + beta)]
+        )
         self.position += v * dt
         self.heading += self.speed * math.sin(beta) / (self.LENGTH / 2) * dt
         self.heading = utils.wrap_to_pi(self.heading)
-        self.speed += self.action['acceleration'] * dt
+        self.speed += self.action["acceleration"] * dt
         self.on_state_update()
 
     def clip_actions(self) -> None:
         if self.crashed:
-            self.action['steering'] = 0
-            self.action['acceleration'] = -1.0 * self.speed
-        self.action['steering'] = float(self.action['steering'])
-        self.action['acceleration'] = float(self.action['acceleration'])
+            self.action["steering"] = 0
+            self.action["acceleration"] = -1.0 * self.speed
+        self.action["steering"] = float(self.action["steering"])
+        self.action["acceleration"] = float(self.action["acceleration"])
         if self.speed > self.MAX_SPEED:
-            self.action['acceleration'] = min(self.action['acceleration'], 1.0 * (self.MAX_SPEED - self.speed))
+            self.action["acceleration"] = min(
+                self.action["acceleration"], 1.0 * (self.MAX_SPEED - self.speed)
+            )
         elif self.speed < -self.MAX_SPEED:
-            self.action['acceleration'] = max(self.action['acceleration'], 1.0 * (self.MAX_SPEED - self.speed))
+            self.action["acceleration"] = max(
+                self.action["acceleration"], 1.0 * (self.MAX_SPEED - self.speed)
+            )
 
     def on_state_update(self) -> None:
         if self.road:
-            self.lane_index = self.road.network.get_closest_lane_index(self.position, float(self.heading))
+            self.lane_index = self.road.network.get_closest_lane_index(
+                self.position, float(self.heading)
+            )
             self.lane = self.road.network.get_lane(self.lane_index)
             if self.road.record_history:
                 self.history.appendleft(self.create_from(self))
@@ -182,15 +215,20 @@ class Vehicle(object):
         # return lane.local_coordinates(vehicle.position)[0] - lane.local_coordinates(self.position)[0]
 
         # both vehicles on same lane
-        if vehicle.lane_index is None or self.lane_index[:2] == vehicle.lane_index[:2]:
-            return lane.distance_between_points(self.position, vehicle.position)
+        # if vehicle.lane_index is None or self.lane_index[:2] == vehicle.lane_index[:2]:
+        return lane.distance_between_points(self.position, vehicle.position)
 
-        v_front_dist = vehicle.lane.local_coordinates(vehicle.position)[0]
-        dist_to_end = lane.distance_to_end(self.position)
-        return dist_to_end + v_front_dist
+        # TODO need to take into account with lane between self.lane and vehicle.lane
+        # v_front_dist = vehicle.lane.local_coordinates(vehicle.position)[0]
+        # dist_to_end = lane.distance_to_end(self.position)
+        # # if self.id == 3:
+        # #     longitudinal, _ = lane.local_coordinates(self.position)
+        # #     print(f"got long {longitudinal} for {self.position}")
+        # # print(f"{v_front_dist} {dist_to_end}")
+        # return dist_to_end + v_front_dist
+        #
 
-
-    def check_collision(self, other: Union['Vehicle', 'RoadObject']) -> None:
+    def check_collision(self, other: Union["Vehicle", "RoadObject"]) -> None:
         """
         Check for collision with another vehicle.
 
@@ -223,14 +261,18 @@ class Vehicle(object):
         if utils.norm(other.position, self.position) > self.LENGTH_SQUARE:
             return False
         # Accurate rectangular check
-        #old
-        #return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),
-                                                  #(
-                                                  #other.position, 0.9 * other.LENGTH, 0.9 * other.WIDTH, other.heading))
+        # old
+        # return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),
+        # (
+        # other.position, 0.9 * other.LENGTH, 0.9 * other.WIDTH, other.heading))
 
-        #new
-        rect = utils.middle_to_vertices(self.position, self.LENGTH, self.WIDTH, self.heading)
-        other_rect = utils.middle_to_vertices(other.position, other.LENGTH, other.WIDTH, other.heading)
+        # new
+        rect = utils.middle_to_vertices(
+            self.position, self.LENGTH, self.WIDTH, self.heading
+        )
+        other_rect = utils.middle_to_vertices(
+            other.position, other.LENGTH, other.WIDTH, other.heading
+        )
 
         return utils.separating_axis_theorem(rect, other_rect)
 
@@ -247,7 +289,11 @@ class Vehicle(object):
         if getattr(self, "route", None):
             # last_lane = self.road.network.get_lane(self.route[-1])
             last_lane_index = self.route[-1]
-            last_lane_index = last_lane_index if last_lane_index[-1] is not None else (*last_lane_index[:-1], 0)
+            last_lane_index = (
+                last_lane_index
+                if last_lane_index[-1] is not None
+                else (*last_lane_index[:-1], 0)
+            )
             last_lane = self.road.network.get_lane(last_lane_index)
             return last_lane.position(last_lane.length, 0)
         else:
@@ -256,27 +302,31 @@ class Vehicle(object):
     @property
     def destination_direction(self) -> np.ndarray:
         if (self.destination != self.position).any():
-            return (self.destination - self.position) / np.linalg.norm(self.destination - self.position)
+            return (self.destination - self.position) / np.linalg.norm(
+                self.destination - self.position
+            )
         else:
             return np.zeros((2,))
 
     @property
     def on_road(self) -> bool:
-        """ Is the vehicle on its current lane, or off-road ? """
+        """Is the vehicle on its current lane, or off-road ?"""
         return self.lane.on_lane(self.position)
 
     def front_distance_to(self, other: "Vehicle") -> float:
         return self.direction.dot(other.position - self.position)
 
-    def to_dict(self, origin_vehicle: "Vehicle" = None, observe_intentions: bool = True) -> dict:
+    def to_dict(
+        self, origin_vehicle: "Vehicle" = None, observe_intentions: bool = True
+    ) -> dict:
         vel = self.velocity
         d = {
-            'presence': 1,
-            'x': self.position[0],
-            'y': self.position[1],
-            'vx': vel[0],
-            'vy': vel[1],
-            'heading': self.heading,
+            "presence": 1,
+            "x": self.position[0],
+            "y": self.position[1],
+            "vx": vel[0],
+            "vy": vel[1],
+            "heading": self.heading,
             #'cos_h': self.direction[0],
             #'sin_h': self.direction[1],
             #'cos_d': self.destination_direction[0],
@@ -286,7 +336,9 @@ class Vehicle(object):
             d["cos_d"] = d["sin_d"] = 0
         if origin_vehicle:
             origin_dict = origin_vehicle.to_dict()
-            for key in ['x', 'y', 'vx', 'vy']:
+            # print(f"{origin_dict=}")
+            # print(f"{d=}")
+            for key in ["x", "y", "vx", "vy"]:
                 d[key] -= origin_dict[key]
         return d
 
@@ -297,14 +349,16 @@ class Vehicle(object):
     def __repr__(self):
         return self.__str__()
 
-class RealVehicle(Vehicle):
 
+class RealVehicle(Vehicle):
     def __init__(self, traj_file: str, start_time: int):
         self.lane = None
         self.lane_index = None
 
         self.traj = np.load(traj_file)
-        self.position = np.zeros(2,)
+        self.position = np.zeros(
+            2,
+        )
         self.crashed = False
 
         # Order of each row is: time, x_pos, y_pos, speed in kph, heading
@@ -313,12 +367,12 @@ class RealVehicle(Vehicle):
         self.speed = self.traj[0][3]
         self.heading = self.traj[0][4]
 
-        self.traj[:,0] -= start_time
+        self.traj[:, 0] -= start_time
 
-        self.fx = interpolate.interp1d(self.traj[:,0], self.traj[:,1])
-        self.fy = interpolate.interp1d(self.traj[:,0], self.traj[:,2])
-        self.fv = interpolate.interp1d(self.traj[:,0], self.traj[:,3])
-        self.fa = interpolate.interp1d(self.traj[:,0], self.traj[:,4])
+        self.fx = interpolate.interp1d(self.traj[:, 0], self.traj[:, 1])
+        self.fy = interpolate.interp1d(self.traj[:, 0], self.traj[:, 2])
+        self.fv = interpolate.interp1d(self.traj[:, 0], self.traj[:, 3])
+        self.fa = interpolate.interp1d(self.traj[:, 0], self.traj[:, 4])
 
         self.time = 0
 
@@ -328,7 +382,7 @@ class RealVehicle(Vehicle):
         try:
             self.position[0] = self.fx(self.time)
             self.position[1] = self.fy(self.time)
-            self.speed = self.fv(self.time) / 3.6 # Conversion from kph to m/s
+            self.speed = self.fv(self.time) / 3.6  # Conversion from kph to m/s
             self.heading = self.fa(self.time)
         except ValueError:
             # print("Value outside interpolation limit")
@@ -336,4 +390,3 @@ class RealVehicle(Vehicle):
 
     def act(self):
         pass
-

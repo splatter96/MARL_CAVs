@@ -161,7 +161,8 @@ class KinematicObservation(ObservationType):
         self.observe_intentions = observe_intentions
 
     def space(self) -> spaces.Space:
-        return spaces.Box(shape=(self.vehicles_count, len(self.features)), low=-1, high=1, dtype=np.float32)
+        # return spaces.Box(shape=(self.vehicles_count, len(self.features)), low=-1, high=1, dtype=np.float32)
+        return spaces.Box(shape=(self.vehicles_count * len(self.features), ), low=-1, high=1, dtype=np.float32)
 
     def normalize_obs2(self, data: List[dict]):
         if not self.features_range:
@@ -268,9 +269,11 @@ class KinematicObservation(ObservationType):
                 close_veh[idx] = {k:veh[k] for k in self.features if k in veh}
                 obs_list.append(close_veh[idx])
 
+        # print(f"obs before {obs_list}")
         # Normalize and clip
         if self.normalize:
             obs_list = self.normalize_obs2(obs_list)
+        # print(f"obs after {obs_list}")
 
         # Fill missing rows
         if len(obs_list) < self.vehicles_count:
@@ -281,7 +284,8 @@ class KinematicObservation(ObservationType):
         # Convert to 2D Array
         res = [[item.get(key, '') for key in self.features] for item in obs_list]
 
-        return res
+        # return res
+        return np.array(res).flatten()
 
 class OccupancyGridObservation(ObservationType):
 

@@ -206,7 +206,8 @@ class AbstractEnv(gym.Env):
 
         # return np.asarray(obs).reshape((len(obs), -1)), np.array(available_actions)
         # return np.asarray(obs).reshape((len(obs), -1)), {}
-        return obs, {}
+        # return obs, {}
+        return obs
 
     def _reset(self, num_CAV=1) -> None:
         """

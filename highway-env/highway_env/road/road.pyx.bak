@@ -75,13 +75,13 @@ class RoadNetwork(object):
                         self.lane_indices.append((_from, _to, _id))
                         self.lanes.append(self.get_lane((_from, _to, _id)))
 
-        # cdef float current_smallest = 1e8
-        # cdef Tuple [str, str, int] closest_lane_index
-        # cdef float curr_dist
-        # cdef int i, l_len
-        # # cdef AbstractLane lane
-        # cdef object lane
-        #
+        cdef float current_smallest = 1e8
+        cdef Tuple [str, str, int] closest_lane_index
+        cdef float curr_dist
+        cdef int i, l_len
+        # cdef AbstractLane lane
+        cdef object lane
+
         l_len = len(self.lane_indices)
 
         for i in range(l_len):
@@ -358,9 +358,9 @@ class Road(object):
         """
         vehicles = self.vehicles
         objects = self.objects
-        # cdef int i, j
-        # cdef int len_v = len(vehicles)
-        # cdef int len_o = len(objects)
+        cdef int i, j
+        cdef int len_v = len(vehicles)
+        cdef int len_o = len(objects)
 
         for i in range(len_v):
             vehicles[i].step(dt)
@@ -426,8 +426,8 @@ class Road(object):
         lane_index = lane_index or vehicle.lane_index
         if not lane_index:
             return None, None
-        # cdef float s_v
-        # cdef float s = vehicle.position[0]  # x position
+        cdef float s_v
+        cdef float s = vehicle.position[0]  # x position
         s_front = s_rear = None
         v_front = v_rear = None
 

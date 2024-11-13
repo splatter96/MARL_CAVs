@@ -526,7 +526,8 @@ def separating_axis_theorem(vertices_a, vertices_b):
 
 def middle_to_vertices(middle, float length, float width, float angle):
     # convert the old represantation of the rectangle to vertices
-    angle -= np.deg2rad(90)
+    # angle -= np.deg2rad(90)
+    angle -= 1.5707 #pi/2
 
     u = np.array([width/2. * cos(angle), width/2. * sin(angle)])
     v = np.array([-length/2. * sin(angle), length/2. * cos(angle)])

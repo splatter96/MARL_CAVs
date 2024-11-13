@@ -5,6 +5,7 @@ import numpy as np
 import pygame
 
 from highway_env.types import Vector
+
 # from highway_env.vehicle.dynamics import BicycleVehicle
 from highway_env.vehicle.kinematics import Vehicle
 from highway_env.vehicle.controller import ControlledVehicle, MDPVehicle
@@ -25,8 +26,14 @@ class VehicleGraphics(object):
     EGO_COLOR = BLUE
 
     @classmethod
-    def display(cls, vehicle: Vehicle, surface: "WorldSurface", transparent: bool = False, offscreen: bool = False,
-                label: bool = True) -> None:
+    def display(
+        cls,
+        vehicle: Vehicle,
+        surface: "WorldSurface",
+        transparent: bool = False,
+        offscreen: bool = False,
+        label: bool = True,
+    ) -> None:
         """
         Display a vehicle on a pygame surface.
 
@@ -46,24 +53,52 @@ class VehicleGraphics(object):
 
         # Vehicle rectangle
         length = v.LENGTH + 2 * tire_length
-        vehicle_surface = pygame.Surface((surface.pix(length), surface.pix(length)), flags=pygame.SRCALPHA)  # per-pixel alpha
-        rect = (surface.pix(tire_length), surface.pix(length / 2 - v.WIDTH / 2), surface.pix(v.LENGTH), surface.pix(v.WIDTH))
+        vehicle_surface = pygame.Surface(
+            (surface.pix(length), surface.pix(length)), flags=pygame.SRCALPHA
+        )  # per-pixel alpha
+        rect = (
+            surface.pix(tire_length),
+            surface.pix(length / 2 - v.WIDTH / 2),
+            surface.pix(v.LENGTH),
+            surface.pix(v.WIDTH),
+        )
         pygame.draw.rect(vehicle_surface, cls.get_color(v, transparent), rect, 0)
         pygame.draw.rect(vehicle_surface, cls.BLACK, rect, 1)
 
         # Tires
         # if type(vehicle) in [Vehicle, BicycleVehicle]:
         if type(vehicle) in [Vehicle]:
-            tire_positions = [[surface.pix(tire_length), surface.pix(length / 2 - v.WIDTH / 2)],
-                              [surface.pix(tire_length), surface.pix(length / 2 + v.WIDTH / 2)],
-                              [surface.pix(length - tire_length), surface.pix(length / 2 - v.WIDTH / 2)],
-                              [surface.pix(length - tire_length), surface.pix(length / 2 + v.WIDTH / 2)]]
+            tire_positions = [
+                [surface.pix(tire_length), surface.pix(length / 2 - v.WIDTH / 2)],
+                [surface.pix(tire_length), surface.pix(length / 2 + v.WIDTH / 2)],
+                [
+                    surface.pix(length - tire_length),
+                    surface.pix(length / 2 - v.WIDTH / 2),
+                ],
+                [
+                    surface.pix(length - tire_length),
+                    surface.pix(length / 2 + v.WIDTH / 2),
+                ],
+            ]
             tire_angles = [0, 0, v.action["steering"], v.action["steering"]]
             for tire_position, tire_angle in zip(tire_positions, tire_angles):
-                tire_surface = pygame.Surface((surface.pix(tire_length), surface.pix(tire_length)), pygame.SRCALPHA)
-                rect = (0, surface.pix(tire_length/2-tire_width/2), surface.pix(tire_length), surface.pix(tire_width))
+                tire_surface = pygame.Surface(
+                    (surface.pix(tire_length), surface.pix(tire_length)),
+                    pygame.SRCALPHA,
+                )
+                rect = (
+                    0,
+                    surface.pix(tire_length / 2 - tire_width / 2),
+                    surface.pix(tire_length),
+                    surface.pix(tire_width),
+                )
                 pygame.draw.rect(tire_surface, cls.BLACK, rect, 0)
-                cls.blit_rotate(vehicle_surface, tire_surface, tire_position, np.rad2deg(-tire_angle))
+                cls.blit_rotate(
+                    vehicle_surface,
+                    tire_surface,
+                    tire_position,
+                    np.rad2deg(-tire_angle),
+                )
 
         # Centered rotation
         h = v.heading if abs(v.heading) > 2 * np.pi / 180 else 0
@@ -72,7 +107,7 @@ class VehicleGraphics(object):
             # convert_alpha throws errors in offscreen mode
             # see https://stackoverflow.com/a/19057853
             vehicle_surface = pygame.Surface.convert_alpha(vehicle_surface)
-        cls.blit_rotate(surface, vehicle_surface, position, np.rad2deg(-h))
+        cls.blit_rotate(surface, vehicle_surface, position, np.rad2deg(h))
 
         # Label
         if label:
@@ -83,15 +118,27 @@ class VehicleGraphics(object):
             surface.blit(text, position)
 
     @staticmethod
-    def blit_rotate(surf: pygame.SurfaceType, image: pygame.SurfaceType, pos: Vector, angle: float,
-                    origin_pos: Vector = None, show_rect: bool = False) -> None:
+    def blit_rotate(
+        surf: pygame.SurfaceType,
+        image: pygame.SurfaceType,
+        pos: Vector,
+        angle: float,
+        origin_pos: Vector = None,
+        show_rect: bool = False,
+    ) -> None:
         """Many thanks to https://stackoverflow.com/a/54714144."""
         # calculate the axis aligned bounding box of the rotated image
         w, h = image.get_size()
         box = [pygame.math.Vector2(p) for p in [(0, 0), (w, 0), (w, -h), (0, -h)]]
         box_rotate = [p.rotate(angle) for p in box]
-        min_box = (min(box_rotate, key=lambda p: p[0])[0], min(box_rotate, key=lambda p: p[1])[1])
-        max_box = (max(box_rotate, key=lambda p: p[0])[0], max(box_rotate, key=lambda p: p[1])[1])
+        min_box = (
+            min(box_rotate, key=lambda p: p[0])[0],
+            min(box_rotate, key=lambda p: p[1])[1],
+        )
+        max_box = (
+            max(box_rotate, key=lambda p: p[0])[0],
+            max(box_rotate, key=lambda p: p[1])[1],
+        )
 
         # calculate the translation of the pivot
         if origin_pos is None:
@@ -101,7 +148,10 @@ class VehicleGraphics(object):
         pivot_move = pivot_rotate - pivot
 
         # calculate the upper left origin of the rotated image
-        origin = (pos[0] - origin_pos[0] + min_box[0] - pivot_move[0], pos[1] - origin_pos[1] - max_box[1] + pivot_move[1])
+        origin = (
+            pos[0] - origin_pos[0] + min_box[0] - pivot_move[0],
+            pos[1] - origin_pos[1] - max_box[1] + pivot_move[1],
+        )
         # get a rotated image
         rotated_image = pygame.transform.rotate(image, angle)
         # rotate and blit the image
@@ -111,7 +161,9 @@ class VehicleGraphics(object):
             pygame.draw.rect(surf, (255, 0, 0), (*origin, *rotated_image.get_size()), 2)
 
     @classmethod
-    def display_trajectory(cls, states: List[Vehicle], surface: "WorldSurface", offscreen: bool = False) -> None:
+    def display_trajectory(
+        cls, states: List[Vehicle], surface: "WorldSurface", offscreen: bool = False
+    ) -> None:
         """
         Display the whole trajectory of a vehicle on a pygame surface.
 
@@ -123,8 +175,15 @@ class VehicleGraphics(object):
             cls.display(vehicle, surface, transparent=True, offscreen=offscreen)
 
     @classmethod
-    def display_history(cls, vehicle: Vehicle, surface: "WorldSurface", frequency: float = 3, duration: float = 2,
-                        simulation: int = 15, offscreen: bool = False) -> None:
+    def display_history(
+        cls,
+        vehicle: Vehicle,
+        surface: "WorldSurface",
+        frequency: float = 3,
+        duration: float = 2,
+        simulation: int = 15,
+        offscreen: bool = False,
+    ) -> None:
         """
         Display the whole trajectory of a vehicle on a pygame surface.
 
@@ -135,10 +194,12 @@ class VehicleGraphics(object):
         :param simulation: simulation frequency
         :param offscreen: whether the rendering should be done offscreen or not
         """
-        for v in itertools.islice(vehicle.history,
-                                  None,
-                                  int(simulation * duration),
-                                  int(simulation / frequency)):
+        for v in itertools.islice(
+            vehicle.history,
+            None,
+            int(simulation * duration),
+            int(simulation / frequency),
+        ):
             cls.display(v, surface, transparent=True, offscreen=offscreen)
 
     @classmethod
@@ -157,4 +218,3 @@ class VehicleGraphics(object):
         if transparent:
             color = (color[0], color[1], color[2], 30)
         return color
-
