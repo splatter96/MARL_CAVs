@@ -3,15 +3,11 @@ from typing import Tuple, List, Optional
 from matplotlib.pyplot import close
 import numpy as np
 
-from commonroad.scenario.lanelet import LaneletNetwork, Lanelet
-from commonroad_dc.costs.route_matcher import (
-    create_cosy_from_lanelet,
-    get_orientation_at_position,
-    extrapolate_polyline,
-    smoothen_polyline,
-)
-from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
+from scipy.spatial import cKDTree
+from scipy.spatial.distance import cdist
+# from sklearn.neighbors import KDTree
 
+from commonroad.scenario.lanelet import LaneletNetwork, Lanelet
 from highway_env import utils
 from highway_env.types import Vector
 # from highway_env.utils import wrap_to_pi
@@ -212,14 +208,9 @@ class CommonRoadLane(AbstractLane):
         self.line_types = line_types or [LineType.CONTINUOUS, LineType.CONTINUOUS]
         self.length = self.lanelet.distance[-1]
 
-        # self.offset = 0
-        # v = v = smoothen_polyline(
-        #     extrapolate_polyline(self.lanelet.center_vertices, offset=self.offset),
-        #     resampling_distance=0.1,
-        #     n_lengthen=0,
-        # )
-        # self.curvelinear = CurvilinearCoordinateSystem(v)
-        #
+        self.tree = cKDTree(self.lanelet.center_vertices)
+        # print(f"dimension {self.tree.m}")
+        # print(f"points {self.tree.n}")
 
     @abstractmethod
     def position(self, longitudinal: float, lateral: float) -> np.ndarray:
@@ -230,17 +221,6 @@ class CommonRoadLane(AbstractLane):
         :param lateral: lateral lane coordinate [m]
         :return: the corresponding world position [m]
         """
-        # projection_domain = self.curvelinear.projection_domain()
-        # print(projection_domain)
-        # print("\n\n\n")
-        # projection_domain = self.curvelinear.curvilinear_projection_domain()
-        # print(projection_domain)
-        # print(longitudinal)
-        # print(lateral)
-
-        # point = self.curvelinear.convert_to_cartesian_coords(longitudinal, lateral)
-        # return point + np.array([self.offset, 0])
-        #
         closest_vertex_index = np.searchsorted(
             self.lanelet.distance, longitudinal
         )  # - 1
@@ -257,14 +237,8 @@ class CommonRoadLane(AbstractLane):
         remaining_s = longitudinal - self.lanelet.distance[closest_vertex_index]
         ref_point = vertex1 + remaining_s * np.array([np.cos(heading), np.sin(heading)])
 
-        # print(f"indx {closest_vertex_index}")
-        # print(f"vertex1 {vertex1}")
-        # print(f"refpoint {ref_point}")
-
         normal = heading - np.pi / 2
         return ref_point + lateral * np.array([np.cos(normal), np.sin(normal)])
-
-        # raise NotImplementedError()
 
     @abstractmethod
     def local_coordinates(self, position: np.ndarray) -> Tuple[float, float]:
@@ -274,16 +248,15 @@ class CommonRoadLane(AbstractLane):
         :param position: a world position [m]
         :return: the (longitudinal, lateral) lane coordinates [m]
         """
-        # projection_domain = self.curvelinear.projection_domain()
-        # print(projection_domain)
-
-        # point = self.curvelinear.convert_to_curvilinear_coords(position[0], position[1])
-        # return (point[0] - self.offset, point[1])
-
-        position_diff_square = np.sum(
-            (self.lanelet.center_vertices - position) ** 2, axis=1
+        # position_diff_square = np.sum(
+        #     (self.lanelet.center_vertices - position) ** 2, axis=1
+        # )
+        position_diff_square = cdist(
+            [(position[0], position[1])], self.lanelet.center_vertices, "sqeuclidean"
         )
         closest_vertex_index = np.argmin(position_diff_square)
+        # _, closest_vertex_index = self.tree.query(position, workers=-1)
+        # closest_vertex_index = closest_vertex_index[0][0]
 
         if closest_vertex_index == len(self.lanelet.center_vertices) - 1:
             vertex1 = self.lanelet.center_vertices[closest_vertex_index - 1, :]
@@ -295,10 +268,16 @@ class CommonRoadLane(AbstractLane):
         direction_vector = vertex2 - vertex1
         point_vector = vertex1 - position
 
-        # distance between point and vector
-        lat = np.cross(direction_vector, point_vector) / np.linalg.norm(
-            direction_vector
+        # fast cross product calculation
+        z = (
+            direction_vector[0] * point_vector[1]
+            - direction_vector[1] * point_vector[0]
         )
+        # distance between point and vector
+        # lat = np.cross(direction_vector, point_vector) / np.linalg.norm(
+        #     direction_vector
+        # )
+        lat = z / utils.norm_accurate(vertex1, vertex2)
 
         # longitudinal are precomputed
         long = self.lanelet.distance[closest_vertex_index]
@@ -312,9 +291,6 @@ class CommonRoadLane(AbstractLane):
         :param longitudinal: longitudinal lane coordinate [m]
         :return: the lane heading [rad]
         """
-        # longitudinal += self.offset
-        # tangent = self.curvelinear.tangent(longitudinal)
-        # return np.arctan2(tangent[0], tangent[1])
         idx = np.searchsorted(self.lanelet.distance, longitudinal) - 1
 
         if idx == len(self.lanelet.center_vertices) - 1:
@@ -324,8 +300,6 @@ class CommonRoadLane(AbstractLane):
             vertex1 = self.lanelet.center_vertices[idx, :]
             vertex2 = self.lanelet.center_vertices[idx + 1, :]
 
-        # vertex2 = self.lanelet.center_vertices[idx, :]
-        # vertex1 = self.lanelet.center_vertices[idx + 1, :]
         direction_vector = vertex2 - vertex1
         return np.arctan2(direction_vector[1], direction_vector[0])
 
@@ -342,12 +316,20 @@ class CommonRoadLane(AbstractLane):
 
     def distance_between_points(self, position1: np.ndarray, position2: np.ndarray):
         """Compute the lane distance between two points on the lane"""
-        position_diff_square_1 = np.sum(
-            (self.lanelet.center_vertices - position1) ** 2, axis=1
+        # position_diff_square_1 = np.sum(
+        #     (self.lanelet.center_vertices - position1) ** 2, axis=1
+        # )
+        # print(position1.tolist())
+        position_diff_square_1 = cdist(
+            [(position1[0], position1[1])], self.lanelet.center_vertices, "sqeuclidean"
         )
         indx_1 = np.argmin(position_diff_square_1)
-        position_diff_square_2 = np.sum(
-            (self.lanelet.center_vertices - position2) ** 2, axis=1
+
+        # position_diff_square_2 = np.sum(
+        #     (self.lanelet.center_vertices - position2) ** 2, axis=1
+        # )
+        position_diff_square_2 = cdist(
+            [(position2[0], position2[1])], self.lanelet.center_vertices, "sqeuclidean"
         )
         indx_2 = np.argmin(position_diff_square_2)
 
@@ -369,24 +351,6 @@ class CommonRoadLane(AbstractLane):
 
         return dx
 
-    # def on_lane(
-    #     self,
-    #     position: np.ndarray,
-    #     longitudinal: float = None,
-    #     lateral: float = None,
-    #     margin: float = 0,
-    # ) -> bool:
-    #     """
-    #     Whether a given world position is on the lane.
-    #
-    #     :param position: a world position [m]
-    #     :param longitudinal: (optional) the corresponding longitudinal lane coordinate, if known [m]
-    #     :param lateral: (optional) the corresponding lateral lane coordinate, if known [m]
-    #     :param margin: (optional) a supplementary margin around the lane width
-    #     :return: is the position on the lane?
-    #     """
-    #     raise NotImplementedError()
-    #
     def is_reachable_from(self, position: np.ndarray) -> bool:
         """
         Whether the lane is reachable from a given world position
@@ -394,7 +358,6 @@ class CommonRoadLane(AbstractLane):
         :param position: the world position [m]
         :return: is the lane reachable?
         """
-        # raise NotImplementedError()
         if self.forbidden:
             return False
         longitudinal, lateral = self.local_coordinates(position)
@@ -411,27 +374,9 @@ class CommonRoadLane(AbstractLane):
         lateral: float = None,
         vehicle_length: float = 5,
     ) -> bool:
-        # raise NotImplementedError()
         if not longitudinal:
             longitudinal, _ = self.local_coordinates(position)
         return longitudinal > self.length - vehicle_length
-
-    # def distance_to_end(
-    #     self,
-    #     position: np.ndarray,
-    #     longitudinal: np.float64 = None,
-    #     lateral: float = None,
-    # ) -> bool:
-    #     """Compute distance from position to the end of the lane"""
-    #     raise NotImplementedError()
-    #
-    # def distance(self, position: np.ndarray):
-    #     """Compute the L1 distance [m] from a position to the lane."""
-    #     raise NotImplementedError()
-    #
-    # def distance_with_heading(self, position: np.ndarray, heading: Optional[float]):
-    #     """Compute a weighted distance in position and heading to the lane."""
-    #     raise NotImplementedError()
 
 
 class StraightLane(AbstractLane):

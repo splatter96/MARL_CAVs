@@ -45,6 +45,8 @@ def clip(value, low, high):
 cdef inline float c_clip(float value, float low, float high):
     return min(max(low, value), high)
 
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 def norm(np.ndarray[double, ndim=1] p1, np.ndarray[double, ndim=1] p2):
     # dont use the sqrt to save some time (comparison need to be made against squares)
 
@@ -54,9 +56,21 @@ def norm(np.ndarray[double, ndim=1] p1, np.ndarray[double, ndim=1] p2):
     x2 = p2[0]
     y2 = p2[1]
 
-    # return ((x1 - x2) ** 2) + ((y1 - y2) ** 2)
     return ((x1 - x2) * (x1 - x2)) + ((y1 - y2) * (y1 - y2))
 
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
+def norm_accurate(np.ndarray[double, ndim=1] p1, np.ndarray[double, ndim=1] p2):
+    cdef float x1, y1, x2, y2
+    x1 = p1[0]
+    y1 = p1[1]
+    x2 = p2[0]
+    y2 = p2[1]
+
+    return sqrt(((x1 - x2) * (x1 - x2)) + ((y1 - y2) * (y1 - y2)))
+
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 cdef inline normalize_vector(np.ndarray[double, ndim=1] vec):
     cdef float length
 
@@ -456,36 +470,48 @@ def is_consistent_dataset(data: dict, parameter_box: np.ndarray = None) -> bool:
 #from math import sqrt
 import math
 
-def normalize(vector):
+cdef normalize(vector):
     """
     :return: The vector scaled to a length of 1
     """
-    norm = math.sqrt(vector[0] ** 2 + vector[1] ** 2)
-    return vector[0] / norm, vector[1] / norm
+    cdef float x, y
+    x = vector[0]
+    y = vector[1]
+
+    # norm = math.sqrt(vector[0] ** 2 + vector[1] ** 2)
+    # return vector[0] / norm, vector[1] / norm
+    norm = sqrt(x ** 2 + y ** 2)
+    return x / norm, y / norm
 
 
-def dot(vector1, vector2):
+cdef float dot(vector1, vector2):
     """
     :return: The dot (or scalar) product of the two vectors
     """
-    return vector1[0] * vector2[0] + vector1[1] * vector2[1]
+    cdef float x1, x2, y1, y2
+    x1 = vector1[0]
+    x2 = vector2[0]
+    y1 = vector1[1]
+    y2 = vector2[1]
+    # return vector1[0] * vector2[0] + vector1[1] * vector2[1]
+    return x1 * x2 + y1 * y2
 
 
-def edge_direction(point0, point1):
+cdef edge_direction(point0, point1):
     """
     :return: A vector going from point0 to point1
     """
     return point1[0] - point0[0], point1[1] - point0[1]
 
 
-def orthogonal(vector):
+cdef orthogonal(vector):
     """
     :return: A new vector which is orthogonal to the given vector
     """
     return vector[1], -vector[0]
 
 
-def vertices_to_edges(vertices):
+cdef vertices_to_edges(vertices):
     """
     :return: A list of the edges of the vertices as vectors
     """
@@ -493,7 +519,7 @@ def vertices_to_edges(vertices):
             for i in range(len(vertices))]
 
 
-def project(vertices, axis):
+cdef project(vertices, axis):
     """
     :return: A vector showing how much of the vertices lies along the axis
     """
@@ -501,7 +527,7 @@ def project(vertices, axis):
     return [min(dots), max(dots)]
 
 
-def overlap(projection1, projection2):
+cdef overlap(projection1, projection2):
     """
     :return: Boolean indicating if the two projections overlap
     """

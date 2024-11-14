@@ -109,24 +109,24 @@ class PathPlanner:
         self.subs = []
 
     def start_simulation(self):
-        # profiler = cProfile.Profile()
-        # profiler.enable()
+        profiler = cProfile.Profile()
+        profiler.enable()
 
-        for i in range(10000):
-            # for i in range(100):
+        # for i in range(10000):
+        for i in range(100):
             # print(f"step {i}")
             self.road.act()
             self.road.step(self.timer_period)
 
-            self.renderer.render()
-            self.renderer.handle_events()
+            # self.renderer.render()
+            # self.renderer.handle_events()
 
             # time.sleep(self.timer_period)
-            time.sleep(0.01)
+            # time.sleep(0.01)
 
-        # profiler.disable()
-        # stats = pstats.Stats(profiler)
-        # stats.dump_stats("profile_commonroad_no_curvilinear.log")
+        profiler.disable()
+        stats = pstats.Stats(profiler)
+        stats.dump_stats("profile_commonroad_native_numpy.log")
 
     def make_road(self):
         # lane = StraightLane([0, 0], [3.5, 0], line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE), width=0.3)
