@@ -18,6 +18,7 @@ from highway_env.types import Vector, Interval
 cdef extern from "c_utils.c":
     char get_rectangle_intersection(float p0_x, float p0_y, float p1_x, float p1_y, float* xs, float* ys, float *t_o)
     void c_rect_corners(float center_x, float center_y, float length, float width, float angle, float *out_x, float *out_y)
+    int c_mindist(double* l, double* x, double v[2], int N)
 
 cdef distance_to_rect2(np.ndarray[double, ndim=1] r, np.ndarray[double, ndim=1] q, float* xs, float* ys, float max_range):
     cdef float t_o
@@ -35,6 +36,19 @@ cdef np.ndarray rect_corners2(np.ndarray[double, ndim=1] center, float length, f
     c_rect_corners(center_x, center_y, length, width, angle, out_x, out_y)
 
     return
+
+# returns the index in x with the minimum distance to point v
+def pymindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v) -> int:
+    return mindist(lengths, x, v)
+
+cdef int mindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v):
+    cdef double* lengths_buff = <double*> lengths.data
+    cdef double* x_buff = <double*> x.data
+    cdef double* v_buff = <double*> v.data
+
+    cdef int N = lengths.shape[0]
+
+    return c_mindist(lengths_buff, x_buff, v_buff, N)
 
 def argmin(lst):
       return lst.index(min(lst))
@@ -549,6 +563,23 @@ def separating_axis_theorem(vertices_a, vertices_b):
             return False
 
     return True
+
+def middle_to_edges(np.ndarray[double, ndim=1] middle, float length, float width, float angle):
+    angle -= 1.5707 #pi/2
+
+    cdef np.ndarray[double, ndim=1] u = np.empty(2, dtype=np.double)
+    cdef np.ndarray[double, ndim=1] v = np.empty(2, dtype=np.double)
+
+    u = np.array([width/2. * cos(angle), width/2. * sin(angle)])
+    v = np.array([-length/2. * sin(angle), length/2. * cos(angle)])
+
+    a = middle - u + v
+    b = middle + u + v
+    c = middle + u - v
+    d = middle - u - v
+
+    return np.array([a-b, b-c, c-d, d-a])
+
 
 def middle_to_vertices(middle, float length, float width, float angle):
     # convert the old represantation of the rectangle to vertices

@@ -371,8 +371,8 @@ class IDMVehicle(ControlledVehicle):
             ego_vehicle=new_following, front_vehicle=self
         )
 
-        if self.id == 1:
-            print(f"new: {lane_index} {new_following}, {new_preceding}")
+        # if self.id == 1:
+        #     print(f"new: {lane_index} {new_following}, {new_preceding}")
         # print(f"{old_following}, {old_preceding}")
         # print(f"{new_following_pred_a}, {old_preceding}")
 
@@ -470,6 +470,7 @@ class ModelIDMVehicle(IDMVehicle):
         self.KP_LATERAL = 1 / 3 * self.KP_HEADING  # [1/s]
         self.WIDTH = 0.08
         self.LENGTH = 0.17
+        self.LENGTH_SQUARE = self.LENGTH**2  # Nedded for faster distance comparison
         self.DISTANCE_WANTED = 0.1
         self.id = 0
         self.MAX_STEERING_ANGLE = np.deg2rad(20)

@@ -112,6 +112,7 @@ class PathPlanner:
         profiler = cProfile.Profile()
         profiler.enable()
 
+        start = time.time()
         # for i in range(10000):
         for i in range(100):
             # print(f"step {i}")
@@ -124,9 +125,11 @@ class PathPlanner:
             # time.sleep(self.timer_period)
             # time.sleep(0.01)
 
+        end = time.time()
+        print((end - start) / 10000)
         profiler.disable()
         stats = pstats.Stats(profiler)
-        stats.dump_stats("profile_commonroad_native_numpy.log")
+        stats.dump_stats("profile_commonroad_no_list.log")
 
     def make_road(self):
         # lane = StraightLane([0, 0], [3.5, 0], line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE), width=0.3)

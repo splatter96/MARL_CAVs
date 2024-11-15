@@ -53,7 +53,6 @@ class Vehicle(object):
             else np.nan
         )
 
-        print(f"initializing lane_index {self.lane_index}")
         self.lane = self.road.network.get_lane(self.lane_index) if self.road else None
         self.action = {"steering": 0, "acceleration": 0}
         self.trajectories = []
@@ -212,21 +211,7 @@ class Vehicle(object):
         if not lane:
             lane = self.lane
 
-        # return lane.local_coordinates(vehicle.position)[0] - lane.local_coordinates(self.position)[0]
-
-        # both vehicles on same lane
-        # if vehicle.lane_index is None or self.lane_index[:2] == vehicle.lane_index[:2]:
         return lane.distance_between_points(self.position, vehicle.position)
-
-        # TODO need to take into account with lane between self.lane and vehicle.lane
-        # v_front_dist = vehicle.lane.local_coordinates(vehicle.position)[0]
-        # dist_to_end = lane.distance_to_end(self.position)
-        # # if self.id == 3:
-        # #     longitudinal, _ = lane.local_coordinates(self.position)
-        # #     print(f"got long {longitudinal} for {self.position}")
-        # # print(f"{v_front_dist} {dist_to_end}")
-        # return dist_to_end + v_front_dist
-        #
 
     def check_collision(self, other: Union["Vehicle", "RoadObject"]) -> None:
         """
@@ -257,16 +242,9 @@ class Vehicle(object):
 
     def _is_colliding(self, other):
         # Fast spherical pre-check
-        # if utils.norm(other.position, self.position) > self.LENGTH:
         if utils.norm(other.position, self.position) > self.LENGTH_SQUARE:
             return False
         # Accurate rectangular check
-        # old
-        # return utils.rotated_rectangles_intersect((self.position, 0.9 * self.LENGTH, 0.9 * self.WIDTH, self.heading),
-        # (
-        # other.position, 0.9 * other.LENGTH, 0.9 * other.WIDTH, other.heading))
-
-        # new
         rect = utils.middle_to_vertices(
             self.position, self.LENGTH, self.WIDTH, self.heading
         )

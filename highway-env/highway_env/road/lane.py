@@ -3,10 +3,6 @@ from typing import Tuple, List, Optional
 from matplotlib.pyplot import close
 import numpy as np
 
-from scipy.spatial import cKDTree
-from scipy.spatial.distance import cdist
-# from sklearn.neighbors import KDTree
-
 from commonroad.scenario.lanelet import LaneletNetwork, Lanelet
 from highway_env import utils
 from highway_env.types import Vector
@@ -18,16 +14,8 @@ VEHICLE_LENGTH = 5
 np.set_printoptions(suppress=True)
 
 
-# cdef class AbstractLane(object):
 class AbstractLane(object):
     """A lane on the road, described by its central curve."""
-
-    # def __cinit__(self):
-    # # metaclass__ = ABCMeta
-    # self.DEFAULT_WIDTH = 4
-    # self.VEHICLE_LENGTH = 5
-    # self.length = 0
-    # # line_types: Tuple["LineType"]
 
     @abstractmethod
     def position(self, longitudinal: float, lateral: float) -> np.ndarray:
@@ -208,11 +196,11 @@ class CommonRoadLane(AbstractLane):
         self.line_types = line_types or [LineType.CONTINUOUS, LineType.CONTINUOUS]
         self.length = self.lanelet.distance[-1]
 
-        self.tree = cKDTree(self.lanelet.center_vertices)
-        # print(f"dimension {self.tree.m}")
-        # print(f"points {self.tree.n}")
+        # used for faster distance calculation in nearest neighbor search
+        # argmin_a (a - b)^2 = argmin_a a^2 - 2ab + b^2 = argmin_a a^2 - 2ab  # noqa
+        lens = (self.lanelet.center_vertices**2).sum(-1)
+        self.lengths = np.ascontiguousarray(lens, dtype=np.float64)
 
-    @abstractmethod
     def position(self, longitudinal: float, lateral: float) -> np.ndarray:
         """
         Convert local lane coordinates to a world position.
@@ -240,7 +228,6 @@ class CommonRoadLane(AbstractLane):
         normal = heading - np.pi / 2
         return ref_point + lateral * np.array([np.cos(normal), np.sin(normal)])
 
-    @abstractmethod
     def local_coordinates(self, position: np.ndarray) -> Tuple[float, float]:
         """
         Convert a world position to local lane coordinates.
@@ -248,15 +235,10 @@ class CommonRoadLane(AbstractLane):
         :param position: a world position [m]
         :return: the (longitudinal, lateral) lane coordinates [m]
         """
-        # position_diff_square = np.sum(
-        #     (self.lanelet.center_vertices - position) ** 2, axis=1
-        # )
-        position_diff_square = cdist(
-            [(position[0], position[1])], self.lanelet.center_vertices, "sqeuclidean"
+
+        closest_vertex_index = utils.pymindist(
+            self.lengths, self.lanelet.center_vertices, position
         )
-        closest_vertex_index = np.argmin(position_diff_square)
-        # _, closest_vertex_index = self.tree.query(position, workers=-1)
-        # closest_vertex_index = closest_vertex_index[0][0]
 
         if closest_vertex_index == len(self.lanelet.center_vertices) - 1:
             vertex1 = self.lanelet.center_vertices[closest_vertex_index - 1, :]
@@ -283,7 +265,6 @@ class CommonRoadLane(AbstractLane):
         long = self.lanelet.distance[closest_vertex_index]
         return (long, -lat)
 
-    @abstractmethod
     def heading_at(self, longitudinal: float) -> float:
         """
         Get the lane heading at a given longitudinal lane coordinate.
@@ -316,22 +297,9 @@ class CommonRoadLane(AbstractLane):
 
     def distance_between_points(self, position1: np.ndarray, position2: np.ndarray):
         """Compute the lane distance between two points on the lane"""
-        # position_diff_square_1 = np.sum(
-        #     (self.lanelet.center_vertices - position1) ** 2, axis=1
-        # )
-        # print(position1.tolist())
-        position_diff_square_1 = cdist(
-            [(position1[0], position1[1])], self.lanelet.center_vertices, "sqeuclidean"
-        )
-        indx_1 = np.argmin(position_diff_square_1)
+        indx_1 = utils.pymindist(self.lengths, self.lanelet.center_vertices, position1)
 
-        # position_diff_square_2 = np.sum(
-        #     (self.lanelet.center_vertices - position2) ** 2, axis=1
-        # )
-        position_diff_square_2 = cdist(
-            [(position2[0], position2[1])], self.lanelet.center_vertices, "sqeuclidean"
-        )
-        indx_2 = np.argmin(position_diff_square_2)
+        indx_2 = utils.pymindist(self.lengths, self.lanelet.center_vertices, position2)
 
         x1 = self.lanelet.distance[indx_1]
         x2 = self.lanelet.distance[indx_2]

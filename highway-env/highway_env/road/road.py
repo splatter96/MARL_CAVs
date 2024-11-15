@@ -1,5 +1,6 @@
 # cython: profile=True
 
+from commonroad.common.util import enum
 import numpy as np
 import pandas as pd
 import logging
@@ -35,13 +36,11 @@ class RoadNetworkCommonRoad(object):
         self.lanes = dict()
         ids = self.lanelet_network._lanelets.keys()
 
+        self.lane_ids = np.array(list(ids), dtype=int)
+
         # create our custom lane definitions
         for id in ids:
-            # return CommonRoadLane(self.lanelet_network.find_lanelet_by_id(index))
             self.lanes[id] = CommonRoadLane(self.lanelet_network.find_lanelet_by_id(id))
-
-    def lane_ids(self):
-        return self.lanelet_network._lanelets.keys()
 
     def get_lane(self, index: int) -> CommonRoadLane:
         """
@@ -60,31 +59,22 @@ class RoadNetworkCommonRoad(object):
         :return: the closest lane.
         """
 
-        ids = self.lanelet_network._lanelets.keys()
-
-        # output list
-        lanes = dict()
-
-        # distance dict for sorting
-        distance_list = list()
+        # distances for sorting
+        distance_list = np.zeros(len(self.lane_ids), dtype=np.float32)
 
         # go through list of lanelets
-        for i in ids:
-            # if current lanelet has not already been added to lanes list
-            if i not in lanes:
-                lanelet = self.lanelet_network.find_lanelet_by_id(i)
+        for i, id in enumerate(self.lane_ids):
+            lanelet = self.lanelet_network.find_lanelet_by_id(id)
 
-                # compute distances (we are not using the sqrt for computational effort)
-                distance = (lanelet.center_vertices - point) ** 2.0
-                distance = distance[:, 0] + distance[:, 1]
+            # compute distances (we are not using the sqrt for computational effort)
+            distance = (lanelet.center_vertices - point) ** 2.0
+            distance = distance[:, 0] + distance[:, 1]
 
-                lanes[i] = lanelet
-                distance_list.append(np.min(distance))
+            distance_list[i] = np.min(distance)
 
         # get lanelet with smallest distance
         min_index = np.argmin(distance_list)
-        lanelets = list(lanes.keys())
-        return lanelets[min_index]
+        return self.lane_ids[min_index]
 
     def next_lane(
         self,
@@ -417,6 +407,8 @@ class RoadCommonRoad(object):
         for i in range(len_v):
             vehicles[i].step(dt)
 
+        # TODO check collision only every Xth step
+        # TODO collect all vehicle positions and check collision at once
         for i in range(len_v):
             v = vehicles[i]
             for j in range(len_v):
@@ -444,7 +436,7 @@ class RoadCommonRoad(object):
         s_front = s_rear = None
         v_front = v_rear = None
         for v in self.vehicles + self.objects:
-            if v is not vehicle and not isinstance(v, Landmark):
+            if v is not vehicle:  # and not isinstance(v, Landmark):
                 if not v.lane_index == lane_index:
                     continue
 

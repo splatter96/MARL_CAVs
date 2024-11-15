@@ -77,14 +77,78 @@ static void c_rect_corners(
     float x_pos[4] = {-half_l, -half_l, half_l, half_l};
     float y_pos[4] = {-half_w, half_w, half_w, -half_w};
 
-    /*half_l = np.array([length / 2, 0])*/
-    /*half_w = np.array([0, width / 2])*/
-    /*corners = np.array([-half_l - half_w, -half_l + half_w, +half_l + half_w, +half_l - half_w])*/
-
     for(int i=0; i<4; i++){
         rotate(x_pos[i], y_pos[i], angle, center_x, center_y, &out_x[i], &out_y[i]);
     }
 
     return;
+}
+
+static void cmiddle_to_vertices(float x, float y, float length, float width, float angle, float* out){
+    // convert the old represantation of the rectangle to vertices
+    angle -= 1.5707; //pi/2
+
+    float ux = width/2. * cos(angle);
+    float uy = width/2. * sin(angle);
+    float vx = -length/2. * sin(angle);
+    float vy = length/2. * cos(angle);
+
+    float ax = x - ux + vx;
+    float ay = y - uy + vy;
+    float bx = x + ux + vx;
+    float by = y + uy + vy;
+    float cx = x + ux - vx;
+    float cy = y + uy - vy;
+    float dx = x - ux - vx;
+    float dy = y - uy - vy;
+
+    out[0] = ax;
+    out[1] = ay;
+    out[2] = bx;
+    out[3] = by;
+    out[4] = cx;
+    out[5] = cy;
+    out[6] = dx;
+    out[7] = dy;
+
+    return;
+}
+static void cnormalize(float* v){
+  /*
+    Scale the vector to a length of 1
+  */
+    float x = v[0];
+    float y = v[1];
+
+    float norm = sqrt(x * x + y * y);
+    v[0] = x/norm;
+    v[1] = y/norm;
+}
+
+
+static float dot(float* a, float* b){
+    /*
+    Returns the dot (or scalar) product of the two vectors
+    */
+    return a[0] * b[0] + a[1] * b[1];
+}
+
+static int c_mindist(double* l, double* x, double v[2], int N){
+  int min_i = -1;
+  double min_dist = 1e8;
+
+
+  for(int i=0; i<2*N; i+=2){
+    // int indx = 2*i;
+    double dot_prod = x[i] * v[0] + x[i+1] * v[1];
+    double dist = l[i/2] - 2 * dot_prod;
+
+    if (dist <= min_dist){
+      min_dist = dist;
+      min_i = i/2;
+    }
+  }
+
+  return min_i;
 }
 

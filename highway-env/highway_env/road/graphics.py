@@ -342,7 +342,7 @@ class RoadGraphics(object):
         #     for _to in road.network.graph[_from].keys():
         #         for l in road.network.graph[_from][_to]:
         #             graphic_type.display(l, surface)
-        for l_idx in road.network.lane_ids():
+        for l_idx in road.network.lane_ids:
             graphic_type.display(road.network.get_lane(l_idx), surface)
 
     @staticmethod
