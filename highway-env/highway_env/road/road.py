@@ -64,13 +64,12 @@ class RoadNetworkCommonRoad(object):
 
         # go through list of lanelets
         for i, id in enumerate(self.lane_ids):
-            lanelet = self.lanelet_network.find_lanelet_by_id(id)
+            lanelet = self.get_lane(id)
 
-            # compute distances (we are not using the sqrt for computational effort)
-            distance = (lanelet.center_vertices - point) ** 2.0
-            distance = distance[:, 0] + distance[:, 1]
-
-            distance_list[i] = np.min(distance)
+            # compute minimum distances to each road
+            distance_list[i] = utils.pymindist(
+                lanelet.lengths, lanelet.lanelet.center_vertices, point
+            )
 
         # get lanelet with smallest distance
         min_index = np.argmin(distance_list)

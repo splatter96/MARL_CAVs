@@ -133,13 +133,11 @@ static float dot(float* a, float* b){
     return a[0] * b[0] + a[1] * b[1];
 }
 
-static int c_mindist(double* l, double* x, double v[2], int N){
+static int c_argmindist(double* l, double* x, double v[2], int N){
   int min_i = -1;
   double min_dist = 1e8;
 
-
   for(int i=0; i<2*N; i+=2){
-    // int indx = 2*i;
     double dot_prod = x[i] * v[0] + x[i+1] * v[1];
     double dist = l[i/2] - 2 * dot_prod;
 
@@ -150,5 +148,21 @@ static int c_mindist(double* l, double* x, double v[2], int N){
   }
 
   return min_i;
+}
+
+
+static double c_mindist(double* l, double* x, double v[2], int N){
+  double min_dist = 1e8;
+
+  for(int i=0; i<2*N; i+=2){
+    double dot_prod = x[i] * v[0] + x[i+1] * v[1];
+    double dist = l[i/2] - 2 * dot_prod;
+
+    if (dist <= min_dist){
+      min_dist = dist;
+    }
+  }
+
+  return min_dist;
 }
 

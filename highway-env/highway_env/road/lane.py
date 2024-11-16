@@ -236,7 +236,7 @@ class CommonRoadLane(AbstractLane):
         :return: the (longitudinal, lateral) lane coordinates [m]
         """
 
-        closest_vertex_index = utils.pymindist(
+        closest_vertex_index = utils.pyargmindist(
             self.lengths, self.lanelet.center_vertices, position
         )
 
@@ -297,9 +297,13 @@ class CommonRoadLane(AbstractLane):
 
     def distance_between_points(self, position1: np.ndarray, position2: np.ndarray):
         """Compute the lane distance between two points on the lane"""
-        indx_1 = utils.pymindist(self.lengths, self.lanelet.center_vertices, position1)
+        indx_1 = utils.pyargmindist(
+            self.lengths, self.lanelet.center_vertices, position1
+        )
 
-        indx_2 = utils.pymindist(self.lengths, self.lanelet.center_vertices, position2)
+        indx_2 = utils.pyargmindist(
+            self.lengths, self.lanelet.center_vertices, position2
+        )
 
         x1 = self.lanelet.distance[indx_1]
         x2 = self.lanelet.distance[indx_2]

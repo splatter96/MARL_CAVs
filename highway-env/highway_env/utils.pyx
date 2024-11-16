@@ -18,7 +18,8 @@ from highway_env.types import Vector, Interval
 cdef extern from "c_utils.c":
     char get_rectangle_intersection(float p0_x, float p0_y, float p1_x, float p1_y, float* xs, float* ys, float *t_o)
     void c_rect_corners(float center_x, float center_y, float length, float width, float angle, float *out_x, float *out_y)
-    int c_mindist(double* l, double* x, double v[2], int N)
+    int c_argmindist(double* l, double* x, double v[2], int N)
+    double c_mindist(double* l, double* x, double v[2], int N)
 
 cdef distance_to_rect2(np.ndarray[double, ndim=1] r, np.ndarray[double, ndim=1] q, float* xs, float* ys, float max_range):
     cdef float t_o
@@ -38,10 +39,23 @@ cdef np.ndarray rect_corners2(np.ndarray[double, ndim=1] center, float length, f
     return
 
 # returns the index in x with the minimum distance to point v
-def pymindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v) -> int:
+def pyargmindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v) -> int:
+    return argmindist(lengths, x, v)
+
+cdef int argmindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v):
+    cdef double* lengths_buff = <double*> lengths.data
+    cdef double* x_buff = <double*> x.data
+    cdef double* v_buff = <double*> v.data
+
+    cdef int N = lengths.shape[0]
+
+    return c_argmindist(lengths_buff, x_buff, v_buff, N)
+
+# returns the minimum distance to point v
+def pymindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v) -> double:
     return mindist(lengths, x, v)
 
-cdef int mindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v):
+cdef double mindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v):
     cdef double* lengths_buff = <double*> lengths.data
     cdef double* x_buff = <double*> x.data
     cdef double* v_buff = <double*> v.data
