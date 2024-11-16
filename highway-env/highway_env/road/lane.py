@@ -272,7 +272,7 @@ class CommonRoadLane(AbstractLane):
         :param longitudinal: longitudinal lane coordinate [m]
         :return: the lane heading [rad]
         """
-        idx = np.searchsorted(self.lanelet.distance, longitudinal) - 1
+        idx = self.lanelet.distance.searchsorted(longitudinal) - 1
 
         if idx == len(self.lanelet.center_vertices) - 1:
             vertex1 = self.lanelet.center_vertices[idx - 1, :]

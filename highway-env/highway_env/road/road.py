@@ -72,7 +72,7 @@ class RoadNetworkCommonRoad(object):
             )
 
         # get lanelet with smallest distance
-        min_index = np.argmin(distance_list)
+        min_index = distance_list.argmin()
         return self.lane_ids[min_index]
 
     def next_lane(
