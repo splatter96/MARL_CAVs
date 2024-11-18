@@ -39,26 +39,22 @@ cdef np.ndarray rect_corners2(np.ndarray[double, ndim=1] center, float length, f
     return
 
 # returns the index in x with the minimum distance to point v
-def pyargmindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v) -> int:
-    return argmindist(lengths, x, v)
-
-cdef int argmindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v):
-    cdef double* lengths_buff = <double*> lengths.data
-    cdef double* x_buff = <double*> x.data
-    cdef double* v_buff = <double*> v.data
+# Important: Only works for non strided views of the np arrays
+def pyargmindist(double[::1] lengths, double[:, ::1] x, double[::1] v) -> int:
+    cdef double* lengths_buff = <double*> &lengths[0]
+    cdef double* x_buff = <double*> &x[0][0]
+    cdef double* v_buff = <double*> &v[0]
 
     cdef int N = lengths.shape[0]
 
     return c_argmindist(lengths_buff, x_buff, v_buff, N)
 
 # returns the minimum distance to point v
-def pymindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v) -> double:
-    return mindist(lengths, x, v)
-
-cdef double mindist(np.ndarray[double, ndim=1] lengths, np.ndarray[double, ndim=2] x, np.ndarray[double, ndim=1] v):
-    cdef double* lengths_buff = <double*> lengths.data
-    cdef double* x_buff = <double*> x.data
-    cdef double* v_buff = <double*> v.data
+# Important: Only works for non strided views of the np arrays
+def pymindist(double[::1] lengths, double[:, ::1] x, double[::1] v) -> double:
+    cdef double* lengths_buff = <double*> &lengths[0]
+    cdef double* x_buff = <double*> &x[0][0]
+    cdef double* v_buff = <double*> &v[0]
 
     cdef int N = lengths.shape[0]
 
