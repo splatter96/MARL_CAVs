@@ -169,14 +169,14 @@ class LaneGraphics(object):
 
         # helpful debug output for visualizing the center vertices
         # of a lane to see the resolution of the lane
-        # for point in lane.lanelet.center_vertices:
-        #     pygame.draw.circle(
-        #         surface,
-        #         surface.GREEN,
-        #         surface.vec2pix(point),
-        #         5,
-        #         max(surface.pix(cls.STRIPE_WIDTH), 1),
-        #     )
+        for point in lane.lanelet.center_vertices:
+            pygame.draw.circle(
+                surface,
+                surface.GREEN,
+                surface.vec2pix(point),
+                5,
+                max(surface.pix(cls.STRIPE_WIDTH), 1),
+            )
 
     @classmethod
     def striped_line(

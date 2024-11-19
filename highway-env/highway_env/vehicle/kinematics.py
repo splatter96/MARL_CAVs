@@ -172,6 +172,7 @@ class Vehicle(object):
         self.heading += self.speed * math.sin(beta) / (self.LENGTH / 2) * dt
         self.heading = utils.wrap_to_pi(self.heading)
         self.speed += self.action["acceleration"] * dt
+        self.speed = max(self.speed, 0.0)
         self.on_state_update()
 
     def clip_actions(self) -> None:

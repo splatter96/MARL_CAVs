@@ -122,14 +122,13 @@ class IDMVehicle(ControlledVehicle):
         )
 
         # distance_to_exit = self.exit_lane.distance(self.position)
+        distance_to_exit = abs(310 - self.position[0])
 
-        # # only decelearte if we are on the wrong lane
-        # if not self.on_track():
-        # self.alpha_v0 = max(0.2, distance_to_exit/self.duTactical)
-        # else: # reset after passing exit
-        # self.alpha_v0 = 1
-        #
-        # if self.id == 4:
+        # only decelearte if we are on the wrong lane
+        if not self.on_track():
+            self.alpha_v0 = max(0.2, distance_to_exit / self.duTactical)
+        else:  # reset after passing exit
+            self.alpha_v0 = 1
 
         # currently lane change happening but not only by following the road
         if (
@@ -161,20 +160,13 @@ class IDMVehicle(ControlledVehicle):
         )  # Skip ControlledVehicle.act(), or the command will be overriden.
 
     def on_track(self):
-        if not (self.lane_index[0] == "b" or self.lane_index[1] == "c"):
-            return True
-        if (
-            self.lane_index == ("b", "c", 0) or self.lane_index == ("b", "c", 1)
-        ) and self.RIGHT_BIAS < -0.01:
-            return True
-        elif self.lane_index == (
-            "b",
-            "c",
-            2,
-        ):  # Merging vehicles #and self.RIGHT_BIAS > 0.1:
-            return True
-        else:
+        if (self.lane_index == 1 or self.lane_index == 3) and self.RIGHT_BIAS > 0.01:
             return False
+
+        if (self.lane_index == 7146164179188) and self.RIGHT_BIAS < -0.01:
+            return False
+
+        return True
 
     def step(self, dt: float):
         """
@@ -404,14 +396,14 @@ class IDMVehicle(ControlledVehicle):
         )
 
         # TODO check left and right adjecency using the lanelet attributes
-        # if self.lane_index[2] > lane_index[2]:  # change to right lane
-        #     bias = self.RIGHT_BIAS
-        # elif self.lane_index[2] < lane_index[2]:  # change to left lane
-        #     bias = -self.RIGHT_BIAS
-        # else:
-        #     bias = 0
-        #
-        if jerk < self.LANE_CHANGE_MIN_ACC_GAIN:  # + bias:
+        if self.lane.lanelet.adj_right == lane_index:
+            bias = -self.RIGHT_BIAS
+        elif self.lane.lanelet.adj_left == lane_index:
+            bias = self.RIGHT_BIAS
+        else:
+            bias = 0
+
+        if jerk < self.LANE_CHANGE_MIN_ACC_GAIN + bias:
             return False
 
         # All clear, let's go!
