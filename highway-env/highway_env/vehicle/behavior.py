@@ -341,8 +341,8 @@ class IDMVehicle(ControlledVehicle):
             if not self.road.network.get_lane(lane_index).is_reachable_from(
                 self.position
             ):
-                if self.id == 0:
-                    print(f"{lane_index} not reachable")
+                # if self.id == 0:
+                #     print(f"{lane_index} not reachable")
                 continue
             # Does the MOBIL model recommend a lane change?
             if self.mobil(lane_index):

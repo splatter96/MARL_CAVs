@@ -196,6 +196,25 @@ class CommonRoadLane(AbstractLane):
         self.line_types = line_types or [LineType.CONTINUOUS, LineType.CONTINUOUS]
         self.length = self.lanelet.distance[-1]
 
+        # resample center_vertices for equidistance and close spacing
+        # the spacing from the scenario designer is sometimes too corse
+        center_vertices = self.lanelet.center_vertices
+
+        x_resample = np.linspace(center_vertices[0, 0], center_vertices[-1, 0], 100)
+        y_resample = np.interp(
+            x_resample,
+            center_vertices[:, 0],
+            center_vertices[:, 1],
+        )
+        resampled_vertices = np.column_stack([x_resample, y_resample])
+        self.lanelet.center_vertices = resampled_vertices
+
+        # need to recalculate the distance array after resampling
+        # thats usuallya called from inside the lanelet constructor
+        self.lanelet._distance = self.lanelet._compute_polyline_cumsum_dist(
+            [self.lanelet.center_vertices]
+        )
+
         # used for faster distance calculation in nearest neighbor search
         # argmin_a (a - b)^2 = argmin_a a^2 - 2ab + b^2 = argmin_a a^2 - 2ab  # noqa
         lens = (self.lanelet.center_vertices**2).sum(-1)
@@ -334,7 +353,8 @@ class CommonRoadLane(AbstractLane):
             return False
         longitudinal, lateral = self.local_coordinates(position)
         is_close = (
-            np.abs(lateral) <= 2 * self.width_at(longitudinal)
+            # np.abs(lateral) <= 2 * self.width_at(longitudinal)
+            np.abs(lateral) <= self.width_at(longitudinal)
             and 0 <= longitudinal < self.length + VEHICLE_LENGTH
         )
         return is_close
