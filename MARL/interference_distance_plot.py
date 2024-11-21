@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import special
 import csv
+import scipy.stats as stats
 
 rho_c = 30  # [dBsm] Radar Cross Section
 T = 10  # [dB] SRI threshold
@@ -15,8 +16,21 @@ Gt = 45  # [dBi] max Antenna gain
 
 maximum_range = 500
 
+# Rician Channel model parameters
+# see https://comyx.readthedocs.io/latest/_modules/comyx/fading/rician.html#Rician
+K = 10  # Rician factor, i.e., ratio between the power of direct path and the power of scattered paths
+sigma = np.sqrt(
+    1 / 20.999
+)  # The scale parameter, which is the standard deviation of the distribution.
+
+omega = (2 * K + 2) * sigma**2
+nu = np.sqrt((K / (1 + K)) * omega)
 gamma1 = Gt**2 * (c / (2 * np.pi * f) ** 2)
 gamma2 = rho_c / (4 * np.pi)
+
+
+def get_channel(size):
+    return stats.rice.rvs(nu / sigma, scale=sigma, size=size)
 
 
 def interference(dist):
@@ -24,7 +38,8 @@ def interference(dist):
 
 
 def signal(dist):
-    return gamma1 * gamma2 * P0 * dist ** (-2 * a)
+    print(get_channel(dist.shape).mean())  # should be 1.0
+    return gamma1 * gamma2 * P0 * get_channel(dist.shape) * dist ** (-2 * a)
 
 
 def detection(S, I):
@@ -49,8 +64,8 @@ detections = []
 possible_detections = []  # Tuples of (interferer_distance, target_distance)
 for i in range(interferences.shape[0]):
     for j in range(signals[i].shape[0]):
-        # if target_distances[i][j] == maximum_range:  # skip the "empty" observations
-        #     continue
+        if target_distances[i][j] == maximum_range:  # skip the "empty" observations
+            continue
         det = detection(signals[i][j], interferences[i])
         detections.append(det)
         if det:
