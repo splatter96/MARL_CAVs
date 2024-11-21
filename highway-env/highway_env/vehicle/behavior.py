@@ -121,10 +121,9 @@ class IDMVehicle(ControlledVehicle):
             action["steering"], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE
         )
 
-        # distance_to_exit = self.exit_lane.distance(self.position)
         distance_to_exit = abs(310 - self.position[0])
 
-        # only decelearte if we are on the wrong lane
+        # # only decelearte if we are on the wrong lane
         if not self.on_track():
             self.alpha_v0 = max(0.2, distance_to_exit / self.duTactical)
         else:  # reset after passing exit

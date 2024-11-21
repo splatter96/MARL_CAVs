@@ -168,7 +168,7 @@ class CommonRoadLane(AbstractLane):
     def __init__(
         self,
         lanelet: Lanelet,
-        ring: bool = False,
+        is_ring: bool = False,
         width: float = DEFAULT_WIDTH,
         line_types: Tuple[LineType, LineType] = None,
         forbidden: bool = False,
@@ -186,7 +186,7 @@ class CommonRoadLane(AbstractLane):
         :param priority: priority level of the lane, for determining who has right of way
         """
         self.lanelet = lanelet
-        self.ring = ring
+        self.ring = is_ring
         self.width = np.linalg.norm(
             self.lanelet.right_vertices[0] - self.lanelet.left_vertices[0]
         )
@@ -196,24 +196,25 @@ class CommonRoadLane(AbstractLane):
         self.line_types = line_types or [LineType.CONTINUOUS, LineType.CONTINUOUS]
         self.length = self.lanelet.distance[-1]
 
-        # resample center_vertices for equidistance and close spacing
-        # the spacing from the scenario designer is sometimes too corse
-        center_vertices = self.lanelet.center_vertices
+        if not self.ring:
+            # resample center_vertices for equidistance and close spacing
+            # the spacing from the scenario designer is sometimes too corse
+            center_vertices = self.lanelet.center_vertices
 
-        x_resample = np.linspace(center_vertices[0, 0], center_vertices[-1, 0], 100)
-        y_resample = np.interp(
-            x_resample,
-            center_vertices[:, 0],
-            center_vertices[:, 1],
-        )
-        resampled_vertices = np.column_stack([x_resample, y_resample])
-        self.lanelet.center_vertices = resampled_vertices
+            x_resample = np.linspace(center_vertices[0, 0], center_vertices[-1, 0], 100)
+            y_resample = np.interp(
+                x_resample,
+                center_vertices[:, 0],
+                center_vertices[:, 1],
+            )
+            resampled_vertices = np.column_stack([x_resample, y_resample])
+            self.lanelet.center_vertices = resampled_vertices
 
-        # need to recalculate the distance array after resampling
-        # thats usuallya called from inside the lanelet constructor
-        self.lanelet._distance = self.lanelet._compute_polyline_cumsum_dist(
-            [self.lanelet.center_vertices]
-        )
+            # need to recalculate the distance array after resampling
+            # thats usuallya called from inside the lanelet constructor
+            self.lanelet._distance = self.lanelet._compute_polyline_cumsum_dist(
+                [self.lanelet.center_vertices]
+            )
 
         # used for faster distance calculation in nearest neighbor search
         # argmin_a (a - b)^2 = argmin_a a^2 - 2ab + b^2 = argmin_a a^2 - 2ab  # noqa
@@ -330,12 +331,11 @@ class CommonRoadLane(AbstractLane):
         dx = x2 - x1
 
         if self.ring:
+            sign = -1 if dx < 0 else 1
             dx = abs(dx)
 
-            sign = (x2 - x1) / dx
-
             if dx > 0.5 * self.length:
-                dx = 1.0 - dx
+                dx = self.length - dx
                 sign = sign * -1
 
             return sign * dx

@@ -16,6 +16,7 @@ from highway_env.road.lane import (
 )
 from highway_env.road.objects import Landmark
 from highway_env import utils
+from shapely.lib import is_ring
 
 if TYPE_CHECKING:
     from highway_env.vehicle import kinematics
@@ -30,7 +31,7 @@ Route = List[LaneIndex]
 class RoadNetworkCommonRoad(object):
     lanelet_network: LaneletNetwork
 
-    def __init__(self, net):
+    def __init__(self, net, is_ring=False):
         self.lanelet_network = net
 
         self.lanes = dict()
@@ -40,7 +41,9 @@ class RoadNetworkCommonRoad(object):
 
         # create our custom lane definitions
         for id in ids:
-            self.lanes[id] = CommonRoadLane(self.lanelet_network.find_lanelet_by_id(id))
+            self.lanes[id] = CommonRoadLane(
+                self.lanelet_network.find_lanelet_by_id(id), is_ring
+            )
 
     def get_lane(self, index: int) -> CommonRoadLane:
         """

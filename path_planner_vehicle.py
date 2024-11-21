@@ -25,9 +25,7 @@ from highway_env.vehicle.graphics import VehicleGraphics
 
 import cProfile, pstats
 
-# file_path = "./ZAM_Test2Circ-1_1_T-1.xml"
 # file_path = "./DEU_MyTrack2LaneCont-1_1_T-1.xml"
-# file_path = "./DEU_HighwayMergeCombinedLanes-1_1_T-1.xml"
 file_path = "./DEU_HighwayMergeConnected2-1_1_T-1.xml"
 
 
@@ -146,137 +144,23 @@ class PathPlanner:
         # stats.dump_stats("profile_commonroad_views.log")
 
     def make_road(self):
-        # lane = StraightLane([0, 0], [3.5, 0], line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE), width=0.3)
-        # lane_o = StraightLane([0, -0.3], [3.5, -0.3], line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE), width=0.3)
-
-        # lane2 = CircularLane(center=[3.4, 1], radius=1, start_phase=-np.pi/2, end_phase=np.pi/2, width=0.3)
-        # lane2_o = CircularLane(center=[3.4, 1], radius=1.3, start_phase=-np.pi/2, end_phase=np.pi/2, width=0.3)
-
-        # lane3 = StraightLane([3.5, 2.0], [0, 2.0], line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE), width=0.3)
-        # lane3_o = StraightLane([3.5, 2.3], [0.0, 2.3], line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE), width=0.3)
-
-        # lane4 = CircularLane(center=[0.0, 1.0], radius=1.0, start_phase=np.pi/2, end_phase=1.5*np.pi, width=0.3)
-        # lane4_o = CircularLane(center=[0.0, 1.0], radius=1.3, start_phase=np.pi/2, end_phase=1.5*np.pi, width=0.3)
-        #
-
-        scenario, planning_problem_set = CommonRoadFileReader(file_path).open()
+        scenario, _ = CommonRoadFileReader(file_path).open()
 
         net = scenario.lanelet_network
-        # print(len(net.lanelets))
-        #
-        net_common_road = RoadNetworkCommonRoad(net)
-
-        # l = net_common_road.get_lane(1234)
-        # print(l)
-
-        # point = l.local_coordinates(np.array([-0.1, -0.0]))
-        # # point = l.local_coordinates(np.array([1.7, -1.0]))
-        # print(point)
-
-        # test_point = l.position(2.56, 2.0)
-        # print(f"testpoint {test_point}")
-
-        # local_point = l.position(1.8, -0.1)
-        # local_point = l.position(point[0], point[1])
-        # print(local_point)
-        #
-        # right_corner = l.local_coordinates(np.array([1.7, -1]))
-        # heading = l.heading_at(point[0])
-        # heading = l.heading_at(7.6)
-        # print(np.rad2deg(heading))
-        #
-        # exit(0)
-
-        straight_length = 0.8
-
-        lane = StraightLane(
-            [0, 0],
-            [straight_length, 0],
-            line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE),
-            width=0.3,
-        )
-        lane_o = StraightLane(
-            [0, -0.3],
-            [straight_length, -0.3],
-            line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE),
-            width=0.3,
-        )
-
-        lane2 = CircularLane(
-            center=[straight_length - 0.1, 1],
-            radius=1,
-            start_phase=-np.pi / 2,
-            end_phase=np.pi / 2,
-            width=0.3,
-        )
-        lane2_o = CircularLane(
-            center=[straight_length - 0.1, 1],
-            radius=1.3,
-            start_phase=-np.pi / 2,
-            end_phase=np.pi / 2,
-            width=0.3,
-        )
-
-        lane3 = StraightLane(
-            [straight_length, 2.0],
-            [0, 2.0],
-            line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE),
-            width=0.3,
-        )
-        lane3_o = StraightLane(
-            [straight_length, 2.3],
-            [0.0, 2.3],
-            line_types=(LineType.CONTINUOUS_LINE, LineType.CONTINUOUS_LINE),
-            width=0.3,
-        )
-
-        lane4 = CircularLane(
-            center=[0.0, 1.0],
-            radius=1.0,
-            start_phase=np.pi / 2,
-            end_phase=1.5 * np.pi,
-            width=0.3,
-        )
-        lane4_o = CircularLane(
-            center=[0.0, 1.0],
-            radius=1.3,
-            start_phase=np.pi / 2,
-            end_phase=1.5 * np.pi,
-            width=0.3,
-        )
-
-        net = RoadNetwork()
-        net.add_lane("a", "b", lane)
-        net.add_lane("a", "b", lane_o)
-
-        net.add_lane("b", "c", lane2)
-        net.add_lane("b", "c", lane2_o)
-
-        net.add_lane("c", "d", lane3)
-        net.add_lane("c", "d", lane3_o)
-
-        net.add_lane("d", "a", lane4)
-        net.add_lane("d", "a", lane4_o)
+        net_common_road = RoadNetworkCommonRoad(net, is_ring=False)
 
         self.road = RoadCommonRoad(network=net_common_road)
         merge_obstacle = Obstacle(self.road, np.array([310, -4]))
         merge_obstacle.lane_index = 7146164179188
         # self.road.objects.append(merge_obstacle)
 
-    def oldmake_vehicles(self):
+    def othermake_vehicles(self):
         for car in self.virtual_car_configs:
             id = car["id"]
-            # v = ModelIDMVehicle(
-            #     self.road,
-            #     np.array([0.5 * id, 0], dtype=np.float64),
-            #     speed=car["initial_speed"],
-            # )
-            # v = ModelIDMVehicle.make_on_lane(
-            v = IDMVehicle.make_on_lane(
+            v = ModelIDMVehicle.make_on_lane(
                 self.road,
                 car["initial_lane_index"],
-                # 0.5 * id,
-                10 * id + 1,
+                0.5 * id,
                 car["initial_speed"],
             )
             v.id = id
