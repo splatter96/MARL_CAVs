@@ -632,6 +632,9 @@ class LidarObservation(ObservationType):
             obs[mask, 0] = self.maximum_range  # range
             obs[mask, 1] = 0  # velocity
 
+            # print(obs[np.where(obs[:, 0] == 500)])
+            obs[np.where(obs[:, 0] == 500), 0] = 150
+
             # overwrite internal grid for visualization
             self.grid = obs[:, 0:1].copy()
 
