@@ -530,6 +530,11 @@ class LidarObservation(ObservationType):
         self.overlap_prob = (
             overlap_prob  # probability for resource access at the same time
         )
+        self.t = 0
+        self.dt = 1 / self.env.config["simulation_frequency"]
+        self.radar_frequency = 2000  # [Hz] frequency of radar overlap calculation
+        # need to set this later as we don't have the vehicles during creation of the observation
+        self.ego_frametime = -1
 
         self.directions = [
             np.array([np.cos(index * self.angle), np.sin(index * self.angle)])
@@ -550,13 +555,6 @@ class LidarObservation(ObservationType):
         )
 
     def observe(self):
-        # obs = self.trace(
-        # self.observer_vehicle.position, self.observer_vehicle.velocity
-        # ).copy()
-        # if self.normalize:
-        # obs /= self.maximum_range
-        # return obs
-
         self.grid = utils.trace(
             self.observer_vehicle.position,
             self.observer_vehicle.velocity,
@@ -579,14 +577,46 @@ class LidarObservation(ObservationType):
         index //= int(cells_per_radar)  # integer division (floor rounding)
         obs = np.c_[obs, index]
 
-        # calculating which vehicles duty cycles overlap
-        overlap = np.random.choice(
-            [1, 0],
-            size=(len(self.env.road.vehicles),),
-            p=[self.overlap_prob, 1 - self.overlap_prob],
-        )
+        # helper function to determine if radar is on at current timestep
+        def is_on(t, duty_cycle, offset, frame_time):
+            return ((t - offset) % frame_time) < frame_time * duty_cycle
 
-        overlapping_ids = np.argwhere(overlap > 0)
+        overlapping_ids = np.zeros(shape=(len(self.env.road.vehicles)))
+
+        ego_duty_cycle = self.env.controlled_vehicles[0].dutycycle
+        ego_offset = self.env.controlled_vehicles[0].dutycycle_offset
+
+        if self.ego_frametime == -1:
+            self.ego_frametime = self.env.controlled_vehicles[0].frame_time
+            self.radar_steps_per_frame = int(self.ego_frametime * self.radar_frequency)
+            self.radar_frames_per_timestep = int(self.dt / self.ego_frametime)
+
+        t2 = self.t
+        for _ in range(self.radar_frames_per_timestep):
+            for _ in range(self.radar_steps_per_frame):
+                for v in self.env.road.vehicles:
+                    # print(f"Duty cycle {v.dutycycle}")
+                    if v is not self.env.controlled_vehicles[0]:
+                        if is_on(
+                            t2, ego_duty_cycle, ego_offset, self.ego_frametime
+                        ) and is_on(t2, v.dutycycle, v.dutycycle_offset, v.frame_time):
+                            # print("have overlap")
+                            overlapping_ids[v.id] = 1
+                t2 += 1 / self.radar_frequency
+
+        # percentage of overlapping duty cycles
+        print(overlapping_ids.sum() / (overlapping_ids.shape[0] - 1))
+        self.t += self.dt
+
+        # calculating which vehicles duty cycles overlap
+        # overlap = np.random.choice(
+        #     [1, 0],
+        #     size=(len(self.env.road.vehicles),),
+        #     p=[self.overlap_prob, 1 - self.overlap_prob],
+        # )
+        # overlapping_ids = np.argwhere(overlap > 0)
+
+        overlapping_ids = np.argwhere(overlapping_ids > 0)
 
         mask = np.isin(element=obs[:, 2], test_elements=overlapping_ids)
 
@@ -598,42 +628,28 @@ class LidarObservation(ObservationType):
             affected_radars = np.unique(affected_obs[:, 3])
 
             # calculate the distance to the interferers
-            distance_per_radar = np.split(
-                obs[mask, 0], np.unique(affected_obs[:, 3], return_index=True)[1][1:]
-            )
+            # distance_per_radar = np.split(
+            #     obs[mask, 0], np.unique(affected_obs[:, 3], return_index=True)[1][1:]
+            # )
 
             # calculate minimum interferer distance per radar
-            # print(f"{affected_obs=}")
-            # target_int_ratios = []
-            with open("interference_distance.csv", "a") as f:
-                for i, radar in enumerate(affected_radars):
-                    min_interferer_dist = np.min(distance_per_radar[i])
-                    # print(f"Radar {radar} interferer distance {min_interferer_dist}")
-                    f.write(f"{min_interferer_dist},")
-                    dists = obs[np.where(obs[:, 3] == int(radar)), 0][0]
-                    dists = np.array2string(
-                        dists, precision=3, separator=",", max_line_width=np.inf
-                    )
-                    f.write(f"{dists[1:-1]}\n")
-
-                    # get target to interferer distance ratio
-                    target_int_ratio = (
-                        obs[np.where(obs[:, 3] == int(radar)), 0] / min_interferer_dist
-                    )
-                    # target_int_ratios.append(target_int_ratio)
-
-            # print("\n\n\n")
-            # target_int_ratio = np.array(target_int_ratios).flatten()
-            # print(target_int_ratio)
-            # np.save(f"target_int_ratio_{random.randint(0,100)}", target_int_ratio)
-
+            # with open("interference_distance.csv", "a") as f:
+            #     for i, radar in enumerate(affected_radars):
+            #         min_interferer_dist = np.min(distance_per_radar[i])
+            #         f.write(f"{min_interferer_dist},")
+            #         dists = obs[np.where(obs[:, 3] == int(radar)), 0][0]
+            #         dists = np.array2string(
+            #             dists, precision=3, separator=",", max_line_width=np.inf
+            #         )
+            #         f.write(f"{dists[1:-1]}\n")
+            #
             # overwrite the measurements of the interfered with radars with the default values for no obstacle
             mask = np.isin(element=obs[:, 3], test_elements=affected_radars)
             obs[mask, 0] = self.maximum_range  # range
             obs[mask, 1] = 0  # velocity
 
-            # print(obs[np.where(obs[:, 0] == 500)])
-            obs[np.where(obs[:, 0] == 500), 0] = 150
+            # set the range to the actual maximum range
+            obs[:, 0] = np.maximum(obs[:, 0], 150)
 
             # overwrite internal grid for visualization
             self.grid = obs[:, 0:1].copy()
