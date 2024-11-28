@@ -16,7 +16,7 @@ Gt = 45  # [dBi] max Antenna gain
 # see https://comyx.readthedocs.io/latest/_modules/comyx/fading/rician.html#Rician
 K = 10  # Rician factor, i.e., ratio between the power of direct path and the power of scattered paths
 sigma = np.sqrt(
-    1 / 23
+    1 / 22
 )  # The scale parameter, which is the standard deviation of the distribution.
 
 omega = (2 * K + 2) * sigma**2
@@ -28,7 +28,7 @@ gamma2 = rho_c / (4 * np.pi)
 
 
 def get_channel(size):
-    return stats.rice.rvs(nu / sigma, scale=sigma, size=size)
+    return stats.rice.rvs(nu / sigma, scale=sigma, size=size) ** 2
 
 
 def interference(dist):
@@ -60,21 +60,21 @@ R, I = np.meshgrid(r, i)
 # plt.plot(r / i, detection(signal(r), interference(i)), label="Detection")
 # plt.legend(loc="upper left")
 
-CS = plt.contour(R, I, detection(signal(R), interference(I)), levels=[0.1, 0.99])
-plt.clabel(CS, inline=1, fontsize=10)
+# CS = plt.contour(R, I, detection(signal(R), interference(I)), levels=[0.1, 0.99])
+# plt.clabel(CS, inline=1, fontsize=10)
+#
+# labels = ["0.1", "0.99"]
+# for i in range(len(labels)):
+#     CS.collections[i].set_label(labels[i])
+#
+# plt.legend(loc="upper left")
+# plt.xlabel("Target distance")
+# plt.ylabel("Interferer distance")
 
-labels = ["0.1", "0.99"]
-for i in range(len(labels)):
-    CS.collections[i].set_label(labels[i])
-
-plt.legend(loc="upper left")
-plt.xlabel("Target distance")
-plt.ylabel("Interferer distance")
-
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection="3d")
-# ax.plot_surface(R, I, detection(signal(R), interference(I)), cmap="viridis")
-# ax.set_xlabel("Target distance")
-# ax.set_ylabel("Interferer distance")
+fig = plt.figure()
+ax = fig.add_subplot(111, projection="3d")
+ax.plot_surface(R, I, detection(signal(R), interference(I)), cmap="viridis")
+ax.set_xlabel("Target distance")
+ax.set_ylabel("Interferer distance")
 
 plt.show()
