@@ -33,13 +33,17 @@ def detection(S, I):
 static_int = interference(40)
 
 # Plotting
-r = np.linspace(0, 30, 300)
-i = np.linspace(0, 450, 900)
+r = np.linspace(1, 10, 1000)
+i = np.linspace(1, 50, 1000)
+# i = np.linspace(0, 450, 900)
 R, I = np.meshgrid(r, i)
 # plt.plot(r, signal(r), label="Signal")
 # plt.plot(r, interference(r), label="Interference")
 
 # plt.plot(r, detection(signal(r), static_int), label="Detection")
+# plt.legend(loc="upper left")
+
+# plt.plot(r / i, detection(signal(r), interference(i)), label="Detection")
 # plt.legend(loc="upper left")
 
 fig = plt.figure()

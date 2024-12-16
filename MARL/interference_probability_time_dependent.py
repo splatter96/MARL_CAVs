@@ -38,8 +38,8 @@ overlap = False
 
 t = 0
 while t < end_time:
+    t2 = t
     for _ in range(radar_frames_per_timestep):
-        t2 = t
         for _ in range(radar_steps_per_frame):
             for i in range(len(duty_cycles) - 1):
                 if is_on(t, duty_cycles[0], cycle_offsets[0], frame_times[0]) and is_on(
@@ -53,9 +53,11 @@ while t < end_time:
                 break
 
             t2 += 1 / radar_frequency
+            # print(f"{t2=}")
 
         frames += 1
     t += timestep
+    # print(f"{t=}")
 
 print(f"Calculated {frames}")
 print(f"Overlaps prob {overlaps/(frames)}")

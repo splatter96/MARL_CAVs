@@ -30,7 +30,7 @@ gamma2 = rho_c / (4 * np.pi)
 
 
 def get_channel(size):
-    return stats.rice.rvs(nu / sigma, scale=sigma, size=size)
+    return stats.rice.rvs(nu / sigma, scale=sigma, size=size) ** 2
 
 
 def interference(dist):
