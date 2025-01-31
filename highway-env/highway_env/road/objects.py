@@ -7,7 +7,6 @@ LaneIndex = Tuple[str, str, int]
 
 
 class RoadObject(ABC):
-
     """
     Common interface for objects that appear on the road, beside vehicles.
 
@@ -18,7 +17,9 @@ class RoadObject(ABC):
     LENGTH = 2.0  # Object length [m]
     WIDTH = 2.0  # Object width [m]
 
-    def __init__(self, road, position: Sequence[float], speed: float = 0., heading: float = 0.):
+    def __init__(
+        self, road, position: Sequence[float], speed: float = 0.0, heading: float = 0.0
+    ):
         """
         :param road: the road instance where the object is placed in
         :param position: cartesian position of object in the surface
@@ -48,21 +49,21 @@ class RoadObject(ABC):
     # Just added for sake of compatibility
     def to_dict(self, origin_vehicle=None, observe_intentions=True):
         d = {
-            'presence': 1,
-            'x': self.position[0],
-            'y': self.position[1],
-            'vx': 0.,
-            'vy': 0.,
-            'cos_h': np.cos(self.heading),
-            'sin_h': np.sin(self.heading),
-            'cos_d': 0.,
-            'sin_d': 0.
+            "presence": 1,
+            "x": self.position[0],
+            "y": self.position[1],
+            "vx": 0.0,
+            "vy": 0.0,
+            "cos_h": np.cos(self.heading),
+            "sin_h": np.sin(self.heading),
+            "cos_d": 0.0,
+            "sin_d": 0.0,
         }
         if not observe_intentions:
             d["cos_d"] = d["sin_d"] = 0
         if origin_vehicle:
             origin_dict = origin_vehicle.to_dict()
-            for key in ['x', 'y', 'vx', 'vy']:
+            for key in ["x", "y", "vx", "vy"]:
                 d[key] -= origin_dict[key]
         return d
 
@@ -82,14 +83,23 @@ class RoadObject(ABC):
 
 
 class Obstacle(RoadObject):
-
     """Obstacles on the road."""
 
     pass
 
 
 class Landmark(RoadObject):
-
     """Landmarks of certain areas on the road that must be reached."""
 
     pass
+
+
+class ModelObstacle(RoadObject):
+    """Obstacles on the road for model vehicles."""
+
+    def __init__(
+        self, road, position: Sequence[float], speed: float = 0.0, heading: float = 0.0
+    ):
+        super().__init__(road, position, speed, heading)
+        self.LENGTH = 0.2
+        self.WIDTH = 0.2

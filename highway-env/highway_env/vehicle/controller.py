@@ -8,7 +8,7 @@ from highway_env.road.road import Road, LaneIndex, Route
 from highway_env.types import Vector
 from highway_env.vehicle.kinematics import Vehicle
 
-from libc.math cimport asin, M_PI
+#from libc.math cimport asin, M_PI
 
 class ControlledVehicle(Vehicle):
     """

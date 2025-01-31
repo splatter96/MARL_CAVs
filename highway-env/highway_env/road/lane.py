@@ -354,7 +354,7 @@ class CommonRoadLane(AbstractLane):
         longitudinal, lateral = self.local_coordinates(position)
         is_close = (
             # np.abs(lateral) <= 2 * self.width_at(longitudinal)
-            np.abs(lateral) <= self.width_at(longitudinal)
+            np.abs(lateral) <= 1.5 * self.width_at(longitudinal)
             and 0 <= longitudinal < self.length + VEHICLE_LENGTH
         )
         return is_close

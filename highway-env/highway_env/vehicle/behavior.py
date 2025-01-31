@@ -362,14 +362,15 @@ class IDMVehicle(ControlledVehicle):
             ego_vehicle=new_following, front_vehicle=self
         )
 
-        # if self.id == 1:
+        # if self.id == 0:
         #     print(f"new: {lane_index} {new_following}, {new_preceding}")
         # print(f"{old_following}, {old_preceding}")
         # print(f"{new_following_pred_a}, {old_preceding}")
 
         # unsafe braking required?
         if new_following_pred_a < -self.LANE_CHANGE_MAX_BRAKING_IMPOSED:
-            # print("unsafe braking required")
+            # if self.id == 0:
+            #     print("unsafe braking required")
             return False
 
         # Is there an acceleration advantage for me and/or my followers to change lane?
@@ -394,7 +395,6 @@ class IDMVehicle(ControlledVehicle):
             )
         )
 
-        # TODO check left and right adjecency using the lanelet attributes
         if self.lane.lanelet.adj_right == lane_index:
             bias = -self.RIGHT_BIAS
         elif self.lane.lanelet.adj_left == lane_index:
@@ -462,10 +462,10 @@ class ModelIDMVehicle(IDMVehicle):
         self.WIDTH = 0.08
         self.LENGTH = 0.17
         self.LENGTH_SQUARE = self.LENGTH**2  # Nedded for faster distance comparison
-        self.DISTANCE_WANTED = 0.1
+        self.DISTANCE_WANTED = 0.4
         self.id = 0
         self.MAX_STEERING_ANGLE = np.deg2rad(20)
-        self.LANE_CHANGE_MIN_ACC_GAIN = 0.2  # [m/s2]
+        self.LANE_CHANGE_MIN_ACC_GAIN = 0.15  # [m/s2]
         self.LANE_CHANGE_MAX_BRAKING_IMPOSED = 1.0  # [m/s2]
         # self.LANE_CHANGE_DELAY = 0.5  # [s]
         self.ACC_MAX = 1.0  # [m/s2]

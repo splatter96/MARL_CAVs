@@ -2,7 +2,6 @@
 
 from commonroad.common.util import enum
 import numpy as np
-import pandas as pd
 import logging
 from typing import List, Tuple, Dict, TYPE_CHECKING, Optional
 

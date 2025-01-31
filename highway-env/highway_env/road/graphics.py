@@ -21,6 +21,7 @@ class WorldSurface(pygame.Surface):
     BLACK = (0, 0, 0)
     GREY = (100, 100, 100)
     GREEN = (50, 200, 0)
+    RED = (255, 0, 0)
     YELLOW = (200, 200, 0)
     WHITE = (255, 255, 255)
     INITIAL_SCALING = 5.5
@@ -177,6 +178,22 @@ class LaneGraphics(object):
                 5,
                 max(surface.pix(cls.STRIPE_WIDTH), 1),
             )
+
+        # draw origin of coordinate system for easier setup with optitrack
+        pygame.draw.line(
+            surface,
+            surface.RED,
+            surface.vec2pix([0, 0]),
+            surface.vec2pix([0.1, 0]),
+            5,
+        )
+        pygame.draw.line(
+            surface,
+            surface.RED,
+            surface.vec2pix([0, 0]),
+            surface.vec2pix([0, -0.2]),
+            5,
+        )
 
     @classmethod
     def striped_line(

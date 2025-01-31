@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Callable, List
 import numpy as np
 import pygame
 from gymnasium.spaces import Discrete
-import cv2
 
 from highway_env.envs.common.action import (
     ActionType,
