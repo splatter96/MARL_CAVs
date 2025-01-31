@@ -417,6 +417,14 @@ class RoadCommonRoad(object):
             for j in range(len_o):
                 v.check_collision(objects[j])
 
+        # remove vehicles that reached the end of the road
+        for v in self.vehicles:
+            if self.network.get_lane(v.lane_index).after_end(
+                v.position, vehicle_length=v.LENGTH
+            ):
+                print(f"{v.id} reached the end")
+                self.vehicles.remove(v)
+
     def surrounding_vehicles(
         self, vehicle: "kinematics.Vehicle", lane_index: Optional[int] = None
     ) -> Tuple[Optional["kinematics.Vehicle"], Optional["kinematics.Vehicle"]]:

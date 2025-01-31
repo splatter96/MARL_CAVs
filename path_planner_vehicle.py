@@ -26,7 +26,8 @@ from highway_env.vehicle.graphics import VehicleGraphics
 import cProfile, pstats
 
 # file_path = "./DEU_MyTrack2LaneCont-1_1_T-1.xml"
-file_path = "./DEU_HighwayMergeConnected2-1_1_T-1.xml"
+# file_path = "./DEU_HighwayMergeConnected2-1_1_T-1.xml"
+file_path = "./DEU_HighwayMergeConnected2longer-1_1_T-1.xml"
 
 
 class Renderer:
@@ -42,8 +43,8 @@ class Renderer:
         self.sim_surface = WorldSurface(panel_size, 0, pygame.Surface(panel_size))
         # self.sim_surface.scaling = 169.0
         # self.sim_surface.centering_position = [0.7, -0.3]
-        self.sim_surface.scaling = 4.23
-        self.sim_surface.centering_position = [-0.71, -0.5]
+        self.sim_surface.scaling = 5.5
+        self.sim_surface.centering_position = [-0.61, -0.6]
 
         """the world position of the center of the displayed window."""
         self.window_position = np.array([2, 0])
@@ -109,9 +110,9 @@ class PathPlanner:
         self.timer_period = 0.05  # [s]
 
         self.make_road()
-        self.make_vehicles()
+        self.othermake_vehicles()
 
-        # self.renderer = Renderer(self.road)
+        self.renderer = Renderer(self.road)
 
         self.subs = []
 
@@ -125,11 +126,11 @@ class PathPlanner:
             self.road.act()
             self.road.step(self.timer_period)
 
-            # self.renderer.render()
-            # self.renderer.handle_events()
+            self.renderer.render()
+            self.renderer.handle_events()
 
             # time.sleep(self.timer_period)
-            # time.sleep(0.01)
+            time.sleep(0.01)
             # print()
             # print()
 
@@ -153,10 +154,10 @@ class PathPlanner:
     def make_vehicles(self):
         for car in self.virtual_car_configs:
             id = car["id"]
-            v = ModelIDMVehicle.make_on_lane(
+            v = IDMVehicle.make_on_lane(
                 self.road,
                 car["initial_lane_index"],
-                0.5 * id,
+                20 * id,
                 car["initial_speed"],
             )
             v.id = id
