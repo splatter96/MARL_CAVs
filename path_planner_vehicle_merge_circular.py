@@ -17,7 +17,7 @@ from highway_env.road.road import (
     RoadNetworkCommonRoad,
     RoadCommonRoad,
 )
-from highway_env.road.objects import Obstacle
+from highway_env.road.objects import Obstacle, ModelObstacle
 from highway_env.vehicle.behavior import ModelVehicle, IDMVehicle, ModelIDMVehicle
 from highway_env import utils
 from highway_env.road.graphics import WorldSurface, RoadGraphics, ModelLaneGraphics
@@ -25,8 +25,9 @@ from highway_env.vehicle.graphics import VehicleGraphics
 
 import cProfile, pstats
 
+file_path = "./DEU_MergeCircCont-1_1_T-1.xml"
 # file_path = "./DEU_MyTrack2LaneCont-1_1_T-1.xml"
-file_path = "./DEU_HighwayMergeConnected2-1_1_T-1.xml"
+# file_path = "./DEU_HighwayMergeConnected2-1_1_T-1.xml"
 
 
 class Renderer:
@@ -34,16 +35,20 @@ class Renderer:
         self.road = road
 
         pygame.init()
-        pygame.display.set_caption("Highway-env")
+        pygame.display.set_caption("Highway-env")  # Also title for i3 config
         # panel_size = (1000, 600)
-        panel_size = (1200, 800)
+        # panel_size = (1200, 800)
+        panel_size = (1920, 1200)
 
         self.screen = pygame.display.set_mode([panel_size[0], panel_size[1]])
         self.sim_surface = WorldSurface(panel_size, 0, pygame.Surface(panel_size))
         # self.sim_surface.scaling = 169.0
-        # self.sim_surface.centering_position = [0.7, -0.3]
-        self.sim_surface.scaling = 4.23
-        self.sim_surface.centering_position = [-0.71, -0.5]
+        # self.sim_surface.scaling = 377.36
+        self.sim_surface.scaling = 320.76
+        # self.sim_surface.centering_position = [0.7, -0.5]
+        self.sim_surface.centering_position = [0.8, -0.7]
+        # self.sim_surface.scaling = 4.23
+        # self.sim_surface.centering_position = [-0.71, -0.5]
 
         """the world position of the center of the displayed window."""
         self.window_position = np.array([2, 0])
@@ -88,18 +93,16 @@ class PathPlanner:
             # {"id": 3, "initial_speed": 0.8, "initial_lane_index": 5678},
             # {"id": 4, "initial_speed": 0.7, "initial_lane_index": 5678},
             # {"id": 5, "initial_speed": 0.9, "initial_lane_index": 5678},
-            # {"id": 0, "initial_speed": 0.7, "initial_lane_index": 1234},
-            # {"id": 1, "initial_speed": 0.5, "initial_lane_index": 1234},
-            # {"id": 2, "initial_speed": 0.4, "initial_lane_index": 1234},
-            # {"id": 3, "initial_speed": 0.5, "initial_lane_index": 5678},
-            # {"id": 4, "initial_speed": 0.7, "initial_lane_index": 5678},
-            # {"id": 5, "initial_speed": 0.5, "initial_lane_index": 5678},
-            {"id": 0, "initial_speed": 25.0, "initial_lane_index": 7146164179188},
-            {"id": 1, "initial_speed": 26.0, "initial_lane_index": 1},
-            {"id": 2, "initial_speed": 25.7, "initial_lane_index": 7146164179188},
-            {"id": 3, "initial_speed": 26.5, "initial_lane_index": 1},
-            {"id": 4, "initial_speed": 26.7, "initial_lane_index": 7146164179188},
-            {"id": 5, "initial_speed": 26.5, "initial_lane_index": 7146164179188},
+            # {"id": 0, "initial_speed": 0.5, "initial_lane_index": 1236},
+            {"id": 1, "initial_speed": 0.7, "initial_lane_index": 1234},
+            {"id": 2, "initial_speed": 0.5, "initial_lane_index": 1234},
+            {"id": 3, "initial_speed": 0.4, "initial_lane_index": 1234},
+            {"id": 4, "initial_speed": 0.5, "initial_lane_index": 1235},
+            {"id": 5, "initial_speed": 0.7, "initial_lane_index": 1235},
+            {"id": 6, "initial_speed": 0.7, "initial_lane_index": 1234},
+            {"id": 7, "initial_speed": 0.7, "initial_lane_index": 1235},
+            {"id": 8, "initial_speed": 0.7, "initial_lane_index": 1235},
+            {"id": 9, "initial_speed": 0.7, "initial_lane_index": 1235},
         ]
 
         # TODO extend to be able to hold multiple real vehicles
@@ -111,25 +114,26 @@ class PathPlanner:
         self.make_road()
         self.make_vehicles()
 
-        # self.renderer = Renderer(self.road)
+        self.renderer = Renderer(self.road)
 
         self.subs = []
 
     def start_simulation(self):
         # profiler = cProfile.Profile()
         # profiler.enable()
-        #
+
         start = time.time()
         for i in range(10000):
             # for i in range(100):
+            # print(f"step {i}")
             self.road.act()
             self.road.step(self.timer_period)
 
-            # self.renderer.render()
-            # self.renderer.handle_events()
+            self.renderer.render()
+            self.renderer.handle_events()
 
             # time.sleep(self.timer_period)
-            # time.sleep(0.01)
+            time.sleep(0.01)
             # print()
             # print()
 
@@ -137,20 +141,21 @@ class PathPlanner:
         print((end - start) / 10000)
         # profiler.disable()
         # stats = pstats.Stats(profiler)
-        # stats.dump_stats("profile_commonroad_no_ring.log")
+        # stats.dump_stats("profile_commonroad_views.log")
 
     def make_road(self):
         scenario, _ = CommonRoadFileReader(file_path).open()
 
         net = scenario.lanelet_network
-        net_common_road = RoadNetworkCommonRoad(net, is_ring=False)
+        net_common_road = RoadNetworkCommonRoad(net, is_ring=True)
 
         self.road = RoadCommonRoad(network=net_common_road)
-        merge_obstacle = Obstacle(self.road, np.array([310, -4]))
-        merge_obstacle.lane_index = 7146164179188
-        # self.road.objects.append(merge_obstacle)
+        merge_obstacle = ModelObstacle(self.road, np.array([1.15, -0.6]))
+        merge_obstacle.lane_index = 1236
+        self.road.objects.append(merge_obstacle)
 
     def make_vehicles(self):
+        # Vehicles on main road
         for car in self.virtual_car_configs:
             id = car["id"]
             v = ModelIDMVehicle.make_on_lane(
@@ -162,6 +167,32 @@ class PathPlanner:
             v.id = id
             # v.enable_lane_change = False
             self.road.vehicles.append(v)
+
+        # Vehicles on onramp
+        v = ModelIDMVehicle.make_on_lane(
+            self.road,
+            1236,
+            0.1,
+            0.5,
+        )
+        v.id = -1
+        self.road.vehicles.append(v)
+        v = ModelIDMVehicle.make_on_lane(
+            self.road,
+            1236,
+            0.3,
+            0.5,
+        )
+        v.id = -2
+        self.road.vehicles.append(v)
+        v = ModelIDMVehicle.make_on_lane(
+            self.road,
+            1236,
+            0.6,
+            0.5,
+        )
+        v.id = -3
+        self.road.vehicles.append(v)
 
     def othermake_vehicles(self):
         """Spawn points for HDV"""
