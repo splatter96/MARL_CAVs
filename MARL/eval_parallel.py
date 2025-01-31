@@ -111,7 +111,7 @@ def eval_episode(num):
 
       if info['crashed']:
           local_crashes += 1
-          #crash_pos.append(info["vehicle_position"][0])
+          crash_pos.append(info["vehicle_position"][0])
 
       if info['merged']: # and not info["other_crashes"]:
           local_sucessfull_merges += 1

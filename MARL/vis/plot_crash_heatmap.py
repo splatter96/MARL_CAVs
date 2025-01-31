@@ -5,18 +5,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 data = np.load("crash_pos.npy")
+print(data)
 df = pd.DataFrame(data, columns=["x", "y"])
 
 sns.set_theme()
 sns.set_context("paper")
 # sns.set(font_scale=0.5)
 
-ax = sns.kdeplot(df, x="x", y="y", fill=True, bw_adjust=0.4, thresh=0.1, cbar=True, cbar_kws={"location": "bottom", "label": "probability density for crash"})
+ax = sns.kdeplot(df, x="x", y="y", fill=True, bw_adjust=0.4, thresh=0.1)#, cbar=True, cbar_kws={"location": "bottom", "label": "probability density for crash"})
 ax.set_aspect(10)
 ax.grid(False)
+ax.set_title("Probability density for crash")
 
-cbar = plt.gcf().get_axes()[1]._colorbar
-cbar.ax.tick_params(rotation=-45)
+#cbar = plt.gcf().get_axes()[1]._colorbar
+#cbar.ax.tick_params(rotation=-45)
 
 import matplotlib.image as mpimg
 map_img = mpimg.imread('road.png')

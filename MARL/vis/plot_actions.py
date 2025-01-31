@@ -31,12 +31,13 @@ df['action'] = df['action'].map(actions_map)
 
 # dis = sns.displot(df.query("action == 'LANE_LEFT'"), x="x", y="y", kind="kde", fill=True, cbar=False)
 # ax = dis.axes[0,0]
-ax = sns.kdeplot(df.query("action == 'LANE_LEFT'"), x="x", y="y", fill=True, cbar=True, cbar_kws={"location": "bottom", "label": "probability density for change lane left action"})
+ax = sns.kdeplot(df.query("action == 'LANE_LEFT'"), x="x", y="y", fill=True)#, cbar=True, cbar_kws={"location": "bottom", "label": "probability density for change lane left action"})
 ax.set_aspect(10)
 ax.grid(False)
+ax.set_title("Probability density of 'change lane left' action")
 
-cbar = plt.gcf().get_axes()[1]._colorbar
-cbar.ax.tick_params(rotation=-45)
+#cbar = plt.gcf().get_axes()[1]._colorbar
+#cbar.ax.tick_params(rotation=-45)
 
 import matplotlib.image as mpimg
 map_img = mpimg.imread('road.png')

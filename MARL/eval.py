@@ -206,8 +206,8 @@ def eval_policy(args):
       if skip_run:
         continue
 
-      #`if info["other_crashes"] and not info["crashed"]:
-          #`other_crashes += 1
+      if info["other_crashes"] and not info["crashed"]:
+          other_crashes += 1
 
       if info['crashed']:
           crashes += 1
