@@ -29,9 +29,11 @@ from stable_baselines3.common.callbacks import (
 )
 from stable_baselines3.common.logger import configure
 
-
 import wandb
 from wandb.integration.sb3 import WandbCallback
+
+import hydra
+import omegaconf
 
 
 class CustomEvalCallback(EventCallback):
@@ -141,21 +143,17 @@ def parse_args():
     return args
 
 
-def train(args):
-    base_dir = args.base_dir
-    config_dir = args.config_dir
-
-    # load json config
-    with open(config_dir) as f:
-        config = json.load(f)
+@hydra.main(version_base="1.1", config_path="./configs", config_name="configs_sacd.yml")
+def main(cfg: "DictConfig"):  # noqa: F821
+    base_dir = cfg.output_dir + "/"
 
     # create an experiment folder
     now = datetime.utcnow().strftime("%b_%d_%H_%M_%S")
     output_dir = base_dir + now
-    if args.exp_tag != "":
-        output_dir += "_" + args.exp_tag
-    if args.seed != "":
-        output_dir += "_" + str(args.seed)
+    if cfg.exp_tag != "":
+        output_dir += "_" + cfg.exp_tag
+    if cfg.seed != "":
+        output_dir += "_" + str(cfg.seed)
     dirs = init_dir(output_dir, pathes=["configs", "models", "logs", "output"])
 
     # copy all files to the results that have influence on it
@@ -167,25 +165,26 @@ def train(args):
             f.write(f"{arg} ")
 
     # configure environment
-    #env = gym.make("merge-single-agent-v0")
-    #env.config.update(config["env_config"])
-    env = make_vec_env('merge-single-agent-v0', n_envs=32, vec_env_cls=SubprocVecEnv)
+    env_config = omegaconf.OmegaConf.to_container(
+        cfg, resolve=True, throw_on_missing=True
+    )["env"]
+    env = make_vec_env("merge-single-agent-v0", n_envs=32, vec_env_cls=SubprocVecEnv)
     old_config = env.get_attr("config")[0]
-    old_config.update(config['env_config'])
+    old_config.update(env_config)
     env.env_method("set_config", old_config)
 
-
     # for curriculum learning start from difficulty 1
-    curriculum_learning = config.get("curriculum", False)
+    curriculum_learning = cfg.curriculum
     if curriculum_learning == True:
-        env.config["traffic_density"] = 1
+        old_config = env.get_attr("config")[0]
+        old_config["traffic_density"] = 1
+        env.env_method("set_config", old_config)
 
-    # seed from commandline has priority over config
-    seed_ = config.get("seed", 42) if args.seed == 0 else args.seed
+    seed_ = cfg.seed
 
     # configure callbacks
     eval_env = gym.make("merge-single-agent-v0")
-    eval_env.config.update(config["env_config"])
+    eval_env.config.update(env_config)
     eval_env.config["traffic_density"] = 3
     # eval_callback = EvalCallback(eval_env, log_path=dirs['logs'], eval_freq=500, deterministic=True, render=False)
     custom_eval = CustomEvalCallback(eval_env, dirs["logs"])
@@ -195,12 +194,12 @@ def train(args):
     checkpoint_log_speed = TensorboardCallback()
     # model = SACD('MlpPolicy', env,
     model = SACD(
-        "MultiInputPolicy",
+        "MlpPolicy",
         env,
         policy_kwargs=dict(net_arch=[256, 256]),
         learning_starts=1_000,
         buffer_size=500_000,
-        #seed=seed_,
+        # seed=seed_,
         learning_rate=5e-4,
         train_freq=8,
         gradient_steps=64,
@@ -209,12 +208,15 @@ def train(args):
         batch_size=256,
         gamma=0.99,
         verbose=1,
-        tensorboard_log=dirs['logs'],
-        device=f"cuda:{args.gpu}")
-        #device="cpu")
+        tensorboard_log=dirs["logs"],
+        device=f"cuda:{cfg.gpu}",
+        # device="cpu")
     )
 
     run = wandb.init(
+        config=omegaconf.OmegaConf.to_container(
+            cfg, resolve=True, throw_on_missing=True
+        ),
         project="sb3_test",
         sync_tensorboard=True,
     )
@@ -234,7 +236,7 @@ def train(args):
 
     model.learn(
         int(learn_steps),
-        tb_log_name=args.exp_tag + f"_seed_{seed_}",
+        tb_log_name=cfg.exp_tag + f"_seed_{seed_}",
         callback=callback_list,
     )
 
@@ -242,21 +244,20 @@ def train(args):
         env.config["traffic_density"] = 2
         model.learn(
             int(3e5),
-            tb_log_name=args.exp_tag + f"_seed_{seed_}",
+            tb_log_name=cfg.exp_tag + f"_seed_{seed_}",
             reset_num_timesteps=False,
             callback=callback_list,
         )
         env.config["traffic_density"] = 3
         model.learn(
             int(4e5),
-            tb_log_name=args.exp_tag + f"_seed_{seed_}",
+            tb_log_name=cfg.exp_tag + f"_seed_{seed_}",
             reset_num_timesteps=False,
             callback=callback_list,
         )
 
-    model.save(dirs["models"] + f"/model_{args.exp_tag}_seed_{seed_}")
+    model.save(dirs["models"] + f"/model_{cfg.exp_tag}_seed_{seed_}")
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    train(args)
+    main()
