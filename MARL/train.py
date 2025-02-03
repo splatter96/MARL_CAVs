@@ -257,7 +257,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
         env.env_method("set_config", old_config)
 
         model.learn(
-            int(5e5),
+            int(10e5),
             tb_log_name=cfg.logging.exp_tag + f"_seed_{seed_}",
             reset_num_timesteps=False,
             callback=callback_list,
