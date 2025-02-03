@@ -235,7 +235,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
     # split up total learning steps when using curriculum learning
     learn_steps = 10e5
     if curriculum_learning == True:
-        learn_steps = 3e5
+        learn_steps = 5e5
 
     model.learn(
         int(learn_steps),
@@ -248,7 +248,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
         env.env_method("set_config", old_config)
 
         model.learn(
-            int(3e5),
+            int(5e5),
             tb_log_name=cfg.logging.exp_tag + f"_seed_{seed_}",
             reset_num_timesteps=False,
             callback=callback_list,
@@ -257,7 +257,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
         env.env_method("set_config", old_config)
 
         model.learn(
-            int(4e5),
+            int(5e5),
             tb_log_name=cfg.logging.exp_tag + f"_seed_{seed_}",
             reset_num_timesteps=False,
             callback=callback_list,
