@@ -173,3 +173,4 @@ scipy==1.14.1
 #Werkzeug==2.3.6
 #wrapt==1.16.0
 #zipp==3.15.0
+hydra-core

@@ -13,6 +13,8 @@ from common.utils import agg_double_list, copy_file_ppo, init_dir
 
 warnings.filterwarnings("ignore")
 
+if "/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env" in sys.path:
+    sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
 sys.path.append("../highway-env")
 import highway_env
 from sb3_contrib import SACD
@@ -241,14 +243,18 @@ def main(cfg: "DictConfig"):  # noqa: F821
     )
 
     if curriculum_learning == True:
-        env.config["traffic_density"] = 2
+        old_config["traffic_density"] = 2
+        env.env_method("set_config", old_config)
+
         model.learn(
             int(3e5),
             tb_log_name=cfg.logging.exp_tag + f"_seed_{seed_}",
             reset_num_timesteps=False,
             callback=callback_list,
         )
-        env.config["traffic_density"] = 3
+        old_config["traffic_density"] = 3
+        env.env_method("set_config", old_config)
+
         model.learn(
             int(4e5),
             tb_log_name=cfg.logging.exp_tag + f"_seed_{seed_}",

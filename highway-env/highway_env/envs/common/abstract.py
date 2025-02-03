@@ -138,7 +138,7 @@ class AbstractEnv(gym.Env):
             "manual_control": False,
             "real_time_rendering": False,
             "n_step": 5,  # do n step prediction
-            "action_masking": True,
+            "action_masking": False,
         }
 
     def configure(self, config: dict) -> None:
@@ -219,7 +219,7 @@ class AbstractEnv(gym.Env):
         # return np.asarray(obs).reshape((len(obs), -1)), np.array(available_actions)
         # return np.asarray(obs).reshape((len(obs), -1)), {}
         # return obs, {}
-        return obs
+        return obs, {}
 
     def _reset(self, num_CAV=1) -> None:
         """
@@ -778,7 +778,7 @@ class AbstractEnv(gym.Env):
         average_road_speed = 0
         for v in self.road.vehicles:
             average_road_speed += v.speed
-        average_road_speed = average_road_speed / len(self.road.vehicles)
+        average_road_speed = average_road_speed / max(len(self.road.vehicles), 1)
 
         self.vehicle_speed = [v.speed for v in self.controlled_vehicles]
         self.vehicle_pos = [v.position for v in self.controlled_vehicles]
