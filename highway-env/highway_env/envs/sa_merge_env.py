@@ -13,8 +13,6 @@ from highway_env.road.lane import (
     DEFAULT_WIDTH,
 )
 from highway_env.road.road import (
-    Road,
-    RoadNetwork,
     RoadNetworkCommonRoad,
     RoadCommonRoad,
 )
