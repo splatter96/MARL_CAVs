@@ -192,9 +192,8 @@ def main(cfg: "DictConfig"):  # noqa: F821
     custom_eval = CustomEvalCallback(eval_env, dirs["logs"])
 
     eval_callback = EveryNTimesteps(n_steps=500, callback=custom_eval)
-
     checkpoint_log_speed = TensorboardCallback()
-    # model = SACD('MlpPolicy', env,
+
     model = SACD(
         "MlpPolicy",
         env,
@@ -217,8 +216,9 @@ def main(cfg: "DictConfig"):  # noqa: F821
         config=omegaconf.OmegaConf.to_container(
             cfg, resolve=True, throw_on_missing=True
         ),
-        project="sb3_test",
+        project=cfg.logging.wandb_project,
         sync_tensorboard=True,
+        name=cfg.logging.exp_tag,
     )
 
     wandb_callback = WandbCallback(model_save_path=f"models/{run.id}", verbose=2)
