@@ -201,7 +201,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
         env,
         policy_kwargs=dict(net_arch=[cfg.algo.net_size, cfg.algo.net_size]),
         learning_starts=cfg.algo.learning_starts,
-        buffer_size=cfg.algo.learning_starts,
+        buffer_size=cfg.algo.buffer_size,
         learning_rate=cfg.algo.learning_rate,
         train_freq=cfg.algo.train_freq,
         gradient_steps=cfg.algo.gradient_steps,
