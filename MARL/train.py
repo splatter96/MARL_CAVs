@@ -145,7 +145,7 @@ def parse_args():
 
 @hydra.main(version_base="1.1", config_path="./configs", config_name="configs_sacd.yml")
 def main(cfg: "DictConfig"):  # noqa: F821
-    base_dir = cfg.loggin.output_dir + "/"
+    base_dir = cfg.logging.output_dir + "/"
 
     # create an experiment folder
     now = datetime.utcnow().strftime("%b_%d_%H_%M_%S")

@@ -1,5 +1,6 @@
 curriculum: true
 seed: 42
+gpu: 0
 
 env:
   duration: 15
