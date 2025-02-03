@@ -212,6 +212,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
         verbose=1,
         tensorboard_log=dirs["logs"],
         device=f"cuda:{cfg.gpu}",
+        seed=seed_,
     )
 
     run = wandb.init(
