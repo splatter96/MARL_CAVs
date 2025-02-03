@@ -12,8 +12,6 @@ sys.path.append("/home/paul/Documents/PhD/RL/MARL_CAVs_commonroad/highway-env")
 
 from highway_env.road.lane import StraightLane, CircularLane, LineType
 from highway_env.road.road import (
-    Road,
-    RoadNetwork,
     RoadNetworkCommonRoad,
     RoadCommonRoad,
 )
