@@ -145,13 +145,13 @@ def parse_args():
 
 @hydra.main(version_base="1.1", config_path="./configs", config_name="configs_sacd.yml")
 def main(cfg: "DictConfig"):  # noqa: F821
-    base_dir = cfg.output_dir + "/"
+    base_dir = cfg.loggin.output_dir + "/"
 
     # create an experiment folder
     now = datetime.utcnow().strftime("%b_%d_%H_%M_%S")
     output_dir = base_dir + now
-    if cfg.exp_tag != "":
-        output_dir += "_" + cfg.exp_tag
+    if cfg.logging.exp_tag != "":
+        output_dir += "_" + cfg.logging.exp_tag
     if cfg.seed != "":
         output_dir += "_" + str(cfg.seed)
     dirs = init_dir(output_dir, pathes=["configs", "models", "logs", "output"])
@@ -168,7 +168,9 @@ def main(cfg: "DictConfig"):  # noqa: F821
     env_config = omegaconf.OmegaConf.to_container(
         cfg, resolve=True, throw_on_missing=True
     )["env"]
-    env = make_vec_env("merge-single-agent-v0", n_envs=32, vec_env_cls=SubprocVecEnv)
+    env = make_vec_env(
+        "merge-single-agent-v0", n_envs=cfg.algo.num_envs, vec_env_cls=SubprocVecEnv
+    )
     old_config = env.get_attr("config")[0]
     old_config.update(env_config)
     env.env_method("set_config", old_config)
@@ -196,21 +198,19 @@ def main(cfg: "DictConfig"):  # noqa: F821
     model = SACD(
         "MlpPolicy",
         env,
-        policy_kwargs=dict(net_arch=[256, 256]),
-        learning_starts=1_000,
-        buffer_size=500_000,
-        # seed=seed_,
-        learning_rate=5e-4,
-        train_freq=8,
-        gradient_steps=64,
-        max_grad_norm=30,
-        target_update_interval=8000,
-        batch_size=256,
-        gamma=0.99,
+        policy_kwargs=dict(net_arch=[cfg.algo.net_size, cfg.algo.net_size]),
+        learning_starts=cfg.algo.learning_starts,
+        buffer_size=cfg.algo.learning_starts,
+        learning_rate=cfg.algo.learning_rate,
+        train_freq=cfg.algo.train_freq,
+        gradient_steps=cfg.algo.gradient_steps,
+        max_grad_norm=cfg.algo.max_grad_norm,
+        target_update_interval=cfg.algo.target_update_interval,
+        batch_size=cfg.algo.batch_size,
+        gamma=cfg.algo.gamma,
         verbose=1,
         tensorboard_log=dirs["logs"],
         device=f"cuda:{cfg.gpu}",
-        # device="cpu")
     )
 
     run = wandb.init(
@@ -236,7 +236,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
 
     model.learn(
         int(learn_steps),
-        tb_log_name=cfg.exp_tag + f"_seed_{seed_}",
+        tb_log_name=cfg.logging.exp_tag + f"_seed_{seed_}",
         callback=callback_list,
     )
 
@@ -244,19 +244,19 @@ def main(cfg: "DictConfig"):  # noqa: F821
         env.config["traffic_density"] = 2
         model.learn(
             int(3e5),
-            tb_log_name=cfg.exp_tag + f"_seed_{seed_}",
+            tb_log_name=cfg.logging.exp_tag + f"_seed_{seed_}",
             reset_num_timesteps=False,
             callback=callback_list,
         )
         env.config["traffic_density"] = 3
         model.learn(
             int(4e5),
-            tb_log_name=cfg.exp_tag + f"_seed_{seed_}",
+            tb_log_name=cfg.logging.exp_tag + f"_seed_{seed_}",
             reset_num_timesteps=False,
             callback=callback_list,
         )
 
-    model.save(dirs["models"] + f"/model_{cfg.exp_tag}_seed_{seed_}")
+    model.save(dirs["models"] + f"/model_{cfg.logging.exp_tag}_seed_{seed_}")
 
 
 if __name__ == "__main__":

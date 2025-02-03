@@ -1,3 +1,6 @@
+curriculum: true
+seed: 42
+
 env:
   duration: 15
   policy_frequency: 5
@@ -11,8 +14,20 @@ env:
   traffic_density: 3
   offramp_reward: 100
 
-curriculum: true
-seed: 42
+algo:
+  net_size: 256
+  learning_starts: 1000
+  buffer_size: 500000
+  learning_rate: 5e-4
+  train_freq: 8
+  gradient_steps: 64
+  max_grad_norm: 30
+  target_update_interval: 8000
+  batch_size: 256
+  gamma: 0.99
+  num_envs: 32
 
-output_dir: ./results
-exp_tag: hydra_test
+logging:
+  output_dir: ./results
+  exp_tag: hydra_test
+  wandb_project: sb3_test
