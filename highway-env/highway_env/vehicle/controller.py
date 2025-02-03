@@ -25,7 +25,6 @@ class ControlledVehicle(Vehicle):
     KP_HEADING = 1 / TAU_DS
     KP_LATERAL = 1 / 3 * KP_HEADING  # [1/s]
     MAX_STEERING_ANGLE = np.pi / 3  # [rad]
-    DELTA_SPEED = 5  # [m/s]
 
     def __init__(
         self,
@@ -44,40 +43,6 @@ class ControlledVehicle(Vehicle):
         # for adjustement of speed near intersection
         self.alpha_v0 = 1
         self.route = route
-
-    def act(self, action: Union[dict, str] = None) -> None:
-        """
-        Perform a high-level action to change the desired lane or speed.
-
-        - If a high-level action is provided, update the target speed and lane;
-        - then, perform longitudinal and lateral control.
-
-        :param action: a high-level action
-        """
-        self.follow_road()
-        if action == "FASTER":
-            self.target_speed += self.DELTA_SPEED
-        elif action == "SLOWER":
-            self.target_speed -= self.DELTA_SPEED
-        elif action == "LANE_RIGHT":
-            if self.road.network.get_lane(self.target_lane_index).is_reachable_from(
-                self.position
-            ):
-                self.target_lane_index = self.target_lane_index
-        elif action == "LANE_LEFT":
-            if self.road.network.get_lane(self.target_lane_index).is_reachable_from(
-                self.position
-            ):
-                self.target_lane_index = self.target_lane_index
-
-        action = {
-            "steering": self.steering_control(self.target_lane_index),
-            "acceleration": self.speed_control(self.target_speed),
-        }
-        action["steering"] = np.clip(
-            action["steering"], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE
-        )
-        super().act(action)
 
     def follow_road(self) -> bool:
         """At the end of a lane, automatically switch to a next one."""
@@ -118,46 +83,6 @@ class ControlledVehicle(Vehicle):
             self.LENGTH,
             self.MAX_STEERING_ANGLE,
         )
-
-        # cdef float speed = self.speed
-
-        # cdef float TAU = self.PURSUIT_TAU
-        # cdef float KP = self.KP_LATERAL
-
-        # target_lane = self.road.network.get_lane(target_lane_index)
-        # lane_coords = target_lane.local_coordinates(self.position)
-
-        # cdef float lane_x = lane_coords[0]
-        # cdef float lane_y = lane_coords[1]
-
-        # lane_next_coords = lane_x + speed * TAU
-
-        # cdef float lane_future_heading = target_lane.heading_at(lane_next_coords)
-
-        # cdef float lateral_speed_command, heading_command, headin_ref, heading_rate_command, steering_angle
-
-        # # Lateral position control
-        # lateral_speed_command = -KP * lane_y
-        # # Lateral speed to heading
-        # heading_command = asin(utils.c_clip(lateral_speed_command / utils.c_not_zero(speed), -1, 1))
-        # heading_ref = lane_future_heading + utils.c_clip(heading_command, -np.pi/4, np.pi/4)
-        # # Heading control
-        # heading_rate_command = self.KP_HEADING * utils.wrap_to_pi(heading_ref - self.heading)
-        # # Heading rate to steering angle
-        # steering_angle = asin(utils.c_clip(self.LENGTH / 2 / utils.c_not_zero(speed) * heading_rate_command,
-        # -1, 1))
-        # steering_angle = utils.c_clip(steering_angle, -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
-        # return float(steering_angle)
-
-    def speed_control(self, target_speed: float) -> float:
-        """
-        Control the speed of the vehicle.
-        Using a simple proportional controller.
-
-        :param target_speed: the desired speed
-        :return: an acceleration command [m/s2]
-        """
-        return self.KP_A * (target_speed - self.speed)
 
 
 class MDPVehicle(ControlledVehicle):
