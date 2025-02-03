@@ -201,7 +201,7 @@ class CommonRoadLane(AbstractLane):
             # the spacing from the scenario designer is sometimes too corse
             center_vertices = self.lanelet.center_vertices
 
-            x_resample = np.linspace(center_vertices[0, 0], center_vertices[-1, 0], 100)
+            x_resample = np.linspace(center_vertices[0, 0], center_vertices[-1, 0], 500)
             y_resample = np.interp(
                 x_resample,
                 center_vertices[:, 0],

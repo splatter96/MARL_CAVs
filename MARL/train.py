@@ -167,8 +167,13 @@ def train(args):
             f.write(f"{arg} ")
 
     # configure environment
-    env = gym.make("merge-single-agent-v0")
-    env.config.update(config["env_config"])
+    #env = gym.make("merge-single-agent-v0")
+    #env.config.update(config["env_config"])
+    env = make_vec_env('merge-single-agent-v0', n_envs=32, vec_env_cls=SubprocVecEnv)
+    old_config = env.get_attr("config")[0]
+    old_config.update(config['env_config'])
+    env.env_method("set_config", old_config)
+
 
     # for curriculum learning start from difficulty 1
     curriculum_learning = config.get("curriculum", False)
@@ -193,15 +198,20 @@ def train(args):
         "MultiInputPolicy",
         env,
         policy_kwargs=dict(net_arch=[256, 256]),
-        seed=seed_,
+        learning_starts=1_000,
+        buffer_size=500_000,
+        #seed=seed_,
         learning_rate=5e-4,
-        train_freq=4,
-        target_update_interval=8,
+        train_freq=8,
+        gradient_steps=64,
+        max_grad_norm=30,
+        target_update_interval=8000,
         batch_size=256,
         gamma=0.99,
         verbose=1,
-        tensorboard_log=dirs["logs"],
-        # device=f"cuda:{args.gpu}",
+        tensorboard_log=dirs['logs'],
+        device=f"cuda:{args.gpu}")
+        #device="cpu")
     )
 
     run = wandb.init(
