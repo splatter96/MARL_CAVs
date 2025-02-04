@@ -187,6 +187,11 @@ def main(cfg: "DictConfig"):  # noqa: F821
     old_config.update(env_config)
     env.env_method("set_config", old_config)
 
+    # set reproduceable seed of the env
+    env.action_space.seed(seed_)
+    env.seed(seed_)
+    env.reset()
+
     # for curriculum learning start from difficulty 1
     curriculum_learning = cfg.curriculum
     if curriculum_learning == True:
@@ -198,7 +203,11 @@ def main(cfg: "DictConfig"):  # noqa: F821
     eval_env = gym.make("merge-single-agent-v0")
     eval_env.config.update(env_config)
     eval_env.config["traffic_density"] = 3
-    # eval_callback = EvalCallback(eval_env, log_path=dirs['logs'], eval_freq=500, deterministic=True, render=False)
+
+    # set reproduceable seed of the eval env
+    eval_env.action_space.seed(seed_ + 1)
+    eval_env.reset(seed=seed_ + 1)
+
     custom_eval = CustomEvalCallback(eval_env, dirs["logs"])
 
     eval_callback = EveryNTimesteps(n_steps=500, callback=custom_eval)
