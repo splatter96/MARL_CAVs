@@ -11,6 +11,9 @@ from datetime import datetime
 import os
 from common.utils import agg_double_list, copy_file_ppo, init_dir
 
+import random
+import torch
+
 warnings.filterwarnings("ignore")
 
 if "/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env" in sys.path:
@@ -166,6 +169,13 @@ def main(cfg: "DictConfig"):  # noqa: F821
         for arg in sys.argv:
             f.write(f"{arg} ")
 
+    seed_ = cfg.seed
+
+    # set reproduceable seed
+    random.seed(seed_)
+    torch.random.manual_seed(seed_)
+    np.random.seed(seed_)
+
     # configure environment
     env_config = omegaconf.OmegaConf.to_container(
         cfg, resolve=True, throw_on_missing=True
@@ -183,8 +193,6 @@ def main(cfg: "DictConfig"):  # noqa: F821
         old_config = env.get_attr("config")[0]
         old_config["traffic_density"] = 1
         env.env_method("set_config", old_config)
-
-    seed_ = cfg.seed
 
     # configure callbacks
     eval_env = gym.make("merge-single-agent-v0")
