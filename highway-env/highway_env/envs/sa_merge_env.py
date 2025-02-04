@@ -85,7 +85,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             vehicle.speed, self.config["reward_speed_range"], [0, 1]
         )
         # compute cost for staying on the merging lane
-        if vehicle.lane_index == ("b", "c", 2):
+        if vehicle.lane_index == 7146164179188 and vehicle.position[0] > 230 and vehicle.position[0] < 320:
             Merging_lane_cost = -np.exp(
                 -((vehicle.position[0] - sum(self.ends[:3])) ** 2) / (10 * self.ends[2])
             )
@@ -93,7 +93,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             Merging_lane_cost = 0
 
         # give penalty if the agent drives on the offramp
-        if vehicle.lane_index == ("c", "o", 0):
+        if vehicle.lane_index == 7146164179188 and vehicle.position[0] > 320:
             offramp_cost = -self.config["offramp_reward"]
         else:
             offramp_cost = 0
@@ -119,6 +119,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             + Lane_change_cost
             + offramp_cost
         )
+
         return reward
 
     def _is_terminal(self) -> bool:
@@ -126,8 +127,8 @@ class SingleAgentMergeEnv(AbstractEnv):
         # return self.vehicle.crashed or self.vehicle.position[0] > 370 #or self.steps >= 200
         return (
             self.vehicle.crashed
-            or self.vehicle.position[0] > 500
-            or self.vehicle.lane_index == ("c", "o", 0)
+            or self.vehicle.position[0] > 400
+            or self.vehicle.lane_index == 7146164179188 and self.vehicle.position[0] > 320
         )  # end the episode if the vehicle drives off ramp
         # return self.vehicle.crashed \
         # or self.steps >= self.config["duration"] * self.config["policy_frequency"]
@@ -171,7 +172,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         #
         # # Highway lanes
         # # self.ends = [150, 80, 200, 150]  # Before, converging, merge, after
-        # self.ends = [150, 80, 80, 150]  # Before, converging, merge, after
+        self.ends = [150, 80, 80, 150]  # Before, converging, merge, after
         # # self.ends = [150, 80, 40, 40, 150]  # Before, converging, merge, after
         #
         # c, s, n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
