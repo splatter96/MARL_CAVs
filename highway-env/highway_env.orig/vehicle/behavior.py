@@ -22,7 +22,6 @@ class IDMVehicle(ControlledVehicle):
     # """Longitudinal policy parameters"""
     # Maximum acceleration.
     ACC_MAX = 6.0  # [m/s2]
-    DEACC_MAX = -60.0  # [m/s2]
     # Desired maximum acceleration.
     COMFORT_ACC_MAX = 3.0  # [m/s2]
     # COMFORT_ACC_MAX = 0.3  # [m/s2]
@@ -151,9 +150,10 @@ class IDMVehicle(ControlledVehicle):
         )
         # action['acceleration'] = self.recover_from_stop(action['acceleration'])
         action["acceleration"] = utils.clip(
-            action["acceleration"], self.DEACC_MAX, self.ACC_MAX
+            action["acceleration"], -self.ACC_MAX, self.ACC_MAX
         )
-
+        # if self.id == 3:
+        # print(f"accel {action['acceleration']} speed {self.speed} front veh {front_vehicle}")
         Vehicle.act(
             self, action
         )  # Skip ControlledVehicle.act(), or the command will be overriden.
@@ -216,11 +216,27 @@ class IDMVehicle(ControlledVehicle):
         if front_vehicle:
             d = ego_vehicle.lane_distance_to(front_vehicle)
 
+            # if ego_vehicle.id == 0:
+            # print(f"distance {d}")
+            # print(f"speed {ego_vehicle.speed}")
+            # print(f"target_speed {ego_vehicle.target_speed}")
+            # print(f"accel before {acceleration}")
+            # print(
+            #     f"desired distance {self.desired_gap(ego_vehicle, front_vehicle)}"
+            # )
+            #
+            # if self.id == 3:
+            #     print(f"distance to {front_vehicle}: {d}")
+            # print(f"{front_vehicle.lane_index} {self.lane_index}")
+
             acceleration -= (
                 self.COMFORT_ACC_MAX
                 * (self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d))
                 ** 2
             )
+        # print("\n\n")
+        # if self.id == 0:
+        #     print(f"acceleration {acceleration}")
 
         return acceleration
 
@@ -316,15 +332,12 @@ class IDMVehicle(ControlledVehicle):
             if not self.road.network.get_lane(lane_index).is_reachable_from(
                 self.position
             ):
+                # if self.id == 0:
+                #     print(f"{lane_index} not reachable")
                 continue
-
             # Does the MOBIL model recommend a lane change?
             if self.mobil(lane_index):
                 self.target_lane_index = lane_index
-
-        # abort lanechange if now deemed unsafe
-        if not self.mobil(self.target_lane_index):
-            self.target_lane_index = self.lane_index
 
     def mobil(self, lane_index: LaneIndex) -> bool:
         """
@@ -349,13 +362,21 @@ class IDMVehicle(ControlledVehicle):
             ego_vehicle=new_following, front_vehicle=self
         )
 
+        # if self.id == 0:
+        #     print(f"new: {lane_index} {new_following}, {new_preceding}")
+        # print(f"{old_following}, {old_preceding}")
+        # print(f"{new_following_pred_a}, {old_preceding}")
+
         # unsafe braking required?
         if new_following_pred_a < -self.LANE_CHANGE_MAX_BRAKING_IMPOSED:
+            # if self.id == 0:
+            #     print("unsafe braking required")
             return False
 
         # Is there an acceleration advantage for me and/or my followers to change lane?
         self_a = self.acceleration(ego_vehicle=self, front_vehicle=old_preceding)
-
+        # if self.id == 8:
+        # print(f"{self} {self_a=}")
         old_following_a = self.acceleration(
             ego_vehicle=old_following, front_vehicle=self
         )

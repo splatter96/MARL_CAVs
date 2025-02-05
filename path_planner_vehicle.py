@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import pygame
 import time
+from copy import deepcopy
 
 from commonroad.common.file_reader import CommonRoadFileReader
 from commonroad.visualization.mp_renderer import MPRenderer
@@ -28,6 +29,8 @@ import cProfile, pstats
 # file_path = "./DEU_MyTrack2LaneCont-1_1_T-1.xml"
 # file_path = "./DEU_HighwayMergeConnected2-1_1_T-1.xml"
 file_path = "./DEU_HighwayMergeConnected2longer-1_1_T-1.xml"
+
+import pickle
 
 
 class Renderer:
@@ -109,33 +112,72 @@ class PathPlanner:
 
         self.timer_period = 0.05  # [s]
 
+        self.renderer = None
+
+        # Consistent seeding for evaluation
+        seed_ = 21
+        np.random.seed(seed_)
+
         self.make_road()
         self.othermake_vehicles()
+
+        self.initial_vehicles = deepcopy(self.road.vehicles)
+
+        # load vehicles from file
+        with open("initial_veh84.pkl", "rb") as f:  # open a text file
+            self.road.vehicles = pickle.load(f)
 
         self.renderer = Renderer(self.road)
 
         self.subs = []
 
+    def reset(self):
+        self.road.vehicles = []
+        self.othermake_vehicles()
+        self.initial_vehicles = deepcopy(self.road.vehicles)
+
+        with open("initial_veh84.pkl", "rb") as f:  # open a text file
+            self.road.vehicles = pickle.load(f)
+
     def start_simulation(self):
         # profiler = cProfile.Profile()
         # profiler.enable()
         #
+        num_runs = 100000
         start = time.time()
-        for i in range(10000):
-            # for i in range(100):
+        num_crashes = 0
+        num_episodes = 0
+        for i in range(num_runs):
+            # reset simulation in case of crash
+            for i in range(len(self.road.vehicles)):
+                if self.road.vehicles[i].crashed:
+                    num_crashes += 1
+                    num_episodes += 1
+                    # with open(
+                    #     f"initial_veh{num_episodes}.pkl", "wb"
+                    # ) as f:  # open a text file
+                    #     pickle.dump(self.initial_vehicles, f)  # serialize the list
+                    self.reset()
+                    break
+
+            # reset simulation when all vehicles reached the end
+            if len(self.road.vehicles) == 0:
+                num_episodes += 1
+                self.reset()
+
             self.road.act()
             self.road.step(self.timer_period)
 
-            self.renderer.render()
-            self.renderer.handle_events()
+            if self.renderer is not None:
+                self.renderer.render()
+                self.renderer.handle_events()
 
-            # time.sleep(self.timer_period)
-            time.sleep(0.01)
-            # print()
-            # print()
+                time.sleep(0.01)
 
         end = time.time()
-        print((end - start) / 10000)
+        print((end - start) / num_runs)
+        print(f"Crashes {num_crashes}")
+        print(f"Episodes {num_episodes}")
         # profiler.disable()
         # stats = pstats.Stats(profiler)
         # stats.dump_stats("profile_commonroad_no_ring.log")
