@@ -22,7 +22,7 @@ class IDMVehicle(ControlledVehicle):
     # """Longitudinal policy parameters"""
     # Maximum acceleration.
     ACC_MAX = 6.0  # [m/s2]
-    DEACC_MAX = -60.0  # [m/s2]
+    DEACC_MAX = -10.0  # [m/s2]
     # Desired maximum acceleration.
     COMFORT_ACC_MAX = 3.0  # [m/s2]
     # COMFORT_ACC_MAX = 0.3  # [m/s2]
@@ -100,50 +100,34 @@ class IDMVehicle(ControlledVehicle):
 
         :param action: the action
         """
-        # if self.id == 0:
-        #     print(f"lane {self.lane_index}")
-        # print(f"{self.id} {self.lane_index}")
         if self.crashed:
             return
         action = {}
-        # front_vehicle, rear_vehicle = self.road.neighbour_vehicles(self)
         front_vehicle, rear_vehicle = self.road.surrounding_vehicles(self)
 
         # Lateral: MOBIL
-        contiue_road = self.follow_road()
-
-        # if self.id == 1:
-        #     print(f"target lane before lane change policy {self.target_lane_index}")
-        #     print(f"lane before lane change policy {self.lane_index}")
-        if self.enable_lane_change and not contiue_road:
+        self.follow_road()
+        if self.enable_lane_change:
             self.change_lane_policy()
         action["steering"] = self.steering_control(self.target_lane_index)
         action["steering"] = utils.clip(
             action["steering"], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE
         )
 
+        # TODO take the start and end of the merging section from the road network
         distance_to_exit = abs(310 - self.position[0])
 
-        # # only decelearte if we are on the wrong lane
+        # only decelearte if we are on the wrong lane
         if not self.on_track():
             self.alpha_v0 = max(0.2, distance_to_exit / self.duTactical)
         else:  # reset after passing exit
             self.alpha_v0 = 1
 
-        # currently lane change happening but not only by following the road
-        if (
-            self.target_lane_index != self.lane_index
-            # and not self.lane_index[1] == self.target_lane_index[0]
-        ):
+        # currently lane change happening
+        if self.target_lane_index != self.lane_index:
             front_vehicle, _ = self.road.surrounding_vehicles(
                 self, self.target_lane_index
             )
-            # _, front_vehicle =  self.road.surrounding_vehicles(self, self.target_lane_index)
-            # if self.id == 3:
-            # print("LC happeing")
-
-        # if self.id == 3:
-        #     print(f"new front {front_vehicle}")
 
         # Longitudinal: IDM
         action["acceleration"] = self.acceleration(
@@ -159,10 +143,21 @@ class IDMVehicle(ControlledVehicle):
         )  # Skip ControlledVehicle.act(), or the command will be overriden.
 
     def on_track(self):
-        if (self.lane_index == 1 or self.lane_index == 3) and self.RIGHT_BIAS > 0.01:
+        # TODO take the start and end of the merging section from the road network
+        if (
+            (self.lane_index == 1 or self.lane_index == 3)
+            and self.position[0] > 230
+            and self.position[0] < 310
+            and self.RIGHT_BIAS > 0.01
+        ):
             return False
 
-        if (self.lane_index == 7146164179188) and self.RIGHT_BIAS < -0.01:
+        if (
+            (self.lane_index == 7146164179188)
+            and self.position[0] > 230
+            and self.position[0] < 310
+            and self.RIGHT_BIAS < -0.01
+        ):
             return False
 
         return True
@@ -206,12 +201,6 @@ class IDMVehicle(ControlledVehicle):
         acceleration = self.COMFORT_ACC_MAX * (
             1 - (max(ego_vehicle.speed, 0) / ego_target_speed) ** self.DELTA
         )
-        # currently lane change happening
-        # if not front_vehicle and (self.target_lane_index != self.lane_index):
-        # _, front_vehicle =  self.road.neighbour_vehicles(self, self.target_lane_index)
-        # _, front_vehicle = self.road.surrounding_vehicles(
-        #     self, self.target_lane_index
-        # )
 
         if front_vehicle:
             d = ego_vehicle.lane_distance_to(front_vehicle)
@@ -296,12 +285,9 @@ class IDMVehicle(ControlledVehicle):
         - closeness of the target lane;
         - MOBIL model.
         """
-        # If a lane change already ongoing
-        # if self.lane_index != self.target_lane_index:
-        #     # Only allow this lane change if mobil model allows it
-        #     if not self.mobil(self.target_lane_index):
-        #         # print("mobil says no")
-        #         self.target_lane_index = self.lane_index
+        # Only continue this lane change if mobil still allows it
+        if not self.mobil(self.target_lane_index):
+            self.target_lane_index = self.lane_index
 
         # else, at a given frequency,
         if not utils.do_every(self.LANE_CHANGE_DELAY, self.timer):
@@ -310,8 +296,6 @@ class IDMVehicle(ControlledVehicle):
 
         # decide to make a lane change
         for lane_index in self.road.network.side_lanes(self.lane_index):
-            # if self.id == 0:
-            #     print(f"considering {lane_index}")
             # Is the candidate lane close enough?
             if not self.road.network.get_lane(lane_index).is_reachable_from(
                 self.position
@@ -322,9 +306,6 @@ class IDMVehicle(ControlledVehicle):
             if self.mobil(lane_index):
                 self.target_lane_index = lane_index
 
-        # abort lanechange if now deemed unsafe
-        if not self.mobil(self.target_lane_index):
-            self.target_lane_index = self.lane_index
 
     def mobil(self, lane_index: LaneIndex) -> bool:
         """

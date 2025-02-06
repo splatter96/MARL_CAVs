@@ -85,7 +85,11 @@ class SingleAgentMergeEnv(AbstractEnv):
             vehicle.speed, self.config["reward_speed_range"], [0, 1]
         )
         # compute cost for staying on the merging lane
-        if vehicle.lane_index == 7146164179188 and vehicle.position[0] > 230 and vehicle.position[0] < 320:
+        if (
+            vehicle.lane_index == 7146164179188
+            and vehicle.position[0] > 230
+            and vehicle.position[0] < 320
+        ):
             Merging_lane_cost = -np.exp(
                 -((vehicle.position[0] - sum(self.ends[:3])) ** 2) / (10 * self.ends[2])
             )
@@ -128,7 +132,8 @@ class SingleAgentMergeEnv(AbstractEnv):
         return (
             self.vehicle.crashed
             or self.vehicle.position[0] > 400
-            or self.vehicle.lane_index == 7146164179188 and self.vehicle.position[0] > 320
+            or self.vehicle.lane_index == 7146164179188
+            and self.vehicle.position[0] > 320
         )  # end the episode if the vehicle drives off ramp
         # return self.vehicle.crashed \
         # or self.steps >= self.config["duration"] * self.config["policy_frequency"]

@@ -791,7 +791,7 @@ class AbstractEnv(gym.Env):
         ego_veh_lane = self.road.network.get_closest_lane_index(
             self.controlled_vehicles[0].position, 0.0
         )
-        merged = ego_veh_lane == ("c", "d", 0) or ego_veh_lane == ("c", "d", 1)
+        merged = ego_veh_lane == 1 or ego_veh_lane == 3
 
         info = {
             "speed": self.vehicle.speed,
