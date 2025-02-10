@@ -152,14 +152,14 @@ class IDMVehicle(ControlledVehicle):
         ):
             return False
 
-        if (
-            (self.lane_index == 7146164179188)
-            and self.position[0] > 230
-            and self.position[0] < 310
-            and self.RIGHT_BIAS < -0.01
-        ):
-            return False
-
+        # if (
+        #     (self.lane_index == 7146164179188)
+        #     and self.position[0] > 230
+        #     and self.position[0] < 310
+        #     and self.RIGHT_BIAS < -0.01
+        # ):
+        #     return False
+        #
         return True
 
     def step(self, dt: float):
@@ -305,7 +305,6 @@ class IDMVehicle(ControlledVehicle):
             # Does the MOBIL model recommend a lane change?
             if self.mobil(lane_index):
                 self.target_lane_index = lane_index
-
 
     def mobil(self, lane_index: LaneIndex) -> bool:
         """
