@@ -218,7 +218,8 @@ class KinematicObservation(ObservationType):
             #     "vy": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX]
             # }
             self.features_range = {
-                "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+                # "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+                "x": [-190, 310],
                 "y": [-12, 12],
                 "vx": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
                 "vy": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
@@ -290,6 +291,9 @@ class KinematicObservation(ObservationType):
         obs = self.observer_vehicle.to_dict()
         # extract only the features we want
         obs = {k: obs[k] for k in self.features if k in obs}
+
+        # replace x position with relative position to merge end
+        obs["x"] = 310 - self.observer_vehicle.position[0]
         obs_list.append(obs)
 
         if close_vehicles:
