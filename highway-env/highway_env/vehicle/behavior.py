@@ -2,6 +2,7 @@ from typing import Tuple, Union
 
 import numpy as np
 
+from highway_env.road import lane
 from highway_env.road.road import Road, Route, LaneIndex
 from highway_env.types import Vector
 from highway_env.vehicle.controller import ControlledVehicle
@@ -115,7 +116,8 @@ class IDMVehicle(ControlledVehicle):
         )
 
         # TODO take the start and end of the merging section from the road network
-        distance_to_exit = abs(310 - self.position[0])
+        # distance_to_exit = abs(310 - self.position[0])
+        distance_to_exit = abs(11.02 - self.position[0])
 
         # only decelearte if we are on the wrong lane
         if not self.on_track():
@@ -145,9 +147,13 @@ class IDMVehicle(ControlledVehicle):
     def on_track(self):
         # TODO take the start and end of the merging section from the road network
         if (
-            (self.lane_index == 1 or self.lane_index == 3)
-            and self.position[0] > 230
-            and self.position[0] < 310
+            # (self.lane_index == 1 or self.lane_index == 3)
+            # and self.position[0] > 230
+            # and self.position[0] < 310
+            # and self.RIGHT_BIAS > 0.01
+            (self.lane_index == 1 or self.lane_index == 2)
+            and self.position[0] > 8.3
+            and self.position[0] < 11.0
             and self.RIGHT_BIAS > 0.01
         ):
             return False
@@ -423,11 +429,14 @@ class ModelIDMVehicle(IDMVehicle):
         self.LENGTH_SQUARE = self.LENGTH**2  # Nedded for faster distance comparison
         self.DISTANCE_WANTED = 0.4
         self.id = 0
-        self.MAX_STEERING_ANGLE = np.deg2rad(20)
+        # self.MAX_STEERING_ANGLE = np.deg2rad(20)
+        self.MAX_STEERING_ANGLE = np.pi / 3
         self.LANE_CHANGE_MIN_ACC_GAIN = 0.15  # [m/s2]
-        self.LANE_CHANGE_MAX_BRAKING_IMPOSED = 1.0  # [m/s2]
+        self.LANE_CHANGE_MAX_BRAKING_IMPOSED = 10.0  # [m/s2]
         # self.LANE_CHANGE_DELAY = 0.5  # [s]
-        self.ACC_MAX = 1.0  # [m/s2]
+        self.ACC_MAX = 0.5  # [m/s2]
+        self.DEACC_MAX = -1.0  # [m/s2]
+        self.COMFORT_ACC_MAX = 3.0  # [m/s2]
 
 
 class ModelVehicle(IDMVehicle):

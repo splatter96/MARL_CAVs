@@ -9,7 +9,7 @@ from highway_env.envs.common.action import (
     DiscreteMetaAction,
     ContinuousAction,
 )
-from highway_env.road.graphics import WorldSurface, RoadGraphics
+from highway_env.road.graphics import WorldSurface, RoadGraphics, ModelLaneGraphics
 from highway_env.vehicle.graphics import VehicleGraphics
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ class EnvViewer(object):
             return
 
         self.sim_surface.move_display_window_to(self.window_position())
-        RoadGraphics.display(self.env.road, self.sim_surface)
+        RoadGraphics.display(self.env.road, self.sim_surface, ModelLaneGraphics)
 
         if self.vehicle_trajectory:
             VehicleGraphics.display_trajectory(
@@ -191,7 +191,8 @@ class EnvViewer(object):
 
     def window_position(self) -> np.ndarray:
         """the world position of the center of the displayed window."""
-        return np.array([310, 4])
+        # return np.array([310, 4])
+        return np.array([2, 0])
 
     def close(self) -> None:
         """Close the pygame window."""

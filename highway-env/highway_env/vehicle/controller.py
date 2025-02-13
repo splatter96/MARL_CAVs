@@ -278,8 +278,13 @@ class MDPVehicle(ControlledVehicle):
     """A controlled vehicle with a specified discrete range of allowed target speeds."""
 
     SPEED_COUNT: int = 6  # [], original = 3
-    SPEED_MIN: float = 5  # [m/s]
-    SPEED_MAX: float = 30  # [m/s]
+    # SPEED_MIN: float = 5  # [m/s]
+    # SPEED_MAX: float = 30  # [m/s]
+    SPEED_MIN: float = 0.178  # [m/s]
+    SPEED_MAX: float = 1.07  # [m/s]
+
+    LENGTH: float = 0.17
+    WIDTH: float = 0.08
 
     def __init__(
         self,

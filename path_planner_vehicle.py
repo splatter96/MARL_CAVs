@@ -9,8 +9,8 @@ from commonroad.visualization.mp_renderer import MPRenderer
 import matplotlib.pyplot as plt
 
 sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
-sys.path.append("/home/paul/Documents/PhD/RL/MARL_CAVs_commonroad/highway-env")
-# sys.path.append("/home/paul/Documents/PhD/RL/MARL_CAVs_commonroad/highway-env_old")
+# sys.path.append("/home/paul/Documents/PhD/RL/MARL_CAVs_commonroad/highway-env")
+sys.path.append("/home/paul/Documents/PhD/RL/MARL_CAVs_commonroad/highway-env_old")
 
 from highway_env.road.lane import (
     StraightLane,
@@ -23,8 +23,8 @@ from highway_env.road.lane import (
 from highway_env.road.road import (
     Road,
     RoadNetwork,
-    RoadNetworkCommonRoad,
-    RoadCommonRoad,
+    # RoadNetworkCommonRoad,
+    # RoadCommonRoad,
 )
 from highway_env.road.objects import Obstacle
 from highway_env.vehicle.behavior import IDMVehicle
@@ -127,8 +127,8 @@ class PathPlanner:
         seed_ = 21
         np.random.seed(seed_)
 
-        # self.make_road_original()
-        self.make_road()
+        self.make_road_original()
+        # self.make_road()
         self.othermake_vehicles()
 
         self.initial_vehicles = deepcopy(self.road.vehicles)
@@ -339,13 +339,13 @@ class PathPlanner:
         spawn_points_s2 = [0, 40, 80, 120, 160, 200, 220]
         spawn_points_m = [5, 45, 85, 125, 165, 205, 225]
 
-        merging_lane_index = 7146164179188
-        through_lane1_index = 1
-        through_lane2_index = 3
+        # merging_lane_index = 7146164179188
+        # through_lane1_index = 1
+        # through_lane2_index = 3
 
-        # merging_lane_index = ("j", "k", 0)
-        # through_lane1_index = ("a", "b", 0)
-        # through_lane2_index = ("a", "b", 1)
+        merging_lane_index = ("j", "k", 0)
+        through_lane1_index = ("a", "b", 0)
+        through_lane2_index = ("a", "b", 1)
 
         right_bias = 8.0
         offramp_percentage = 0.3

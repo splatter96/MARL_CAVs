@@ -181,10 +181,14 @@ class KinematicObservation(ObservationType):
     def normalize_obs2(self, data: List[dict]):
         if not self.features_range:
             self.features_range = {
-                "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
-                "y": [-12, 12],
+                # "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+                # "y": [-12, 12],
+                # "vx": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
+                # "vy": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
                 "vx": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
                 "vy": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
+                "x": [-6.7, 11],
+                "y": [-0.42, 0.42],
             }
 
         for veh in data:
@@ -293,7 +297,7 @@ class KinematicObservation(ObservationType):
         obs = {k: obs[k] for k in self.features if k in obs}
 
         # replace x position with relative position to merge end
-        obs["x"] = 310 - self.observer_vehicle.position[0]
+        obs["x"] = 11.0 - self.observer_vehicle.position[0]
         obs_list.append(obs)
 
         if close_vehicles:

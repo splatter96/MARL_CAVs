@@ -107,15 +107,15 @@ def display_action(action_surface, sim_surface):
     ):
         return
 
-    ranges = last_observation[:, 0]
-
-    for i, _range in enumerate(ranges):
-        pos = angle_to_position(angle * i, _range * maximum_range)
-        pos += last_info["vehicle_position"][0]
-
-        pos = sim_surface.pos2pix(pos[0], pos[1])
-        # TODO account for heading of the vehicle
-        pygame.draw.rect(sim_surface, lidar_color, (pos[0], pos[1], 10, 10))
+    # ranges = last_observation[:, 0]
+    #
+    # for i, _range in enumerate(ranges):
+    #     pos = angle_to_position(angle * i, _range * maximum_range)
+    #     pos += last_info["vehicle_position"][0]
+    #
+    #     pos = sim_surface.pos2pix(pos[0], pos[1])
+    #     # TODO account for heading of the vehicle
+    #     pygame.draw.rect(sim_surface, lidar_color, (pos[0], pos[1], 10, 10))
 
     cell_size = [action_surface.get_width() / 5, 300]
 
@@ -164,10 +164,13 @@ def eval_policy(args):
     env.action_space.seed(seed_)
     env.reset(seed=seed_)
 
-    env.config["screen_height"] = 300
-    env.config["screen_width"] = 2800
+    # env.config["screen_height"] = 300
+    # env.config["screen_width"] = 2800
+    env.config["screen_height"] = 1920
+    env.config["screen_width"] = 1920
     env.config["safety_guarantee"] = False
     env.config["traffic_density"] = args.difficulty
+    # env.config["policy_frequency"] = 15
     if args.mobil:
         env.config["action"] = {"type": "IDM"}
         env.config["action_masking"] = False
@@ -204,6 +207,13 @@ def eval_policy(args):
             load_veh = np.load(args.initial_pos, allow_pickle=True)
 
             env.road.vehicles = load_veh
+            # for v in env.road.vehicles:
+            #     v.ACC_MAX = 0.5
+            #     v.DEACC_MAX = -0.5
+            # v.LANE_CHANGE_MAX_BRAKING_IMPOSED = 10.0
+            #     v.MAX_STEERING_ANGLE = np.pi / 3
+
+            # env.road.vehicles = [env.road.vehicles[0]]
             env.set_vehicle(env.road.vehicles[0])
 
         ret = 0
@@ -212,16 +222,21 @@ def eval_policy(args):
         while not (done or truncated):
             if not args.mobil:
                 action, _states = model.predict(obs, deterministic=True)
-                # t_obs = torch.tensor(obs)
-                # t_obs = t_obs[None, :]
-                # action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
-                # global last_action_prob
-                # last_action_prob = action_prob.detach().numpy()
-                # action_buffer.append(last_action_prob[0])
+                t_obs = torch.tensor(obs)
+                t_obs = t_obs[None, :]
+                action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
+                global last_action_prob
+                last_action_prob = action_prob.detach().numpy()
+                action_buffer.append(last_action_prob[0])
             else:
                 action = None
+
+            # action = 1
             obs, reward, done, truncated, info = env.step(action)
             ret += reward
+
+            # print(f"{action=}")
+            # print(f"{obs=}")
 
             global last_observation
             last_observation = obs
@@ -238,7 +253,7 @@ def eval_policy(args):
 
             if args.render:
                 env.render()
-                time.sleep(0.1)
+                time.sleep(0.03)
 
             # also end the episode when another vehicle crashed
             if info["other_crashes"] and not info["crashed"]:
@@ -251,9 +266,6 @@ def eval_policy(args):
         # if info['crashed']:
         # if info["other_crashes"]:
         # if skip_run:
-        # only save trajectories if we didn't load any in the first place
-        # if args.initial_pos == '':
-        # np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
 
         if skip_run:
             continue
@@ -263,6 +275,9 @@ def eval_policy(args):
 
         if info["crashed"]:
             crashes += 1
+            # only save trajectories if we didn't load any in the first place
+            if args.initial_pos == "":
+                np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
             # np.save(f"action_before_crash_{j}.npy", action_buffer)
         # else:
         # np.save(f"action_without_crash_{j}.npy", action_buffer)

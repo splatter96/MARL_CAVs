@@ -418,12 +418,13 @@ class RoadCommonRoad(object):
                 v.check_collision(objects[j])
 
         # remove vehicles that reached the end of the road
-        for v in self.vehicles:
-            if self.network.get_lane(v.lane_index).after_end(
-                v.position, vehicle_length=v.LENGTH
-            ):
-                # print(f"{v.id} reached the end")
-                self.vehicles.remove(v)
+        # for v in self.vehicles:
+        #     if self.network.get_lane(v.lane_index).after_end(
+        #         v.position, vehicle_length=v.LENGTH
+        #     ):
+        #         # print(f"{v.id} reached the end")
+        #         self.vehicles.remove(v)
+        #
 
     def surrounding_vehicles(
         self, vehicle: "kinematics.Vehicle", lane_index: Optional[int] = None
