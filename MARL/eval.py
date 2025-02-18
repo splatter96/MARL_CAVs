@@ -1,5 +1,6 @@
 import time
 import gymnasium as gym
+import functools
 
 import pygame
 import argparse
@@ -22,10 +23,13 @@ if "/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env" in sys.path:
 sys.path.append("../highway-env")
 
 import highway_env
+from highway_env.utils import lmap
 
 from sb3_contrib import SACD
 
 import torch
+
+import cProfile, pstats
 
 
 def parse_args():
@@ -83,6 +87,45 @@ def parse_args():
 last_action_prob = None
 last_observation = None
 last_info = None
+
+
+def display_vehicles(action_surface, sim_surface, env):
+    # if env.unwrapped.paused:
+    #     return
+
+    obs = env.unwrapped.observation_type.observe()
+    obs = obs.reshape(5, -1)
+    obs_type = env.observation_type
+    color = (255, 255, 255)
+    for v_index in range(obs.shape[0]):
+        v_position = {}
+        for feature in ["x", "y"]:
+            v_feature = obs[v_index, obs_type.features.index(feature)]
+            v_feature = lmap(v_feature, [-1, 1], obs_type.features_range[feature])
+            v_position[feature] = v_feature
+
+        # TODO
+        # overwrite the x position according to lane distance measure
+        # lane = env.unwrapped.vehicle.lane
+        # ego_abs = env.unwrapped.vehicle.position
+        # ego_rel_x = lane.local_coordinates(ego_abs)[0]
+        # absolut_x = lane.position(v_position["x"] + ego_rel_x, 0)[0]
+        # v_position["x"] = absolut_x
+        #
+        v_position = np.array([v_position["x"], v_position["y"]])
+        if not obs_type.absolute and v_index > 0:
+            v_position += env.unwrapped.vehicle.position
+            # v_position[1] += env.unwrapped.vehicle.position[1]
+
+        # print(f"{v_index} {v_position}")
+        if v_index > 0 and obs[v_index, 0] == 1:
+            pygame.draw.line(
+                sim_surface,
+                color,
+                sim_surface.vec2pix(env.vehicle.position),
+                sim_surface.vec2pix(v_position),
+                7,
+            )
 
 
 def display_action(action_surface, sim_surface):
@@ -150,7 +193,7 @@ def eval_policy(args):
     ## EVAL SEED
     ## This seed is used for
     ## all the evalution runs to be comparable
-    seed_ = 21
+    seed_ = 22
 
     # set reproduceable seed
     random.seed(seed_)
@@ -194,13 +237,17 @@ def eval_policy(args):
     t = tqdm(range(num_tries))
     start = time.time()
 
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+    #
     for i in t:
         done = truncated = False
         obs, info = env.reset()
         # set the envviewr in the env
         if args.render:
             env.render()
-            # env.viewer.set_agent_display(display_action)
+        # env.viewer.set_agent_display(display_action)
+        env.viewer.set_agent_display(functools.partial(display_vehicles, env=env))
         skip_run = False
 
         if args.initial_pos != "":
@@ -216,27 +263,23 @@ def eval_policy(args):
             # env.road.vehicles = [env.road.vehicles[0]]
             env.set_vehicle(env.road.vehicles[0])
 
-        ret = 0
-        position_list = []
-        action_buffer = []
+        # position_list = []
+        # action_buffer = []
         while not (done or truncated):
             if not args.mobil:
                 action, _states = model.predict(obs, deterministic=True)
-                t_obs = torch.tensor(obs)
-                t_obs = t_obs[None, :]
-                action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
-                global last_action_prob
-                last_action_prob = action_prob.detach().numpy()
-                action_buffer.append(last_action_prob[0])
+                # t_obs = torch.tensor(obs)
+                # t_obs = t_obs[None, :]
+                # action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
+                # global last_action_prob
+                # last_action_prob = action_prob.detach().numpy()
+                # action_buffer.append(last_action_prob[0])
             else:
                 action = None
 
-            # action = 1
+            # action_map = ["LANE_LEFT", "IDLE", "LANE_RIGHT", "FASTER", "SLOWER"]
+            # print(action_map[action])
             obs, reward, done, truncated, info = env.step(action)
-            ret += reward
-
-            # print(f"{action=}")
-            # print(f"{obs=}")
 
             global last_observation
             last_observation = obs
@@ -253,19 +296,11 @@ def eval_policy(args):
 
             if args.render:
                 env.render()
-                time.sleep(0.03)
+                # time.sleep(0.03)
 
             # also end the episode when another vehicle crashed
             if info["other_crashes"] and not info["crashed"]:
-                # # frame = env.render()
-                # # im = Image.fromarray(frame)
-                # # im.save(f"crash_{i}.png")
                 skip_run = True
-            # #print("other crash")
-
-        # if info['crashed']:
-        # if info["other_crashes"]:
-        # if skip_run:
 
         if skip_run:
             continue
@@ -276,11 +311,8 @@ def eval_policy(args):
         if info["crashed"]:
             crashes += 1
             # only save trajectories if we didn't load any in the first place
-            if args.initial_pos == "":
-                np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
-            # np.save(f"action_before_crash_{j}.npy", action_buffer)
-        # else:
-        # np.save(f"action_without_crash_{j}.npy", action_buffer)
+            # if args.initial_pos == "":
+            #     np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
 
         if info["merged"]:  # and not info["other_crashes"]:
             sucessfull_merges += 1
@@ -298,8 +330,12 @@ def eval_policy(args):
             f"Crashrate {crashes/(j+1)} Mergerate {sucessfull_merges/(j+1)} other_crashes {other_crashes/(j+1)}"
         )
 
+    # profiler.disable()
+    # stats = pstats.Stats(profiler)
+    # stats.dump_stats("profile_commonroad.log")
     end = time.time()
     print(f"Took {(end-start)/j}")
+    print(f"Took {(end-start)/total_steps} per step")
     print(f"Crashrate {crashes/num_tries}")
     print(f"Average ego vehicle speed {speed/total_steps}")
     print(f"Average speed of all cars {road_speed/total_steps}")
