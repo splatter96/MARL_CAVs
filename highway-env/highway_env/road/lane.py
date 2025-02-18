@@ -196,25 +196,21 @@ class CommonRoadLane(AbstractLane):
         self.line_types = line_types or [LineType.CONTINUOUS, LineType.CONTINUOUS]
         self.length = self.lanelet.distance[-1]
 
-        if not self.ring:
-            # resample center_vertices for equidistance and close spacing
-            # the spacing from the scenario designer is sometimes too corse
-            center_vertices = self.lanelet.center_vertices
+        old_distances = self.lanelet._distance
+        distances_resample = np.linspace(old_distances[0], old_distances[-1], 500)
+        center_vertices = self.lanelet.center_vertices
 
-            x_resample = np.linspace(center_vertices[0, 0], center_vertices[-1, 0], 500)
-            y_resample = np.interp(
-                x_resample,
-                center_vertices[:, 0],
-                center_vertices[:, 1],
-            )
-            resampled_vertices = np.column_stack([x_resample, y_resample])
-            self.lanelet.center_vertices = resampled_vertices
+        x_resample = np.interp(distances_resample, old_distances, center_vertices[:, 0])
+        y_resample = np.interp(distances_resample, old_distances, center_vertices[:, 1])
 
-            # need to recalculate the distance array after resampling
-            # thats usuallya called from inside the lanelet constructor
-            self.lanelet._distance = self.lanelet._compute_polyline_cumsum_dist(
-                [self.lanelet.center_vertices]
-            )
+        resampled_vertices = np.column_stack([x_resample, y_resample])
+        self.lanelet.center_vertices = resampled_vertices
+
+        # need to recalculate the distance array after resampling
+        # thats usuallya called from inside the lanelet constructor
+        self.lanelet._distance = self.lanelet._compute_polyline_cumsum_dist(
+            [self.lanelet.center_vertices]
+        )
 
         # used for faster distance calculation in nearest neighbor search
         # argmin_a (a - b)^2 = argmin_a a^2 - 2ab + b^2 = argmin_a a^2 - 2ab  # noqa
@@ -229,9 +225,7 @@ class CommonRoadLane(AbstractLane):
         :param lateral: lateral lane coordinate [m]
         :return: the corresponding world position [m]
         """
-        closest_vertex_index = np.searchsorted(
-            self.lanelet.distance, longitudinal
-        )  # - 1
+        closest_vertex_index = np.searchsorted(self.lanelet.distance, longitudinal) - 1
 
         if closest_vertex_index == len(self.lanelet.center_vertices) - 1:
             vertex1 = self.lanelet.center_vertices[closest_vertex_index - 1, :]
