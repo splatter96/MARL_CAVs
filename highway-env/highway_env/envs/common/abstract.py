@@ -84,6 +84,8 @@ class AbstractEnv(gym.Env):
         self.rendering_mode = "human"
         self.enable_auto_render = False
 
+        self.paused = False
+
         self.ends = [220, 100, 100, 100]  # Before, converging, merge, after
         self.action_is_safe = True
         self.ACTIONS_ALL = {
@@ -837,11 +839,12 @@ class AbstractEnv(gym.Env):
             ):
                 self.action_type.act(action)  # defined in action.py
 
-            self.road.act()  # Execute an action
-            self.road.step(
-                1 / self.config["simulation_frequency"]
-            )  # propagate the vehicle state given its actions.
-            self.time += 1
+            if not self.paused:
+                self.road.act()  # Execute an action
+                self.road.step(
+                    1 / self.config["simulation_frequency"]
+                )  # propagate the vehicle state given its actions.
+                self.time += 1
 
             # Automatically render intermediate simulation steps if a viewer has been launched
             # Ignored if the rendering is done offscreen

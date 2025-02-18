@@ -35,8 +35,9 @@ class EnvViewer(object):
         # handling a screen display, useful for e.g. cloud computing
         if not self.offscreen:
             self.screen = pygame.display.set_mode(
-                [self.env.config["screen_width"], self.env.config["screen_height"]]
+                [self.env.config["screen_width"], self.env.config["screen_height"]],
             )
+            self.screen.set_alpha(None)
         self.sim_surface = WorldSurface(panel_size, 0, pygame.Surface(panel_size))
         self.sim_surface.scaling = env.config.get(
             "scaling", self.sim_surface.INITIAL_SCALING
@@ -107,13 +108,16 @@ class EnvViewer(object):
             if event.type == pygame.QUIT:
                 self.env.close()
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                paused = True
-                while paused:
-                    pygame.time.wait(1000)
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                            paused = False
-
+                self.env.paused = not self.env.paused
+            # elif event.type == pygame.MOUSEBUTTONUP:
+            #     pos = pygame.mouse.get_pos()
+            #     print(
+            #         self.sim_surface.pix2pos(
+            #             pos[0],
+            #             pos[1],  # - self.sim_surface.get_size()[1]
+            #         )
+            #     )
+            #
             self.sim_surface.handle_event(event)
             if self.env.action_type:
                 EventHandler.handle_event(self.env.action_type, event)

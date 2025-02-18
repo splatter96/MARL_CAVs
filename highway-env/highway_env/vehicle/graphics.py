@@ -25,6 +25,10 @@ class VehicleGraphics(object):
     DEFAULT_COLOR = YELLOW
     EGO_COLOR = BLUE
 
+    # cache font so we dont have to load it everytime
+    pygame.font.init()
+    FONT = pygame.font.Font(None, 20)
+
     @classmethod
     def display(
         cls,
@@ -49,7 +53,8 @@ class VehicleGraphics(object):
             return
 
         v = vehicle
-        tire_length, tire_width = 1, 0.3
+        # tire_length, tire_width = 1, 0.3
+        tire_length, tire_width = 0.0, 0.3
 
         # Vehicle rectangle
         length = v.LENGTH + 2 * tire_length
@@ -67,39 +72,39 @@ class VehicleGraphics(object):
 
         # Tires
         # if type(vehicle) in [Vehicle, BicycleVehicle]:
-        if type(vehicle) in [Vehicle]:
-            tire_positions = [
-                [surface.pix(tire_length), surface.pix(length / 2 - v.WIDTH / 2)],
-                [surface.pix(tire_length), surface.pix(length / 2 + v.WIDTH / 2)],
-                [
-                    surface.pix(length - tire_length),
-                    surface.pix(length / 2 - v.WIDTH / 2),
-                ],
-                [
-                    surface.pix(length - tire_length),
-                    surface.pix(length / 2 + v.WIDTH / 2),
-                ],
-            ]
-            tire_angles = [0, 0, v.action["steering"], v.action["steering"]]
-            for tire_position, tire_angle in zip(tire_positions, tire_angles):
-                tire_surface = pygame.Surface(
-                    (surface.pix(tire_length), surface.pix(tire_length)),
-                    pygame.SRCALPHA,
-                )
-                rect = (
-                    0,
-                    surface.pix(tire_length / 2 - tire_width / 2),
-                    surface.pix(tire_length),
-                    surface.pix(tire_width),
-                )
-                pygame.draw.rect(tire_surface, cls.BLACK, rect, 0)
-                cls.blit_rotate(
-                    vehicle_surface,
-                    tire_surface,
-                    tire_position,
-                    np.rad2deg(-tire_angle),
-                )
-
+        # if type(vehicle) in [Vehicle]:
+        #     tire_positions = [
+        #         [surface.pix(tire_length), surface.pix(length / 2 - v.WIDTH / 2)],
+        #         [surface.pix(tire_length), surface.pix(length / 2 + v.WIDTH / 2)],
+        #         [
+        #             surface.pix(length - tire_length),
+        #             surface.pix(length / 2 - v.WIDTH / 2),
+        #         ],
+        #         [
+        #             surface.pix(length - tire_length),
+        #             surface.pix(length / 2 + v.WIDTH / 2),
+        #         ],
+        #     ]
+        #     tire_angles = [0, 0, v.action["steering"], v.action["steering"]]
+        #     for tire_position, tire_angle in zip(tire_positions, tire_angles):
+        #         tire_surface = pygame.Surface(
+        #             (surface.pix(tire_length), surface.pix(tire_length)),
+        #             pygame.SRCALPHA,
+        #         )
+        #         rect = (
+        #             0,
+        #             surface.pix(tire_length / 2 - tire_width / 2),
+        #             surface.pix(tire_length),
+        #             surface.pix(tire_width),
+        #         )
+        #         pygame.draw.rect(tire_surface, cls.BLACK, rect, 0)
+        #         cls.blit_rotate(
+        #             vehicle_surface,
+        #             tire_surface,
+        #             tire_position,
+        #             np.rad2deg(-tire_angle),
+        #         )
+        #
         # Centered rotation
         h = v.heading if abs(v.heading) > 2 * np.pi / 180 else 0
         position = [*surface.pos2pix(v.position[0], v.position[1])]
@@ -111,10 +116,10 @@ class VehicleGraphics(object):
 
         # Label
         if label:
-            font = pygame.font.Font(None, 20)
+            # font = pygame.font.Font(None, 20)
             # text = "#{}".format(id(v) % 1000)
             text = "#{}".format(v.id)
-            text = font.render(text, 1, (10, 10, 10), (255, 255, 255))
+            text = cls.FONT.render(text, 1, (10, 10, 10), (255, 255, 255))
             surface.blit(text, position)
 
     @staticmethod
