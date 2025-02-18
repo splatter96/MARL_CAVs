@@ -63,10 +63,11 @@ class SingleAgentMergeEnv(AbstractEnv):
                 "LANE_CHANGE_COST": 1,  # default=0.5
                 # "LANE_CHANGE_COST": 0.5,  # default=0.5
                 "traffic_density": 1,  # easy or hard modes
+                "scaling": 320.76,
                 # "scaling": 389.402,
-                "scaling": 136.34,
+                # "scaling": 136.34,
                 # "centering_position": [0.8, -0.8],
-                "centering_position": [0.0, -0.8],
+                "centering_position": [0.8, -0.7],
             }
         )
         return cfg
@@ -142,9 +143,14 @@ class SingleAgentMergeEnv(AbstractEnv):
         # )  # end the episode if the vehicle drives off ramp
         return (
             self.vehicle.crashed
-            or self.vehicle.position[0] > 14.2
-            or self.vehicle.lane_index == 31371651486
-            and self.vehicle.position[0] > 11.42
+            # or self.vehicle.position[0] > 14.2
+            or self.vehicle.position[0] > 3.0
+            # or self.vehicle.position[1] > 1.4
+            or self.vehicle.position[1] > 0.5
+            # or self.vehicle.lane_index == 31371651486
+            # or self.vehicle.lane_index == 1568
+            # or self.vehicle.lane_index == 1567
+            # and self.vehicle.position[0] > 11.42
         )  # end the episode if the vehicle drives off ramp
         # return self.vehicle.crashed \
         # or self.steps >= self.config["duration"] * self.config["policy_frequency"]
@@ -178,12 +184,17 @@ class SingleAgentMergeEnv(AbstractEnv):
         scenario, _ = CommonRoadFileReader(
             # "./DEU_HighwayMergeConnected2longer-1_1_T-1.xml"
             # "./DEU_MergeCircCont-1_1_T-1.xml"
+            #
             # "./DEU_MergeCircContLonger-1_1_T-1.xml"
-            "./DEU_ScaledHighway-1_1_T-1.xml"
+            #
+            # "./DEU_ScaledHighway-1_1_T-1.xml"
+            # "./DEU_tightercircularmerge-1_1_T-1.xml"
+            "./DEU_zerocentercircmerge-1_1_T-1.xml"
         ).open()
 
         net = scenario.lanelet_network
-        net_common_road = RoadNetworkCommonRoad(net, is_ring=False)
+        # net_common_road = RoadNetworkCommonRoad(net, is_ring=False)
+        net_common_road = RoadNetworkCommonRoad(net, is_ring=True)
 
         self.road = RoadCommonRoad(network=net_common_road)
 
@@ -240,6 +251,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         :return: the ego-vehicle
         """
 
+        num_HDV = 15
         road = self.road
         # other_vehicles_type = utils.class_from_path(self.config["other_vehicles_type"])
         other_vehicles_type = ModelIDMVehicle
@@ -247,34 +259,45 @@ class SingleAgentMergeEnv(AbstractEnv):
         spawn_points_s1 = [10, 50, 90, 130, 170, 210, 225]
         spawn_points_s2 = [0, 40, 80, 120, 160, 200, 220]
         # spawn_points_m = [5, 45, 85, 125, 130, 145, 150, 165, 205, 225]
-        spawn_points_m = [5, 45, 85, 125, 165, 205, 225]
+        # spawn_points_m = [5, 45, 85, 125, 165, 205, 225]
+        spawn_points_m = [0, 0.6, 1, 1.5, 2, 2.5]  # adjusted for circular track
         # spawn_points_m_cav = [125, 130, 145, 150, 165]
-        spawn_points_m_cav = [125, 165]
+        # spawn_points_m_cav = [125, 165]
+        spawn_points_m_cav = [0, 0.6]  # adjusted for merge
 
         for i in range(len(spawn_points_s1)):
             spawn_points_s1[i] /= 28
         for i in range(len(spawn_points_s2)):
             spawn_points_s2[i] /= 28
-        for i in range(len(spawn_points_m)):
-            spawn_points_m[i] /= 28
-        for i in range(len(spawn_points_m_cav)):
-            spawn_points_m_cav[i] /= 28
+        # for i in range(len(spawn_points_m)):
+        #     spawn_points_m[i] /= 28
+        # for i in range(len(spawn_points_m_cav)):
+        #     spawn_points_m_cav[i] /= 28
 
         # merging_lane_index = 7146164179188
         # through_lane1_index = 1
         # through_lane2_index = 3
         # merging_lane_index = 12371236
+        #
+        #
         # through_lane1_index = 1235
         # through_lane2_index = 1234
-        merging_lane_index = 31371651486
-        through_lane1_index = 1
-        through_lane2_index = 2
+        # merging_lane_index = 12371236
+
+        # merging_lane_index = 1569
+        # through_lane1_index = 1567
+        # through_lane2_index = 1568
+
+        merging_lane_index = 5
+        through_lane1_index = 1234
+        through_lane2_index = 1235
 
         # initial speed with noise and location noise
         initial_speed = (
             np.random.rand(num_CAV + num_HDV) * 8 + 22
         )  # range from [25, 30]
-        initial_speed /= 28  # scale to model vehicles
+        # initial_speed /= 28  # scale to model vehicles
+        initial_speed /= 50  # scale to real model vehicles
         initial_speed = list(initial_speed)
 
         # loc_noise = np.random.rand(num_CAV + num_HDV) * 6 - 3  # range from [-1.5, 1.5]
@@ -300,6 +323,7 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         self.vehicle.color = (200, 0, 150)
         self.vehicle.id = 0
+        # return
 
         """Spawn points for HDV"""
         # spawn point indexes on the straight road

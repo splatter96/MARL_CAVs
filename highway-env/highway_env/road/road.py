@@ -381,7 +381,8 @@ class RoadCommonRoad(object):
             and (see_behind or -2 * vehicle.LENGTH < vehicle.lane_distance_to(v))
         ]
 
-        vehicles = sorted(vehicles, key=lambda v: abs(vehicle.lane_distance_to(v)))
+        # vehicles = sorted(vehicles, key=lambda v: abs(vehicle.lane_distance_to(v)))
+        vehicles = sorted(vehicles, key=lambda v: abs(v.lane_distance_to(vehicle)))
         if count:
             vehicles = vehicles[:count]
         return vehicles
@@ -418,13 +419,15 @@ class RoadCommonRoad(object):
                 v.check_collision(objects[j])
 
         # remove vehicles that reached the end of the road
-        # for v in self.vehicles:
-        #     if self.network.get_lane(v.lane_index).after_end(
-        #         v.position, vehicle_length=v.LENGTH
-        #     ):
-        #         # print(f"{v.id} reached the end")
-        #         self.vehicles.remove(v)
-        #
+        for v in self.vehicles:
+            if (
+                self.network.get_lane(v.lane_index).after_end(
+                    v.position, vehicle_length=v.LENGTH
+                )
+                and v.lane_index == 5
+            ):
+                # print(f"{v.id} reached the end")
+                self.vehicles.remove(v)
 
     def surrounding_vehicles(
         self, vehicle: "kinematics.Vehicle", lane_index: Optional[int] = None

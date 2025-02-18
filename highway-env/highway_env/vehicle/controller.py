@@ -282,6 +282,7 @@ class MDPVehicle(ControlledVehicle):
     # SPEED_MAX: float = 30  # [m/s]
     SPEED_MIN: float = 0.178  # [m/s]
     SPEED_MAX: float = 1.07  # [m/s]
+    # SPEED_MAX: float = 0.7  # [m/s] # adjust to real model vehicles
 
     LENGTH: float = 0.17
     WIDTH: float = 0.08

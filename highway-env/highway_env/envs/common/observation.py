@@ -187,8 +187,9 @@ class KinematicObservation(ObservationType):
                 # "vy": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
                 "vx": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
                 "vy": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
-                "x": [-6.7, 11],
-                "y": [-0.42, 0.42],
+                "x": [-6.7, 11.0],
+                # "y": [0.0, 2.0],
+                "y": [-0.43, 0.43],
             }
 
         for veh in data:
@@ -297,26 +298,73 @@ class KinematicObservation(ObservationType):
         obs = {k: obs[k] for k in self.features if k in obs}
 
         # replace x position with relative position to merge end
-        obs["x"] = 11.0 - self.observer_vehicle.position[0]
+        obs["x"] = (
+            # 2.4 - self.observer_vehicle.position[0]
+            2.0 - self.observer_vehicle.position[0]
+        )  # adjusted for circular track
         obs_list.append(obs)
 
         if close_vehicles:
             origin = self.observer_vehicle if not self.absolute else None
 
-            close_veh = [
-                v.to_dict(origin, observe_intentions=self.observe_intentions)
-                for v in close_vehicles[-self.vehicles_count + 1 :]
-            ]
+            # close_veh = [
+            #     v.to_dict(origin, observe_intentions=self.observe_intentions)
+            #     for v in close_vehicles[-self.vehicles_count + 1 :]
+            # ]
+
+            close_veh = []
+            for v in close_vehicles[-self.vehicles_count + 1 :]:
+                v_dict = v.to_dict(origin, observe_intentions=self.observe_intentions)
+
+                lane_dist = -v.lane_distance_to(self.observer_vehicle)
+                v_dict["x"] = lane_dist
+
+                # print(f"{v.id} {lane_dist}")
+
+                v_dict["y"] = v.lane.local_coordinates(v.position)[1]
+
+                # if v.lane_index == 1567:
+                #     v_dict["y"] += 1.0
+                # elif v.lane_index == 1568:
+                #     v_dict["y"] += 1.3
+                # else:
+                #     v_dict["y"] += 0.7
+                #
+                if v.lane_index == 1234:
+                    v_dict["y"] += 0
+                elif v.lane_index == 1235:
+                    v_dict["y"] += 0.14
+                else:
+                    v_dict["y"] -= 0.14
+
+                v_dict["y"] -= origin.position[1]
+
+                close_veh.append(v_dict)
+
             # extract only the features we want
             for idx, veh in enumerate(close_veh):
                 close_veh[idx] = {k: veh[k] for k in self.features if k in veh}
                 obs_list.append(close_veh[idx])
 
-        # print(f"obs before {obs_list}")
         # Normalize and clip
         if self.normalize:
-            obs_list = self.normalize_obs2(obs_list)
-        # print(f"obs after {obs_list}")
+            obs_list[1:] = self.normalize_obs2(obs_list[1:])
+
+            # special traetment for ego
+            # obs_list[0]["x"] = utils.lmap(obs_list[0]["x"], [0.9, 5], [-1, 1])
+            obs_list[0]["x"] = utils.lmap(obs_list[0]["x"], [0.0, 5], [-1, 1])
+            # obs_list[0]["y"] = utils.lmap(obs_list[0]["y"], [0.0, 2.0], [-1, 1])
+            obs_list[0]["y"] = utils.lmap(obs_list[0]["y"], [-0.43, 0.43], [-1, 1])
+            obs_list[0]["vx"] = utils.lmap(
+                obs_list[0]["vx"],
+                [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
+                [-1, 1],
+            )
+            obs_list[0]["vy"] = utils.lmap(
+                obs_list[0]["vy"],
+                [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
+                [-1, 1],
+            )
 
         # Fill missing rows
         if len(obs_list) < self.vehicles_count:

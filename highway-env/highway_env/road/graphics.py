@@ -60,7 +60,7 @@ class WorldSurface(pygame.Surface):
         return self.pix(x - self.origin[0]), self.pix(self.origin[1] - y)
 
     def pix2pos(self, x: float, y: float) -> Tuple[float, float]:
-        return self.pos(x) + self.origin[0], self.pos(y) + self.origin[1]
+        return self.pos(x) + self.origin[0], self.origin[1] - self.pos(y)
 
     def vec2pix(self, vec: PositionType) -> Tuple[int, int]:
         """

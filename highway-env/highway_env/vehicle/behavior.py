@@ -415,12 +415,18 @@ class ModelIDMVehicle(IDMVehicle):
         enable_lane_change: bool = True,
         timer: float = None,
     ):
+        # set heading to face the direction of the starting lane
+        lane_indx = road.network.get_closest_lane_index(position, float(heading))
+        lane = road.network.get_lane(lane_indx)
+        heading = lane.heading_at(lane.local_coordinates(position)[0])
+
         super().__init__(
             road, position, heading, speed, target_lane_index, target_speed, route
         )
         self.enable_lane_change = enable_lane_change
 
-        self.TAU_DS = 0.05  # [s]
+        # self.TAU_DS = 0.05  # [s]
+        self.TAU_DS = 0.2  # [s]
         self.PURSUIT_TAU = 0.5 * self.TAU_DS  # [s]
         self.KP_HEADING = 1 / self.TAU_DS
         self.KP_LATERAL = 1 / 3 * self.KP_HEADING  # [1/s]
