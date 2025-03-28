@@ -129,8 +129,8 @@ class AbstractEnv(gym.Env):
             "simulation_frequency": 15,  # [Hz]
             "policy_frequency": 1,  # [Hz]
             "other_vehicles_type": "highway_env.vehicle.behavior.IDMVehicle",
-            "screen_width": 600,  # [px]
-            "screen_height": 150,  # [px]
+            "screen_width": 1920,  # [px]
+            "screen_height": 600,  # [px]
             "centering_position": [0.6, -0.5],
             "scaling": 5.5,
             "show_trajectories": False,
@@ -324,6 +324,32 @@ class AbstractEnv(gym.Env):
 
             min_time_safety_rooms.append(safety_room)
         return min(min_time_safety_rooms)
+
+    def predict(self):
+        veh_copy = copy.deepcopy(self.road.vehicles)
+
+        for v in self.road.vehicles:
+            v.trajectories = []
+
+        dt = 1 / self.config["simulation_frequency"]
+        n_points = 10
+
+        len_v = len(veh_copy)
+        for _ in range(n_points):
+            # for vehicle in veh_copy:  # all the vehicles on the road
+            for i in range(len_v):
+                # if i == 2:
+                #     print(veh_copy[i].position)
+                veh_copy[i].act()
+                veh_copy[i].step(dt)
+                # if i == 2:
+                #     print(veh_copy[i].position)
+                #     print()
+                self.road.vehicles[i].trajectories.append(
+                    copy.deepcopy(veh_copy[i].position)
+                )
+
+        # print(f"After all {self.road.vehicles[i].trajectories}")
 
     def safety_supervisor(self, action):
         """ "
@@ -756,6 +782,8 @@ class AbstractEnv(gym.Env):
 
         # action is a tuple, e.g., (2, 3, 0, 1)
         self._simulate(self.new_action)
+
+        self.predict()
 
         obs = self.observation_type.observe()
         reward = self._reward(action)

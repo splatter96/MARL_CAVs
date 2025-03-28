@@ -207,13 +207,14 @@ def eval_policy(args):
     env.action_space.seed(seed_)
     env.reset(seed=seed_)
 
-    # env.config["screen_height"] = 300
-    # env.config["screen_width"] = 2800
-    env.config["screen_height"] = 1920
-    env.config["screen_width"] = 1920
+    env.config["screen_height"] = 300
+    env.config["screen_width"] = 2800
+    # env.config["screen_height"] = 1920
+    # env.config["screen_width"] = 1920
     env.config["safety_guarantee"] = False
     env.config["traffic_density"] = args.difficulty
-    # env.config["policy_frequency"] = 15
+    # env.config["policy_frequency"] = 125
+    # env.config["simulation_frequency"] = 125
     if args.mobil:
         env.config["action"] = {"type": "IDM"}
         env.config["action_masking"] = False
@@ -240,6 +241,9 @@ def eval_policy(args):
     # profiler = cProfile.Profile()
     # profiler.enable()
     #
+    # import cProfile, pstats
+
+    # profiler = cProfile.Profile()
     for i in t:
         done = truncated = False
         obs, info = env.reset()
@@ -247,7 +251,7 @@ def eval_policy(args):
         if args.render:
             env.render()
         # env.viewer.set_agent_display(display_action)
-        env.viewer.set_agent_display(functools.partial(display_vehicles, env=env))
+        # env.viewer.set_agent_display(functools.partial(display_vehicles, env=env))
         skip_run = False
 
         if args.initial_pos != "":
@@ -267,7 +271,10 @@ def eval_policy(args):
         # action_buffer = []
         while not (done or truncated):
             if not args.mobil:
+                start = time.time()
                 action, _states = model.predict(obs, deterministic=True)
+                print(f"Inference took {time.time() - start}")
+
                 # t_obs = torch.tensor(obs)
                 # t_obs = t_obs[None, :]
                 # action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
@@ -279,7 +286,11 @@ def eval_policy(args):
 
             # action_map = ["LANE_LEFT", "IDLE", "LANE_RIGHT", "FASTER", "SLOWER"]
             # print(action_map[action])
+            start = time.time()
+            # profiler.enable()
             obs, reward, done, truncated, info = env.step(action)
+            # profiler.disable()
+            print(f"Simulation took {time.time() - start}")
 
             global last_observation
             last_observation = obs
@@ -295,8 +306,10 @@ def eval_policy(args):
                 position_list.append(veh_pos.copy())
 
             if args.render:
+                start = time.time()
                 env.render()
-                # time.sleep(0.03)
+                print(f"Render took {time.time() - start}")
+                # time.sleep(0.1)
 
             # also end the episode when another vehicle crashed
             if info["other_crashes"] and not info["crashed"]:
@@ -333,6 +346,8 @@ def eval_policy(args):
     # profiler.disable()
     # stats = pstats.Stats(profiler)
     # stats.dump_stats("profile_commonroad.log")
+    # stats = pstats.Stats(profiler)
+    # stats.dump_stats("train_prof_laptop_python308.log")
     end = time.time()
     print(f"Took {(end-start)/j}")
     print(f"Took {(end-start)/total_steps} per step")

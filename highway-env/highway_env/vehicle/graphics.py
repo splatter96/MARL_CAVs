@@ -53,6 +53,12 @@ class VehicleGraphics(object):
             return
 
         v = vehicle
+
+        # print predicted trajectories
+        if len(v.trajectories) > 0:
+            traj_points = [surface.pos2pix(*p) for p in v.trajectories]
+            pygame.draw.lines(surface, cls.BLUE, False, traj_points, width=5)
+
         # tire_length, tire_width = 1, 0.3
         tire_length, tire_width = 0.0, 0.3
 
@@ -61,7 +67,7 @@ class VehicleGraphics(object):
         vehicle_surface = pygame.Surface(
             (surface.pix(length), surface.pix(length)), flags=pygame.SRCALPHA
         )  # per-pixel alpha
-        rect = (
+        rect = pygame.Rect(
             surface.pix(tire_length),
             surface.pix(length / 2 - v.WIDTH / 2),
             surface.pix(v.LENGTH),
@@ -70,6 +76,22 @@ class VehicleGraphics(object):
         pygame.draw.rect(vehicle_surface, cls.get_color(v, transparent), rect, 0)
         pygame.draw.rect(vehicle_surface, cls.BLACK, rect, 1)
 
+        # print lane change signaling
+        # if v.target_lane_index in v.road.network.side_lanes(v.lane_index):
+        #     lane = v.road.network.get_lane(v.lane_index)
+        #     if v.target_lane_index == lane.lanelet.adj_left:
+        #         end = rect.midtop
+        #     else:
+        #         end = rect.midbottom
+        #
+        #     pygame.draw.line(
+        #         vehicle_surface,
+        #         cls.BLACK,
+        #         rect.center,
+        #         end,
+        #         5,
+        #     )
+        #
         # Tires
         # if type(vehicle) in [Vehicle, BicycleVehicle]:
         # if type(vehicle) in [Vehicle]:
@@ -115,12 +137,12 @@ class VehicleGraphics(object):
         cls.blit_rotate(surface, vehicle_surface, position, np.rad2deg(h))
 
         # Label
-        if label:
-            # font = pygame.font.Font(None, 20)
-            # text = "#{}".format(id(v) % 1000)
-            text = "#{}".format(v.id)
-            text = cls.FONT.render(text, 1, (10, 10, 10), (255, 255, 255))
-            surface.blit(text, position)
+        # if label:
+        #     # font = pygame.font.Font(None, 20)
+        #     # text = "#{}".format(id(v) % 1000)
+        #     text = "#{}".format(v.id)
+        #     text = cls.FONT.render(text, 1, (10, 10, 10), (255, 255, 255))
+        #     surface.blit(text, position)
 
     @staticmethod
     def blit_rotate(

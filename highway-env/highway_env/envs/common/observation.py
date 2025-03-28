@@ -2,7 +2,7 @@ from typing import List, Dict, TYPE_CHECKING, Optional, Union
 from gymnasium import spaces
 import gymnasium as gym
 
-gym.logger.set_level(40)
+# gym.logger.set_level(40)
 import numpy as np
 import pandas as pd
 

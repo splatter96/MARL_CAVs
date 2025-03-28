@@ -450,12 +450,7 @@ class RoadCommonRoad(object):
         v_front = v_rear = None
         for v in self.vehicles + self.objects:
             if v is not vehicle:  # and not isinstance(v, Landmark):
-                if not (
-                    v.lane_index == lane_index
-                    # or lane_index
-                    # == lane.lanelet.adj_right  # check left and right of the lane we want to change to also to avoid to vehicles changing to the same lane and crashing
-                    # or lane_index == lane.lanelet.adj_left
-                ):
+                if not (v.lane_index == lane_index):
                     continue
 
                 d = lane.distance_between_points(vehicle.position, v.position)

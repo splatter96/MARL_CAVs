@@ -1,4 +1,4 @@
-# cython: language_level=3, cdivision = True, profile=True
+# cython: language_level=3, cdivision = True, profile = True
 import copy
 import importlib
 import itertools
@@ -40,6 +40,8 @@ cdef np.ndarray rect_corners2(np.ndarray[double, ndim=1] center, float length, f
 
 # returns the index in x with the minimum distance to point v
 # Important: Only works for non strided views of the np arrays
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 def pyargmindist(double[::1] lengths, double[:, ::1] x, double[::1] v) -> int:
     cdef double* lengths_buff = <double*> &lengths[0]
     cdef double* x_buff = <double*> &x[0][0]
