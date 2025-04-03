@@ -106,6 +106,23 @@ class IDMVehicle(ControlledVehicle):
         action = {}
         front_vehicle, rear_vehicle = self.road.surrounding_vehicles(self)
 
+        # reset the surrounding vehicles first
+        self.leader = None
+        self.follower = None
+        self.followerLeft = None
+        self.leaderLeft = None
+        self.followerRight = None
+        self.leaderRight = None
+
+        # set the surrounding vehicles of the current one for visualization
+        self.leader = front_vehicle
+        self.follower = rear_vehicle
+
+        if self.lane.lanelet.adj_left is not None:
+            self.leaderLeft, self.followerLeft = self.road.surrounding_vehicles(self, self.lane.lanelet.adj_left)
+        if self.lane.lanelet.adj_right is not None:
+            self.leaderRight, self.followerRight = self.road.surrounding_vehicles(self, self.lane.lanelet.adj_right)
+
         # Lateral: MOBIL
         self.follow_road()
         if self.enable_lane_change:

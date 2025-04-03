@@ -53,6 +53,10 @@ class Vehicle(object):
         )
 
         self.lane = self.road.network.get_lane(self.lane_index) if self.road else None
+
+        # longitudinal and lateral coordinates along lane
+        self.u, self.v = self.lane.local_coordinates(self.position)
+
         self.action = {"steering": 0, "acceleration": 0}
         self.trajectories = []
         self.crashed = False
@@ -60,6 +64,13 @@ class Vehicle(object):
         self.local_reward = 0
         self.regional_reward = 0
         self.history = deque(maxlen=30)
+
+        self.leader = None
+        self.follower = None
+        self.leaderLeft = None
+        self.followerLeft = None
+        self.leaderRight = None
+        self.followerRight = None
 
     @classmethod
     def make_on_lane(
@@ -195,6 +206,11 @@ class Vehicle(object):
                 self.position, float(self.heading)
             )
             self.lane = self.road.network.get_lane(self.lane_index)
+
+            # longitudinal position along lane
+            self.u, self.v = self.lane.local_coordinates(self.position)
+
+            # print(f"{self.id} {self.u}")
             if self.road.record_history:
                 self.history.appendleft(self.create_from(self))
 
@@ -212,6 +228,12 @@ class Vehicle(object):
             lane = self.lane
 
         return lane.distance_between_points(self.position, vehicle.position)
+        # if vehicle.lane_index == self.lane_index:
+        #     other_u = vehicle.u
+        # else:
+        #     other_u = self.lane.local_coordinates(vehicle.position)[0]
+
+        # return other_u - self.u
 
     def check_collision(self, other: Union["Vehicle", "RoadObject"]) -> None:
         """

@@ -101,12 +101,13 @@ class AbstractLane(object):
 
     def after_end(
         self,
-        position: np.ndarray,
+        position: np.ndarray = None,
         longitudinal: np.float64 = None,
         lateral: float = None,
         vehicle_length: float = 5,
     ) -> bool:
         if not longitudinal:
+            # print("something wrong")
             longitudinal, _ = self.local_coordinates(position)
         return longitudinal > self.length - vehicle_length
         # return longitudinal > self.length - (10 + VEHICLE_LENGTH / 2)
@@ -355,12 +356,14 @@ class CommonRoadLane(AbstractLane):
 
     def after_end(
         self,
-        position: np.ndarray,
+        position: np.ndarray = None,
         longitudinal: np.float64 = None,
         lateral: float = None,
         vehicle_length: float = 5,
     ) -> bool:
         if not longitudinal:
+            print("something wrong")
+            print(position)
             longitudinal, _ = self.local_coordinates(position)
         return longitudinal > self.length - vehicle_length
 

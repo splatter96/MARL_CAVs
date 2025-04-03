@@ -137,12 +137,12 @@ class VehicleGraphics(object):
         cls.blit_rotate(surface, vehicle_surface, position, np.rad2deg(h))
 
         # Label
-        # if label:
-        #     # font = pygame.font.Font(None, 20)
-        #     # text = "#{}".format(id(v) % 1000)
-        #     text = "#{}".format(v.id)
-        #     text = cls.FONT.render(text, 1, (10, 10, 10), (255, 255, 255))
-        #     surface.blit(text, position)
+        if label:
+            # font = pygame.font.Font(None, 20)
+            # text = "#{}".format(id(v) % 1000)
+            text = "#{}".format(v.id)
+            text = cls.FONT.render(text, 1, (10, 10, 10), (255, 255, 255))
+            surface.blit(text, position)
 
     @staticmethod
     def blit_rotate(

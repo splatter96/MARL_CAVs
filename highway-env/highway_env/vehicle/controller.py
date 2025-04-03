@@ -134,7 +134,10 @@ class ControlledVehicle(Vehicle):
     def follow_road(self) -> bool:
         """At the end of a lane, automatically switch to a next one."""
         if self.road.network.get_lane(self.lane_index).after_end(
-            self.position, vehicle_length=self.LENGTH
+            position=self.position,
+            vehicle_length=self.LENGTH,
+            longitudinal=self.u,
+            # vehicle_length=self.LENGTH,
         ):
             self.target_lane_index = self.road.network.next_lane(
                 self.lane_index,
@@ -161,8 +164,6 @@ class ControlledVehicle(Vehicle):
         """
 
         target_lane = self.road.network.get_lane(target_lane_index)
-        # lane_coords = target_lane.local_coordinates(self.position)
-        # print(lane_coords)
         return utils.steering_control(
             self.speed,
             self.position,
@@ -174,6 +175,44 @@ class ControlledVehicle(Vehicle):
             self.LENGTH,
             self.MAX_STEERING_ANGLE,
         )
+
+        # target_lane = self.road.network.get_lane(target_lane_index)
+        # lane_coords = target_lane.local_coordinates(self.position)
+        lane_next_coords = self.u + self.speed * self.PURSUIT_TAU
+        lane_future_heading = target_lane.heading_at(lane_next_coords)
+
+        # Lateral position control
+        lateral_speed_command = -self.KP_LATERAL * self.v
+        # Lateral speed to heading
+        heading_command = np.arcsin(
+            utils.clip(lateral_speed_command / utils.not_zero(self.speed), -1, 1)
+        )
+        heading_ref = lane_future_heading + utils.clip(
+            heading_command, -np.pi / 4, np.pi / 4
+        )
+        # Heading control
+        heading_rate_command = self.KP_HEADING * utils.wrap_to_pi(
+            heading_ref - self.heading
+        )
+        # Heading rate to steering angle
+        # slip_angle = np.arcsin(
+        #     np.clip(
+        #         self.LENGTH / 2 / utils.not_zero(self.speed) * heading_rate_command,
+        #         -1,
+        #         1,
+        #     )
+        # )
+        steering_angle = np.arcsin(
+            utils.clip(
+                self.LENGTH / 2 / utils.not_zero(self.speed) * heading_rate_command,
+                -1,
+                1,
+            )
+        )
+        steering_angle = utils.clip(
+            steering_angle, -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE
+        )
+        return float(steering_angle)
 
         # cdef float speed = self.speed
 

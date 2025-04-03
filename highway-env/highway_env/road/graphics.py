@@ -8,6 +8,7 @@ from highway_env.road.road import Road
 from highway_env.types import Vector
 from highway_env.vehicle.graphics import VehicleGraphics
 from highway_env.road.objects import Obstacle, Landmark
+from highway_env.vehicle.kinematics import Vehicle
 
 if TYPE_CHECKING:
     from highway_env.road.objects import RoadObject
@@ -404,6 +405,25 @@ class RoadGraphics(object):
         """
         for o in road.objects:
             RoadObjectGraphics.display(o, surface, offscreen=offscreen)
+
+    @staticmethod
+    def mark_vehicles(surface: WorldSurface, vehicle: Vehicle) -> None:
+        name_map = {"lead": "leader",
+                    "foll": "follower",
+                    "leadL": "leaderLeft",
+                    "follL": "followerLeft",
+                    "leadR": "leaderRight",
+                    "follrR": "followerRight",
+                    }
+
+        for name, entity in name_map.items():
+            if vehicle.__getattribute__(entity) is not None:
+                text = name
+                v = vehicle.__getattribute__(entity)
+                position = [*surface.pos2pix(v.position[0], v.position[1])]
+                font = pygame.font.Font(None, 20)
+                text = font.render(text, 1, (10, 10, 10), (255, 255, 255))
+                surface.blit(text, position)
 
 
 class RoadObjectGraphics:

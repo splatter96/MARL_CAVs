@@ -2,6 +2,7 @@ import os
 from typing import TYPE_CHECKING, Callable, List
 import numpy as np
 import pygame
+import math
 from gymnasium.spaces import Discrete
 
 from highway_env.envs.common.action import (
@@ -57,6 +58,8 @@ class EnvViewer(object):
         self.frame = 0
         self.directory = None
 
+        self.selected_vehicle = self.env.road.vehicles[2]
+
     def set_agent_display(self, agent_display: Callable) -> None:
         """
         Set a display callback provided by an agent
@@ -109,15 +112,24 @@ class EnvViewer(object):
                 self.env.close()
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 self.env.paused = not self.env.paused
-            # elif event.type == pygame.MOUSEBUTTONUP:
-            #     pos = pygame.mouse.get_pos()
-            #     print(
-            #         self.sim_surface.pix2pos(
-            #             pos[0],
-            #             pos[1],  # - self.sim_surface.get_size()[1]
-            #         )
-            #     )
-            #
+            elif event.type == pygame.MOUSEBUTTONUP:
+                pos = pygame.mouse.get_pos()
+                click_pos = self.sim_surface.pix2pos( pos[0], pos[1])
+
+                closest = None
+                closest_dist = 1e8
+                for v in self.env.road.vehicles:
+                    dx = click_pos[0] - v.position[0]
+                    dy = click_pos[1] - v.position[1]
+                    dist = math.hypot(dx, dy)
+
+                    if dist < closest_dist:
+                        closest_dist = dist
+                        closest = v
+
+                self.selected_vehicle = closest
+
+            
             self.sim_surface.handle_event(event)
             if self.env.action_type:
                 EventHandler.handle_event(self.env.action_type, event)
@@ -145,6 +157,10 @@ class EnvViewer(object):
             simulation_frequency=self.env.config["simulation_frequency"],
             offscreen=self.offscreen,
         )
+
+        # visualize the surrounding vehicles of the selected vehicle
+        if self.selected_vehicle is not None:
+            RoadGraphics.mark_vehicles(self.sim_surface, self.selected_vehicle)
 
         if self.agent_display:
             self.agent_display(self.agent_surface, self.sim_surface)

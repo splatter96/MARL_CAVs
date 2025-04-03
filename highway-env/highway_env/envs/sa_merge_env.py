@@ -298,6 +298,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         )  # range from [25, 30]
         # initial_speed /= 28  # scale to model vehicles
         initial_speed /= 50  # scale to real model vehicles
+        # initial_speed *= 0  # scale to real model vehicles
         initial_speed = list(initial_speed)
 
         # loc_noise = np.random.rand(num_CAV + num_HDV) * 6 - 3  # range from [-1.5, 1.5]

@@ -422,7 +422,10 @@ class RoadCommonRoad(object):
         for v in self.vehicles:
             if (
                 self.network.get_lane(v.lane_index).after_end(
-                    v.position, vehicle_length=v.LENGTH
+                    position=v.position,
+                    vehicle_length=v.LENGTH,
+                    longitudinal=v.u,
+                    # vehicle_length=v.LENGTH,
                 )
                 and v.lane_index == 5
             ):
@@ -446,6 +449,11 @@ class RoadCommonRoad(object):
             return None, None
         lane = self.network.get_lane(lane_index)
 
+        # if lane_index == vehicle.lane_index:
+        #     ego_u = vehicle.u
+        # else:
+        #     ego_u = lane.local_coordinates(vehicle.position)[0]
+
         s_front = s_rear = None
         v_front = v_rear = None
         for v in self.vehicles + self.objects:
@@ -454,6 +462,7 @@ class RoadCommonRoad(object):
                     continue
 
                 d = lane.distance_between_points(vehicle.position, v.position)
+                # d = v.u - ego_u
 
                 if d >= 0 and (s_front is None or abs(d) <= s_front):
                     s_front = d
