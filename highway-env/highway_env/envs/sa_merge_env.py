@@ -52,7 +52,7 @@ class SingleAgentMergeEnv(AbstractEnv):
                 "merging_speed_reward": -0.5,
                 "right_lane_reward": 0.1,
                 "lane_change_reward": -0.05,
-                "reward_speed_range": [10, 30],
+                "reward_speed_range": [0.2, 0.6],
                 "collision_reward": 200,
                 "high_speed_reward": 1,
                 "offramp_reward": 100,
@@ -92,21 +92,22 @@ class SingleAgentMergeEnv(AbstractEnv):
         )
         # compute cost for staying on the merging lane
         if (
-            vehicle.lane_index == 7146164179188
-            and vehicle.position[0] > 230
-            and vehicle.position[0] < 320
+            vehicle.lane_index == 5
+            and vehicle.position[0] > -2
+            and vehicle.position[0] < 2
         ):
             Merging_lane_cost = -np.exp(
-                -((vehicle.position[0] - sum(self.ends[:3])) ** 2) / (10 * self.ends[2])
+                #-((vehicle.position[0] - sum(self.ends[:3])) ** 2) / (10 * self.ends[2])
+                -((vehicle.position[0]-(-2) - 5) ** 2) / (10 * 5)
             )
         else:
             Merging_lane_cost = 0
 
         # give penalty if the agent drives on the offramp
-        if vehicle.lane_index == 7146164179188 and vehicle.position[0] > 320:
-            offramp_cost = -self.config["offramp_reward"]
-        else:
-            offramp_cost = 0
+        # if vehicle.lane_index == 7146164179188 and vehicle.position[0] > 320:
+        #     offramp_cost = -self.config["offramp_reward"]
+        # else:
+        #     offramp_cost = 0
 
         # lane change cost to avoid unnecessary/frequent lane changes
         Lane_change_cost = (
@@ -127,7 +128,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             + self.config["MERGING_LANE_COST"] * Merging_lane_cost
             + self.config["HEADWAY_COST"] * (Headway_cost if Headway_cost < 0 else 0)
             + Lane_change_cost
-            + offramp_cost
+            # + offramp_cost
         )
 
         return reward
@@ -252,7 +253,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         :return: the ego-vehicle
         """
 
-        num_HDV = 15
+        # num_HDV = 15
         road = self.road
         # other_vehicles_type = utils.class_from_path(self.config["other_vehicles_type"])
         other_vehicles_type = ModelIDMVehicle
