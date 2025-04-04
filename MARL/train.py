@@ -239,7 +239,17 @@ def main(cfg: "DictConfig"):  # noqa: F821
         project=cfg.logging.wandb_project,
         sync_tensorboard=True,
         name=cfg.logging.exp_tag,
+        save_code=True,
     )
+    artifact = wandb.run.log_code(
+        f"{to_absolute_path('../highway-env')}",
+        name="Simulation_Code",
+        include_fn=lambda path: path.endswith(".py")
+        or path.endswith(".pyx")
+        or path.endswith("c_utils.c"),
+    )
+    artifact.wait()
+    run.use_artifact(artifact, type="code")
 
     wandb_callback = WandbCallback(model_save_path=f"models/{run.id}", verbose=2)
 
