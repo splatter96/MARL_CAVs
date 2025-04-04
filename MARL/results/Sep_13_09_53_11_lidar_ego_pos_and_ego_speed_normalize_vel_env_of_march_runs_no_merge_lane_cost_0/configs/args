@@ -1,0 +1,1 @@
+train.py --exp-tag lidar_ego_pos_and_ego_speed_normalize_vel_env_of_march_runs_no_merge_lane_cost 
