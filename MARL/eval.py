@@ -207,12 +207,14 @@ def eval_policy(args):
     env.action_space.seed(seed_)
     env.reset(seed=seed_)
 
-    env.config["screen_height"] = 300
+    env.config["screen_height"] = 800
     env.config["screen_width"] = 2800
     # env.config["screen_height"] = 1920
     # env.config["screen_width"] = 1920
     env.config["safety_guarantee"] = False
     env.config["traffic_density"] = args.difficulty
+
+    env.config["observation"]["type"] = "LidarObservation"
     # env.config["policy_frequency"] = 125
     # env.config["simulation_frequency"] = 125
     if args.mobil:
@@ -241,9 +243,9 @@ def eval_policy(args):
     # profiler = cProfile.Profile()
     # profiler.enable()
     #
-    # import cProfile, pstats
+    import cProfile, pstats
 
-    # profiler = cProfile.Profile()
+    #profiler = cProfile.Profile()
     for i in t:
         done = truncated = False
         obs, info = env.reset()
@@ -273,7 +275,9 @@ def eval_policy(args):
             if not args.mobil:
                 start = time.time()
                 action, _states = model.predict(obs, deterministic=True)
-                print(f"Inference took {time.time() - start}")
+                # print(f"Inference took {time.time() - start}")
+                action_map = ["LANE_LEFT", "IDLE", "LANE_RIGHT", "FASTER", "SLOWER"]
+                print(action_map[action])
 
                 # t_obs = torch.tensor(obs)
                 # t_obs = t_obs[None, :]
@@ -287,10 +291,10 @@ def eval_policy(args):
             # action_map = ["LANE_LEFT", "IDLE", "LANE_RIGHT", "FASTER", "SLOWER"]
             # print(action_map[action])
             start = time.time()
-            # profiler.enable()
+            #profiler.enable()
             obs, reward, done, truncated, info = env.step(action)
-            # profiler.disable()
-            print(f"Simulation took {time.time() - start}")
+            #profiler.disable()
+            # print(f"Simulation took {time.time() - start}")
 
             global last_observation
             last_observation = obs
@@ -308,7 +312,7 @@ def eval_policy(args):
             if args.render:
                 start = time.time()
                 env.render()
-                print(f"Render took {time.time() - start}")
+                # print(f"Render took {time.time() - start}")
                 # time.sleep(0.1)
 
             # also end the episode when another vehicle crashed
@@ -344,19 +348,20 @@ def eval_policy(args):
         )
 
     # profiler.disable()
-    # stats = pstats.Stats(profiler)
-    # stats.dump_stats("profile_commonroad.log")
+    #stats = pstats.Stats(profiler)
+    #stats.dump_stats("profile_ordered_list.log")
     # stats = pstats.Stats(profiler)
     # stats.dump_stats("train_prof_laptop_python308.log")
     end = time.time()
-    print(f"Took {(end-start)/j}")
-    print(f"Took {(end-start)/total_steps} per step")
+    # print(f"Took {(end-start)/j}")
+    # print(f"Took {(end-start)/total_steps} per step")
     print(f"Crashrate {crashes/num_tries}")
     print(f"Average ego vehicle speed {speed/total_steps}")
     print(f"Average speed of all cars {road_speed/total_steps}")
 
 
 if __name__ == "__main__":
+    print("running eval")
     torch.set_num_threads(2)
     args = parse_args()
     eval_policy(args)
