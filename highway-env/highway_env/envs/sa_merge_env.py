@@ -171,6 +171,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             # easy mode: 13-15 HDVs
             num_HDV = np.random.choice(np.arange(13, 16), 1)[0]
             # num_HDV = np.random.choice(np.arange(16, 19), 1)[0]
+
         self._make_vehicles(num_CAV, num_HDV)
         self.T = int(self.config["duration"] * self.config["policy_frequency"])
 

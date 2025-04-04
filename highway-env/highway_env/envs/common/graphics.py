@@ -58,7 +58,8 @@ class EnvViewer(object):
         self.frame = 0
         self.directory = None
 
-        self.selected_vehicle = self.env.road.vehicles[2]
+        #self.selected_vehicle = self.env.road.vehicles[2]
+        self.selected_vehicle = None
 
     def set_agent_display(self, agent_display: Callable) -> None:
         """
@@ -115,6 +116,7 @@ class EnvViewer(object):
             elif event.type == pygame.MOUSEBUTTONUP:
                 pos = pygame.mouse.get_pos()
                 click_pos = self.sim_surface.pix2pos( pos[0], pos[1])
+                print(click_pos)
 
                 closest = None
                 closest_dist = 1e8

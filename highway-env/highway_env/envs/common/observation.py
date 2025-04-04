@@ -571,7 +571,7 @@ class LidarObservation(ObservationType):
     def __init__(
         self,
         env,
-        cells: int = 16,
+        cells: int = 64,
         maximum_range: float = 150,
         normalize: bool = True,
         **kwargs,
@@ -598,49 +598,66 @@ class LidarObservation(ObservationType):
                 "lidar": spaces.Box(
                     shape=(self.cells, 2), low=-high, high=high, dtype=np.float32
                 ),
-                "ego": spaces.Box(shape=(2,), low=-1, high=1),
+                "ego": spaces.Box(shape=(4,), low=-1, high=1),
             }
         )
 
     def observe(self):
         # obs = self.trace(
-        # self.observer_vehicle.position, self.observer_vehicle.velocity
+            # self.observer_vehicle.position, self.observer_vehicle.velocity
         # ).copy()
         # if self.normalize:
-        # obs /= self.maximum_range
+            # obs /= self.maximum_range
         # return obs
 
-        self.grid = utils.trace(
-            self.observer_vehicle.position,
-            self.observer_vehicle.velocity,
-            self.maximum_range,
-            self.cells,
-            self.angle,
-            self.env.road.vehicles + self.env.road.objects,
-            self.observer_vehicle,
-        )
+        self.grid = utils.trace(self.observer_vehicle.position, self.observer_vehicle.velocity, self.maximum_range, self.cells, self.angle, self.env.road.vehicles + self.env.road.objects, self.observer_vehicle)
         self.origin = self.observer_vehicle.position.copy()
         obs = self.grid.copy()
         if self.normalize:
-            obs /= self.maximum_range
+            # normalize distances
+            #obs[:, 0] /= self.maximum_range
+            obs[:, 0] /= (self.maximum_range / 30)
+            # normalize velocities
+            obs[:, 1] = [utils.lmap(x, [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX], [-1, 1] ) for x in obs[:,1]]
+
 
         # add the current position of the ego vehicle to the observation
         ego_obs = self.observer_vehicle.to_dict()
-        ego_pos = np.array([ego_obs["x"], ego_obs["y"]])
+        ego_pos = np.array([ego_obs["x"]-66, ego_obs["y"], ego_obs["vx"], ego_obs["vy"]])
+
+        ego_pos[0] = utils.lmap(ego_pos[0], [-3, 2], [0, 310])
 
         # normalize ego_pos same as in KinematicObservation
-        ego_pos[0] = utils.lmap(
-            ego_pos[0],
-            [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+        #ego_pos[0] = utils.lmap(ego_pos[0], [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX], [-1, 1])
+        #ego_pos[0] = utils.lmap(ego_pos[0], [-460, 460], [-1, 1])
+        #ego_pos[1] = utils.lmap(ego_pos[1], [-12, 12], [-1, 1])
+        #ego_pos[2] = utils.lmap(ego_pos[2], [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX], [-1, 1])
+        #ego_pos[3] = utils.lmap(ego_pos[3], [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX], [-1, 1])
+
+        # special traetment for ego
+        # replace x position with relative position to merge end
+        # ego_pos[0] = (2.0 - self.observer_vehicle.position[0])  # adjusted for circular track
+        # obs_list[0]["x"] = utils.lmap(obs_list[0]["x"], [0.9, 5], [-1, 1])
+        #ego_pos[0] = utils.lmap(ego_pos[0], [0.0, 5], [-1, 1])
+        ego_pos[0] = utils.lmap(ego_pos[0], [-460, 460], [-1, 1])
+        # obs_list[0]["y"] = utils.lmap(obs_list[0]["y"], [0.0, 2.0], [-1, 1])
+        ego_pos[1] = utils.lmap(ego_pos[1], [-0.43, 0.43], [-1, 1])
+        ego_pos[2] = utils.lmap(
+            ego_pos[2],
+            [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
             [-1, 1],
         )
-        ego_pos[1] = utils.lmap(ego_pos[1], [-12, 12], [-1, 1])
+        ego_pos[3] = utils.lmap(
+            ego_pos[3],
+            [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
+            [-1, 1],
+        )
 
         # obs = np.vstack([obs, ego_pos])
         obs = {"lidar": obs, "ego": ego_pos}
 
         return obs
-
+   
     def trace(self, origin: np.ndarray, origin_velocity: np.ndarray) -> np.ndarray:
         self.origin = origin.copy()
         self.grid = np.ones((self.cells, 2)) * self.maximum_range
