@@ -163,6 +163,7 @@ class EnvViewer(object):
         # visualize the surrounding vehicles of the selected vehicle
         if self.selected_vehicle is not None:
             RoadGraphics.mark_vehicles(self.sim_surface, self.selected_vehicle)
+            RoadGraphics.display_projected_vehicle(self.sim_surface, self.selected_vehicle, self.env.road)
 
         if self.agent_display:
             self.agent_display(self.agent_surface, self.sim_surface)

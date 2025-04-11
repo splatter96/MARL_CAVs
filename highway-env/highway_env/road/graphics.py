@@ -2,6 +2,7 @@ from typing import List, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 import pygame
+from copy import deepcopy
 
 from highway_env.road.lane import LineType, AbstractLane
 from highway_env.road.road import Road
@@ -424,6 +425,33 @@ class RoadGraphics(object):
                 font = pygame.font.Font(None, 20)
                 text = font.render(text, 1, (10, 10, 10), (255, 255, 255))
                 surface.blit(text, position)
+
+    @staticmethod
+    def display_projected_vehicle(surface: WorldSurface, vehicle: Vehicle, road: Road) -> None:
+        side_lanes = road.network.side_lanes(vehicle.lane_index)
+
+        for lane_id in side_lanes:
+            lane = road.network.get_lane(lane_id)
+            projected_local_position = lane.local_coordinates(vehicle.position)
+            projected_position = lane.position(projected_local_position[0], 0)
+            projected_vehicle = deepcopy(vehicle)
+            projected_vehicle.position = projected_position
+            projected_vehicle.heading = lane.heading_at(projected_local_position[0])
+            VehicleGraphics.display(projected_vehicle, surface, transparent=True, label=False)
+
+            # draw a vehicle at the desired gap to the leader
+            leader, follower = road.surrounding_vehicles(vehicle, lane_id)
+            if leader is not None:
+                desired_gap = vehicle.desired_gap(vehicle, leader)
+                projected_local_position_x, _ = lane.local_coordinates(leader.position)
+                projected_local_position_x -= desired_gap
+                projected_position = lane.position(projected_local_position_x, 0)
+                projected_vehicle.position = projected_position
+                projected_vehicle.heading = lane.heading_at(projected_local_position_x)
+                # projected_vehicle.position = leader.position
+                # projected_vehicle.position[0] -= desired_gap
+                VehicleGraphics.display(projected_vehicle, surface, transparent=True, label=False, color= (255, 50, 50, 100))
+
 
 
 class RoadObjectGraphics:

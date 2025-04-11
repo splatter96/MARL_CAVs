@@ -37,6 +37,7 @@ class VehicleGraphics(object):
         transparent: bool = False,
         offscreen: bool = False,
         label: bool = True,
+        color = None,
     ) -> None:
         """
         Display a vehicle on a pygame surface.
@@ -73,7 +74,10 @@ class VehicleGraphics(object):
             surface.pix(v.LENGTH),
             surface.pix(v.WIDTH),
         )
-        pygame.draw.rect(vehicle_surface, cls.get_color(v, transparent), rect, 0)
+        if color is None:
+            pygame.draw.rect(vehicle_surface, cls.get_color(v, transparent), rect, 0)
+        else:
+            pygame.draw.rect(vehicle_surface, color, rect, 0)
         pygame.draw.rect(vehicle_surface, cls.BLACK, rect, 1)
 
         # print lane change signaling
@@ -243,5 +247,5 @@ class VehicleGraphics(object):
         elif isinstance(vehicle, MDPVehicle):
             color = cls.EGO_COLOR
         if transparent:
-            color = (color[0], color[1], color[2], 30)
+            color = (color[0], color[1], color[2], 100)
         return color
