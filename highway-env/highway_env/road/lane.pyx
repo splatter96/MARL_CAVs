@@ -4,22 +4,18 @@ import numpy as np
 
 from highway_env import utils
 from highway_env.types import Vector
-# from highway_env.utils import wrap_to_pi
+from highway_env.utils import wrap_to_pi
 
-DEFAULT_WIDTH = 4
-VEHICLE_LENGTH = 5
 
-# cdef class AbstractLane(object):
 class AbstractLane(object):
 
     """A lane on the road, described by its central curve."""
 
-    # def __cinit__(self):
-    # # metaclass__ = ABCMeta
-        # self.DEFAULT_WIDTH = 4
-        # self.VEHICLE_LENGTH = 5
-        # self.length = 0
-    # # line_types: Tuple["LineType"]
+    metaclass__ = ABCMeta
+    DEFAULT_WIDTH: float = 4
+    VEHICLE_LENGTH: float = 5
+    length: float = 0
+    line_types: Tuple["LineType"]
 
     @abstractmethod
     def position(self, longitudinal: float, lateral: float) -> np.ndarray:
@@ -62,7 +58,6 @@ class AbstractLane(object):
         """
         raise NotImplementedError()
 
-    # @profile
     def on_lane(self, position: np.ndarray, longitudinal: float = None, lateral: float = None, margin: float = 0) \
             -> bool:
         """
@@ -77,7 +72,7 @@ class AbstractLane(object):
         if longitudinal is None or lateral is None:
             longitudinal, lateral = self.local_coordinates(position)
         is_on = abs(lateral) <= self.width_at(longitudinal) / 2 + margin and \
-            -VEHICLE_LENGTH <= longitudinal < self.length + VEHICLE_LENGTH
+            -self.VEHICLE_LENGTH <= longitudinal < self.length + self.VEHICLE_LENGTH
         return is_on
 
     def is_reachable_from(self, position: np.ndarray) -> bool:
@@ -91,41 +86,23 @@ class AbstractLane(object):
             return False
         longitudinal, lateral = self.local_coordinates(position)
         is_close = np.abs(lateral) <= 2 * self.width_at(longitudinal) and \
-            0 <= longitudinal < self.length + VEHICLE_LENGTH
+            0 <= longitudinal < self.length + self.VEHICLE_LENGTH
         return is_close
 
-    def after_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None, vehicle_length: float = 5) -> bool:
+    def after_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None) -> bool:
         if not longitudinal:
             longitudinal, _ = self.local_coordinates(position)
-        return longitudinal > self.length - vehicle_length
-        # return longitudinal > self.length - (10 + VEHICLE_LENGTH / 2)
-
-    def distance_to_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None) -> bool:
-        """Compute distance from position to the end of the lane"""
-        if not longitudinal:
-            longitudinal, _ = self.local_coordinates(position)
-        return self.length - longitudinal
+        return longitudinal > self.length - (10 + self.VEHICLE_LENGTH / 2)
 
     def distance(self, position: np.ndarray):
         """Compute the L1 distance [m] from a position to the lane."""
         s, r = self.local_coordinates(position)
         return abs(r) + max(s - self.length, 0) + max(0 - s, 0)
 
-    def distance_between_points(self, position1: np.ndarray, position2: np.ndarray):
-        """Compute the lane distance between two points on the lane"""
-        return self.local_coordinates(position2)[0] - self.local_coordinates(position1)[0]
-
-    # @profile
-    # cpdef float distance_with_heading(self, position: np.ndarray, heading: Optional[float]):
-    def distance_with_heading(self, position: np.ndarray, heading: Optional[float]):
+    def distance_with_heading(self, position: np.ndarray, heading: Optional[float], heading_weight: float = 1.0):
         """Compute a weighted distance in position and heading to the lane."""
         # if heading is None:
             # return self.distance(position)
-        # s, r = self.local_coordinates(position)
-        # # angle = abs(wrap_to_pi(heading - self.heading_at(s)))
-        # return abs(r) + max(s - self.length, 0) + max(0 - s, 0) #+ heading_weight*angle
-
-        # print("called distance with heading on abstract lane")
 
         cdef float s, r, length
         coords = self.local_coordinates(position)
@@ -151,7 +128,7 @@ class StraightLane(AbstractLane):
     def __init__(self,
                  start: Vector,
                  end: Vector,
-                 width: float = DEFAULT_WIDTH,
+                 width: float = AbstractLane.DEFAULT_WIDTH,
                  line_types: Tuple[LineType, LineType] = None,
                  forbidden: bool = False,
                  speed_limit: float = 20,
@@ -178,8 +155,6 @@ class StraightLane(AbstractLane):
         self.priority = priority
         self.speed_limit = speed_limit
 
-        # print(f"{self.direction=} {self.direction_lateral=}")
-
     def position(self, longitudinal: float, lateral: float) -> np.ndarray:
         return self.start + longitudinal * self.direction + lateral * self.direction_lateral
 
@@ -189,7 +164,6 @@ class StraightLane(AbstractLane):
     def width_at(self, longitudinal: float) -> float:
         return self.width
 
-    # @profile
     def local_coordinates(self, position: np.ndarray) -> Tuple[float, float]:
         delta = position - self.start
         _dir = self.direction
@@ -206,9 +180,6 @@ class StraightLane(AbstractLane):
         longitudinal = dx * dir_x + dy * dir_y
         lateral  = dx * dir_lat_x + dy * dir_lat_y
 
-        # longitudinal = np.dot(delta, self.direction)
-        # lateral = np.dot(delta, self.direction_lateral)
-        # print(f"{self.__class__.__name__}{longitudinal=}{lateral=}")
         return longitudinal, lateral
 
 class HorizontalLane(StraightLane):
@@ -217,7 +188,7 @@ class HorizontalLane(StraightLane):
     def __init__(self,
                  start: Vector,
                  end: Vector,
-                 width: float = DEFAULT_WIDTH,
+                 width: float = AbstractLane.DEFAULT_WIDTH,
                  line_types: Tuple[LineType, LineType] = None,
                  forbidden: bool = False,
                  speed_limit: float = 20,
@@ -227,53 +198,24 @@ class HorizontalLane(StraightLane):
         assert(start[1] == end[1])
         super().__init__(start, end,  width, line_types, forbidden, speed_limit, priority)
 
-        # self.cos_heading = np.cos(self.heading)
-        # self.sin_heading = np.sin(self.heading)
-
         self.vec = self.end - self.start
         self.norm_vec = np.linalg.norm(self.vec)
 
-
-    # @profile
     def local_coordinates(self, position: np.ndarray) -> Tuple[float, float]:
         return position[0] - self.start[0], position[1] - self.start[1]
 
-    # @profile
-    def distance_with_heading(self, position: np.ndarray, heading: Optional[float]):
+    def distance_with_heading(self, position: np.ndarray, heading: Optional[float], heading_weight: float = 1.0):
         """Compute a weighted distance in position and heading to the lane."""
         # if heading is None:
             # return self.distance(position)
         cdef float s, r, length
-        # s, r = self.local_coordinates(position)
-        # angle = abs(wrap_to_pi(heading))
-
-        # print("called distance with heading on horizontal lane")
 
         d = position - self.start
         s = d[0]
         r = d[1]
         length = self.length
 
-        # return abs(r) + max(s - self.length, 0) + max(-s, 0) #+ heading_weight*angle
         return abs(r) + max(s - length, 0) + max(-s, 0) #+ heading_weight*angle
-
-        ## Version only works for infinite lines, not line segments :(
-        # a = self.vec
-        # b = position-self.start
-        # # fast hacky cross product
-        # c = a[0]*b[1] - a[1]*b[0]
-
-        # # return np.cross(self.vec, position-self.start) / self.norm_vec
-        # return c / self.norm_vec
-
-        # Version 3
-        # d = position - self.start
-        # return np.abs(d[1]) + np.max([-d[0], d[0] - self.norm_vec])
-        # return 0
-        # return d[1] + np.max([-d[0], d[0] - self.norm_vec])
-        # return np.sum([np.abs(d[1]),  np.max([-d[0], d[0] - self.norm_vec])])
-
-
 
 class SineLane(StraightLane):
 
@@ -285,7 +227,7 @@ class SineLane(StraightLane):
                  amplitude: float,
                  pulsation: float,
                  phase: float,
-                 width: float = DEFAULT_WIDTH,
+                 width: float = StraightLane.DEFAULT_WIDTH,
                  line_types: Tuple[LineType] = None,
                  forbidden: bool = False,
                  speed_limit: float = 20,
@@ -327,7 +269,7 @@ class CircularLane(AbstractLane):
                  start_phase: float,
                  end_phase: float,
                  clockwise: bool = True,
-                 width: float = DEFAULT_WIDTH,
+                 width: float = AbstractLane.DEFAULT_WIDTH,
                  line_types: Tuple[LineType] = None,
                  forbidden: bool = False,
                  speed_limit: float = 20,
@@ -365,41 +307,3 @@ class CircularLane(AbstractLane):
         longitudinal = self.direction*(phi - self.start_phase)*self.radius
         lateral = self.direction*(self.radius - r)
         return longitudinal, lateral
-
-    def distance_between_points(self, position1: np.ndarray, position2: np.ndarray):
-        delta1 = position1 - self.center
-        phi1 = np.arctan2(delta1[1], delta1[0])
-
-        delta2 = position2 - self.center
-        phi2 = np.arctan2(delta2[1], delta2[0])
-
-        phi = utils.wrap_to_pi(phi2 - phi1)
-
-        return self.radius * phi
-
-    def distance_to_end(self, position: np.ndarray, longitudinal: np.float64 = None, lateral: float = None) -> bool:
-        """Compute distance from position to the end of the lane"""
-        delta = position - self.center
-        phi = np.arctan2(delta[1], delta[0])
-
-        phi = utils.wrap_to_pi(self.end_phase - phi)
-
-        return self.radius * phi
-
-    def distance_with_heading(self, position: np.ndarray, heading: Optional[float]):
-        delta = position - self.center
-        phi = np.arctan2(delta[1], delta[0])
-
-        in_range = (phi-self.start_phase) % (2*np.pi) <= (self.end_phase - self.start_phase) % (2*np.pi)
-        # print(f"{in_range=}")
-        if in_range:
-            val = abs(np.linalg.norm(delta) - self.radius)
-            # print("on lane")
-            return val
-        else:
-            start = self.position(0, 0)
-            end = self.position(self.length, 0)
-            val =  min(np.linalg.norm(position - start), np.linalg.norm(position-end))
-            # print("not on lane")
-            return val
-
