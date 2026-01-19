@@ -2,8 +2,6 @@ import gymnasium as gym
 import sys
 import numpy as np
 import warnings
-import argparse
-import json
 from distutils.dir_util import copy_tree
 from shutil import copy
 from datetime import datetime
@@ -68,7 +66,7 @@ def init_folder(cfg):
 
     # copy all files to the results that have influence on it
     copy_tree("../highway-env", dirs["configs"])
-    copy("configs/configs_sacd.json", dirs["configs"])
+    copy("configs/configs_sacd.yml", dirs["configs"])
     copy(__file__, dirs["configs"])
     with open(dirs["configs"] + "args", "w") as f:
         for arg in sys.argv:
@@ -155,7 +153,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
 
     config = omegaconf.OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
 
-    env = make_vec_env("merge-single-agent-v0", n_envs=1, vec_env_cls=SubprocVecEnv)
+    env = make_vec_env("merge-single-agent-v0", n_envs=32, vec_env_cls=SubprocVecEnv)
     old_config = env.get_attr("config")[0]
     old_config.update(config["env"])
     env.env_method("set_config", old_config)
@@ -220,7 +218,7 @@ def main(cfg: "DictConfig"):  # noqa: F821
 
         model.learn(
             int(5e5),
-            tb_log_name=cfg.exp_tag + f"_seed_{cfg.seed}",
+            tb_log_name=cfg.logging.exp_tag + f"_seed_{cfg.seed}",
             reset_num_timesteps=False,
             callback=callback_list,
         )
@@ -230,12 +228,12 @@ def main(cfg: "DictConfig"):  # noqa: F821
 
         model.learn(
             int(10e5),
-            tb_log_name=cfg.exp_tag + f"_seed_{cfg.seed}",
+            tb_log_name=cfg.logging.exp_tag + f"_seed_{cfg.seed}",
             reset_num_timesteps=False,
             callback=callback_list,
         )
 
-    model.save(dirs["models"] + f"/model_{cfg.exp_tag}_seed_{cfg.seed}")
+    model.save(dirs["models"] + f"/model_{cfg.logging.exp_tag}_seed_{cfg.seed}")
 
     wandb_run.finish()
 
