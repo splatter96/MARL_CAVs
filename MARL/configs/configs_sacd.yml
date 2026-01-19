@@ -1,0 +1,35 @@
+# needed to not change the cwd but stay in current folder
+hydra:
+  job:
+    chdir: False
+
+curriculum: true
+seed: 42
+
+env:
+  use_weaving: True
+  duration: 15
+  policy_frequency: 5
+  reward_speed_range: [10, 30]
+  collision_reward: 200
+  high_speed_reward: 1
+  traffic_density: 3
+  offramp_reward: 100
+  LANE_CHANGE_COST: 1
+
+algo:
+  net_size: 256
+  learning_starts: 1000
+  buffer_size: 500000
+  learning_rate: 5e-4
+  train_freq: 8
+  gradient_steps: 64
+  max_grad_norm: 30
+  target_update_interval: 8000
+  batch_size: 256
+  gamma: 0.99
+  num_envs: 32
+
+logging:
+  exp_tag: rerun_original_correct_with_seed
+  wandb_project: weaving
