@@ -1,6 +1,6 @@
 [project]
 authors = [{name = "Paul Auerbach", email = "paul.auerbach@barkhauseninstitut.org"}]
-dependencies = ["gymnasium==0.28.1", "numpy==1.24.4", "pandas==1.4.0", "parso==0.8.4", "pygame==2.5.0", "pyparsing==3.1.4", "stable-baselines3==2.3.2", "torch==2.4.1", "tqdm==4.67.1", "sb3-contrib @ file:///home/paau122b/workspaces/walrus/paau122b-MARL_CAVS_ws/stable-baselines3-contrib", "tensorboard==2.13.0"]
+dependencies = ["gymnasium==0.28.1", "numpy==1.24.4", "pandas==1.4.0", "parso==0.8.4", "pygame==2.5.0", "pyparsing==3.1.4", "stable-baselines3==2.3.2", "torch==2.4.1", "tqdm==4.67.1", "sb3-contrib @ file:///home/corola/rl-ws/stable-baselines3-contrib", "tensorboard==2.13.0"]
 name = "MARL_CAVS_pixi"
 requires-python = "== 3.8.20"
 version = "0.1.0"
@@ -14,7 +14,7 @@ channels = ["conda-forge"]
 platforms = ["linux-64"]
 
 [tool.pixi.pypi-dependencies]
-#marl_cavs_pixi = { path = ".", editable = true }
+highway_env = { path = "highway-env", editable = true }
 
 [tool.pixi.tasks]
 
