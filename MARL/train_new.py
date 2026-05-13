@@ -66,7 +66,7 @@ def init_folder(cfg):
 
     # copy all files to the results that have influence on it
     copy_tree("../highway-env", dirs["configs"])
-    copy("configs/configs_sacd.yml", dirs["configs"])
+    copy("configs/configs_sacd.json", dirs["configs"])
     copy(__file__, dirs["configs"])
     with open(dirs["configs"] + "args", "w") as f:
         for arg in sys.argv:
