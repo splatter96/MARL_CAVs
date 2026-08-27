@@ -66,7 +66,7 @@ def init_folder(cfg):
 
     # copy all files to the results that have influence on it
     copy_tree("../highway-env", dirs["configs"])
-    copy("configs/configs_sacd.json", dirs["configs"])
+    copy("configs/configs_sacd.yml", dirs["configs"])
     copy(__file__, dirs["configs"])
     with open(dirs["configs"] + "args", "w") as f:
         for arg in sys.argv:
@@ -153,7 +153,8 @@ def main(cfg: "DictConfig"):  # noqa: F821
 
     config = omegaconf.OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
 
-    env = make_vec_env("merge-single-agent-v0", n_envs=32, vec_env_cls=SubprocVecEnv)
+    env = make_vec_env("merge-single-agent-v0", n_envs=32, vec_env_cls=SubprocVecEnv, seed=cfg.seed)
+    #env = make_vec_env("merge-single-agent-v0", n_envs=16, vec_env_cls=SubprocVecEnv, sedd=cfg.seed)
     old_config = env.get_attr("config")[0]
     old_config.update(config["env"])
     env.env_method("set_config", old_config)
@@ -178,9 +179,11 @@ def main(cfg: "DictConfig"):  # noqa: F821
         max_grad_norm=cfg.algo.max_grad_norm,
         target_update_interval=cfg.algo.target_update_interval,
         batch_size=cfg.algo.batch_size,
+        target_entropy=cfg.algo.target_entropy,
+        ent_coef=cfg.algo.ent_coef,
         seed=cfg.seed,
         gamma=0.99,
-        verbose=1,
+        #verbose=1,
         tensorboard_log=dirs["logs"],
         # device=f"cuda:{args.gpu}",
     )

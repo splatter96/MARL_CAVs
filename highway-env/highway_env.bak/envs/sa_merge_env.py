@@ -29,7 +29,6 @@ class SingleAgentMergeEnv(AbstractEnv):
             {
                 "duration": 15,  # time step
                 "policy_frequency": 5,  # [Hz]
-                #"policy_frequency": 15,  # [Hz]
                 "reward_speed_range": [10, 30],
                 "collision_reward": 200,
                 "high_speed_reward": 1,
@@ -89,24 +88,22 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         # compute overall reward
         reward = (
-            self.config["collision_reward"] * (-1 * vehicle.crashed) 
-            + (self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1) )
-            + self.config["MERGING_LANE_COST"] * Merging_lane_cost 
-            + self.config["HEADWAY_COST"] * (Headway_cost  if Headway_cost < 0 else 0)
-            + Lane_change_cost 
-            + offramp_cost 
-        ) 
+            self.config["collision_reward"] * (-1 * vehicle.crashed)
+            + (self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1))
+            + self.config["MERGING_LANE_COST"] * Merging_lane_cost
+            + self.config["HEADWAY_COST"] * (Headway_cost if Headway_cost < 0 else 0)
+            + Lane_change_cost
+            + offramp_cost
+        )
         return reward
 
     def _is_terminal(self) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
-        crashes = [veh.crashed for veh in self.road.vehicles]
         return (
             self.vehicle.crashed
             or self.vehicle.position[0] > 370
             or self.vehicle.lane_index == ("c", "o", 0)
             or self.steps > 500
-            or any(crashes)
         )
 
     def _reset(self) -> None:
@@ -114,13 +111,13 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         if self.config["traffic_density"] == 1:
             # easy mode: 6-8 HDVs
-            num_HDV = self.np_random.choice(np.arange(6, 9), 1)[0]
+            num_HDV = np.random.choice(np.arange(6, 9), 1)[0]
         elif self.config["traffic_density"] == 2:
             # easy mode: 9-12 DVs
-            num_HDV = self.np_random.choice(np.arange(9, 13), 1)[0]
+            num_HDV = np.random.choice(np.arange(9, 13), 1)[0]
         elif self.config["traffic_density"] == 3:
             # easy mode: 13-15 HDVs
-            num_HDV = self.np_random.choice(np.arange(13, 16), 1)[0]
+            num_HDV = np.random.choice(np.arange(13, 16), 1)[0]
 
         self._make_vehicles(num_HDV)
         self.T = int(self.config["duration"] * self.config["policy_frequency"])
@@ -245,14 +242,14 @@ class SingleAgentMergeEnv(AbstractEnv):
         spawn_points_m_cav = [125, 165]
 
         # initial speed with noise and location noise
-        initial_speed = self.np_random.random(num_HDV + 1) * 8 + 22  # range from [22, 30]
-        loc_noise = self.np_random.random(num_HDV + 1) * 6 - 3  # range from [-1.5, 1.5]
+        initial_speed = np.random.rand(num_HDV + 1) * 8 + 22  # range from [22, 30]
+        loc_noise = np.random.rand(num_HDV + 1) * 6 - 3  # range from [-1.5, 1.5]
         initial_speed = list(initial_speed)
         loc_noise = list(loc_noise)
 
         """Spawn points for CAV"""
         # spawn point indexes on the merging road
-        spawn_point_m_c = self.np_random.choice(spawn_points_m_cav, 1, replace=False)
+        spawn_point_m_c = np.random.choice(spawn_points_m_cav, 1, replace=False)
         spawn_point_m_c = list(spawn_point_m_c)
         for c in spawn_point_m_c:
             spawn_points_m.remove(c)
@@ -271,14 +268,14 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         """Spawn points for HDV"""
         # spawn point indexes on the straight road
-        spawn_point_s_h1 = self.np_random.choice(
+        spawn_point_s_h1 = np.random.choice(
             spawn_points_s1, num_HDV // 3, replace=False
         )
-        spawn_point_s_h2 = self.np_random.choice(
+        spawn_point_s_h2 = np.random.choice(
             spawn_points_s2, num_HDV // 3, replace=False
         )
         # spawn point indexes on the merging road
-        spawn_point_m_h = self.np_random.choice(
+        spawn_point_m_h = np.random.choice(
             spawn_points_m, num_HDV - 2 * num_HDV // 3, replace=False
         )
         spawn_point_s_h1 = list(spawn_point_s_h1)
@@ -288,7 +285,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         right_bias = 8.0
         offramp_percentage = 0.3
         biases = list(
-            self.np_random.choice(
+            np.random.choice(
                 [-right_bias, right_bias],
                 num_HDV,
                 p=[1 - offramp_percentage, offramp_percentage],

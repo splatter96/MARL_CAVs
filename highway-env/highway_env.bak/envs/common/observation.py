@@ -143,25 +143,20 @@ class KinematicObservation(ObservationType):
         clip: bool = False,
         see_behind: bool = True,
         observe_intentions: bool = False,
-        weave_start_x: float = 230.0,
-        weave_end_x: float = 310.0,
         **kwargs: dict,
     ) -> None:
         """
         :param env: The environment to observe
         :param features: Names of features used in the observation
         :param vehicles_count: Number of observed vehicles
-        :param absolute: Use absolute coordinates for surrounding vehicles
+        :param absolute: Use absolute coordinates
         :param order: Order of observed vehicles. Values: sorted, shuffled
         :param normalize: Should the observation be normalized
         :param clip: Should the value be clipped in the desired range
-        :param see_behind: Should the observation contain vehicles behind
-        :param observe_intentions: Observe destinations of other vehicles
-        :param weave_start_x: Longitudinal start of the weaving section
-        :param weave_end_x: Longitudinal end of the weaving section
+        :param see_behind: Should the observation contains the vehicles behind
+        :param observe_intentions: Observe the destinations of other vehicles
         """
         super().__init__(env)
-
         self.features = features or self.FEATURES
         self.vehicles_count = vehicles_count
         self.features_range = features_range
@@ -171,14 +166,6 @@ class KinematicObservation(ObservationType):
         self.clip = clip
         self.see_behind = see_behind
         self.observe_intentions = observe_intentions
-
-        self.weave_start_x = float(weave_start_x)
-        self.weave_end_x = float(weave_end_x)
-
-        if self.weave_end_x <= self.weave_start_x:
-            raise ValueError(
-                "weave_end_x must be greater than weave_start_x"
-            )
 
     def space(self) -> spaces.Space:
         return spaces.Box(
@@ -208,26 +195,80 @@ class KinematicObservation(ObservationType):
                         ],
                         [-1, 1],
                     )
+                    # veh[feature] = np.interp(veh[feature], [self.features_range[feature][0], self.features_range[feature][1]], [-1, 1])
 
         return data
 
-    def _weave_progress(self) -> float:
+    def normalize_obs(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculate normalized progress through the weaving section.
+        Normalize the observation values.
 
-        0 -> start of weaving section
-        1 -> end of weaving section
-
-        Values outside the weaving section are clipped.
+        For now, assume that the road is straight along the x axis.
+        :param Dataframe df: observation data
         """
-        x = float(self.observer_vehicle.position[0])
+        if not self.features_range:
+            # side_lanes = self.env.road.network.all_side_lanes(self.observer_vehicle.lane_index)
+            # self.features_range = {
+            #     "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+            #     "y": [-AbstractLane.DEFAULT_WIDTH * len(side_lanes), AbstractLane.DEFAULT_WIDTH * len(side_lanes)],
+            #     "vx": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX],
+            #     "vy": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX]
+            # }
+            self.features_range = {
+                "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+                "y": [-12, 12],
+                "vx": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
+                "vy": [-1.5 * MDPVehicle.SPEED_MAX, 1.5 * MDPVehicle.SPEED_MAX],
+            }
+        for feature, f_range in self.features_range.items():
+            if feature in df:
+                # df[feature] = utils.lmap(df[feature], [f_range[0], f_range[1]], [-1, 1])
+                df[feature] = np.interp(df[feature], [f_range[0], f_range[1]], [-1, 1])
+                if self.clip:
+                    df[feature] = np.clip(df[feature], -1, 1)
+        return df
 
-        progress = (
-            (x - self.weave_start_x)
-            / (self.weave_end_x - self.weave_start_x)
+    def observe_old(self) -> np.ndarray:
+        if not self.env.road:
+            return np.zeros(self.space().shape)
+
+        # Add ego-vehicle
+        df = pd.DataFrame.from_records([self.observer_vehicle.to_dict()])[self.features]
+        # Add nearby traffic
+        # sort = self.order == "sorted"
+        close_vehicles = self.env.road.close_vehicles_to(
+            self.observer_vehicle,
+            self.env.PERCEPTION_DISTANCE,
+            count=self.vehicles_count - 1,
+            see_behind=self.see_behind,
         )
-
-        return float(np.clip(progress, 0.0, 1.0))
+        if close_vehicles:
+            origin = self.observer_vehicle if not self.absolute else None
+            df = df.append(
+                pd.DataFrame.from_records(
+                    [
+                        v.to_dict(origin, observe_intentions=self.observe_intentions)
+                        for v in close_vehicles[-self.vehicles_count + 1 :]
+                    ]
+                )[self.features],
+                ignore_index=True,
+            )
+        # Normalize and clip
+        if self.normalize:
+            df = self.normalize_obs(df)
+        # Fill missing rows
+        if df.shape[0] < self.vehicles_count:
+            rows = np.zeros((self.vehicles_count - df.shape[0], len(self.features)))
+            df = df.append(
+                pd.DataFrame(data=rows, columns=self.features), ignore_index=True
+            )
+        # Reorder
+        df = df[self.features]
+        obs = df.values.copy()
+        if self.order == "shuffled":
+            self.env.np_random.shuffle(obs[1:])
+        # Flatten
+        return obs.astype(self.space().dtype)
 
     def observe(self) -> np.ndarray:
         if not self.env.road:
@@ -241,7 +282,6 @@ class KinematicObservation(ObservationType):
             see_behind=self.see_behind,
         )
         obs_list = []
-
 
         # Add ego-vehicle
         obs = self.observer_vehicle.to_dict()
@@ -265,23 +305,6 @@ class KinematicObservation(ObservationType):
         if self.normalize:
             obs_list = self.normalize_obs2(obs_list)
 
-        # --------------------------------------------------------------
-        # Replace ONLY the ego x position with weaving progress.
-        #
-        # This is intentionally done AFTER normalization so that:
-        #
-        # - surrounding vehicle relative x values are unchanged
-        # - ego y, vx and vy are unchanged
-        # - all normalization behavior remains unchanged
-        # - p_weave is directly represented in [0, 1]
-        # --------------------------------------------------------------
-
-        if "x" in self.features:
-            obs_list[0]["x"] = self._weave_progress()
-
-        #print(f"obs_list: {obs_list}")
-
-
         # Fill missing rows
         if len(obs_list) < self.vehicles_count:
             empty_row = {k: 0 for k in self.features}
@@ -292,408 +315,6 @@ class KinematicObservation(ObservationType):
         res = [[item.get(key, "") for key in self.features] for item in obs_list]
 
         return res
-
-# class KinematicObservation(ObservationType):
-#     """
-#     Semantic weaving observation.
-
-#     Observation shape: (7, 5)
-
-#     Row 0 (ego):
-#         [p_weave, Lleft, Lright, vx, vy]
-
-#     Rows 1-6 (surrounding vehicles):
-#         [presence, relative_x, relative_y, relative_vx, relative_vy]
-
-#     Surrounding-vehicle row order:
-#         1: front vehicle in current lane
-#         2: rear vehicle in current lane
-#         3: front vehicle in left lane
-#         4: rear vehicle in left lane
-#         5: front vehicle in right lane
-#         6: rear vehicle in right lane
-
-#     Lane convention follows highway-env:
-#         lane_id - 1 -> left lane
-#         lane_id + 1 -> right lane
-#     """
-
-#     FEATURES: List[str] = ["presence", "x", "y", "vx", "vy"]
-#     VEHICLES_COUNT = 7
-
-#     def __init__(
-#         self,
-#         env: "AbstractEnv",
-#         features: List[str] = None,
-#         vehicles_count: int = 7,
-#         features_range: Dict[str, List[float]] = None,
-#         absolute: bool = False,
-#         order: str = "sorted",
-#         normalize: bool = True,
-#         clip: bool = False,
-#         see_behind: bool = True,
-#         observe_intentions: bool = False,
-#         weave_start_x: float = 230.0,
-#         weave_end_x: float = 310.0,
-#         **kwargs: dict,
-#     ) -> None:
-#         super().__init__(env)
-
-#         # The observation layout is fixed to:
-#         # 1 ego vehicle + 6 semantically selected surrounding vehicles.
-#         #
-#         # The arguments features, vehicles_count, absolute, order and
-#         # see_behind are retained for compatibility with existing
-#         # highway-env configuration dictionaries.
-#         self.features = self.FEATURES
-#         self.vehicles_count = self.VEHICLES_COUNT
-
-#         self.features_range = (
-#             dict(features_range) if features_range is not None else None
-#         )
-
-#         self.absolute = absolute
-#         self.order = order
-#         self.normalize = normalize
-#         self.clip = clip
-#         self.see_behind = see_behind
-#         self.observe_intentions = observe_intentions
-
-#         self.weave_start_x = float(weave_start_x)
-#         self.weave_end_x = float(weave_end_x)
-
-#         if self.weave_end_x <= self.weave_start_x:
-#             raise ValueError(
-#                 "weave_end_x must be larger than weave_start_x"
-#             )
-
-#     def space(self) -> spaces.Space:
-#         return spaces.Box(
-#             shape=(self.VEHICLES_COUNT, len(self.FEATURES)),
-#             low=-1,
-#             high=1,
-#             dtype=np.float32,
-#         )
-
-#     def _ensure_features_range(self) -> None:
-#         if self.features_range is None:
-#             self.features_range = {}
-
-#         self.features_range.setdefault(
-#             "x",
-#             [
-#                 -5.0 * MDPVehicle.SPEED_MAX,
-#                 5.0 * MDPVehicle.SPEED_MAX,
-#             ],
-#         )
-
-#         self.features_range.setdefault(
-#             "y",
-#             [-12.0, 12.0],
-#         )
-
-#         self.features_range.setdefault(
-#             "vx",
-#             [
-#                 -1.5 * MDPVehicle.SPEED_MAX,
-#                 1.5 * MDPVehicle.SPEED_MAX,
-#             ],
-#         )
-
-#         self.features_range.setdefault(
-#             "vy",
-#             [
-#                 -1.5 * MDPVehicle.SPEED_MAX,
-#                 1.5 * MDPVehicle.SPEED_MAX,
-#             ],
-#         )
-
-#     def _normalize_value(
-#         self,
-#         value: float,
-#         feature: str,
-#     ) -> float:
-#         self._ensure_features_range()
-
-#         value = utils.lmap(
-#             value,
-#             self.features_range[feature],
-#             [-1, 1],
-#         )
-
-#         if self.clip:
-#             value = np.clip(value, -1, 1)
-
-#         return float(value)
-
-#     def _weave_progress(self) -> float:
-#         """
-#         Return normalized ego progress through the weaving section.
-
-#         p_weave = 0 at weave_start_x
-#         p_weave = 1 at weave_end_x
-
-#         Values before/after the weaving section are clipped to [0, 1].
-#         """
-#         x = float(self.observer_vehicle.position[0])
-
-#         progress = (
-#             (x - self.weave_start_x)
-#             / (self.weave_end_x - self.weave_start_x)
-#         )
-
-#         return float(np.clip(progress, 0.0, 1.0))
-
-#     def _adjacent_lane_indices(self):
-#         """
-#         Return the lane indices directly to the left and right of ego.
-
-#         highway-env uses decreasing lane IDs for moving left and
-#         increasing lane IDs for moving right.
-#         """
-#         current = self.observer_vehicle.lane_index
-
-#         if current is None:
-#             return None, None
-
-#         side_lanes = set(
-#             self.env.road.network.all_side_lanes(current)
-#         )
-
-#         _from, _to, lane_id = current
-
-#         left_lane = (_from, _to, lane_id - 1)
-#         right_lane = (_from, _to, lane_id + 1)
-
-#         if left_lane not in side_lanes:
-#             left_lane = None
-
-#         if right_lane not in side_lanes:
-#             right_lane = None
-
-#         return left_lane, right_lane
-
-#     def _front_rear_in_lane(self, lane_index):
-#         """
-#         Find the closest front and rear vehicles in a specified lane.
-
-#         The search is performed independently for every lane slot so that
-#         a relevant front/rear vehicle cannot be omitted just because six
-#         other vehicles happen to be geometrically closer.
-
-#         Only vehicles within PERCEPTION_DISTANCE are considered.
-#         """
-#         if lane_index is None:
-#             return None, None
-
-#         ego = self.observer_vehicle
-
-#         front_vehicle, rear_vehicle = self.env.road.surrounding_vehicles(ego, lane_index=lane_index)
-#         # front_vehicle, rear_vehicle = self.env.road.neighbour_vehicles(ego, lane_index=lane_index)
-
-#         # front_vehicle = None
-#         # rear_vehicle = None
-
-#         # closest_front_x = np.inf
-#         # closest_rear_x = -np.inf
-
-#         # for vehicle in self.env.road.vehicles:
-#         #     if vehicle is ego:
-#         #         continue
-
-#         #     if vehicle.lane_index != lane_index:
-#         #         continue
-
-#         #     distance = np.linalg.norm(
-#         #         vehicle.position - ego.position
-#         #     )
-
-#         #     if distance > self.env.PERCEPTION_DISTANCE:
-#         #         continue
-
-#         #     relative = vehicle.to_dict(
-#         #         ego,
-#         #         observe_intentions=self.observe_intentions,
-#         #     )
-
-#         #     dx = float(relative["x"])
-
-#         #     # Vehicle in front
-#         #     if dx >= 0.0:
-#         #         if dx < closest_front_x:
-#         #             closest_front_x = dx
-#         #             front_vehicle = vehicle
-
-#         #     # Vehicle behind
-#         #     else:
-#         #         if dx > closest_rear_x:
-#         #             closest_rear_x = dx
-#         #             rear_vehicle = vehicle
-
-#         return front_vehicle, rear_vehicle
-
-#     def _vehicle_row(self, vehicle) -> np.ndarray:
-#         """
-#         Create one surrounding-vehicle observation:
-
-#         [
-#             presence,
-#             relative_x,
-#             relative_y,
-#             relative_vx,
-#             relative_vy,
-#         ]
-#         """
-#         if vehicle is None:
-#             return np.zeros(
-#                 len(self.FEATURES),
-#                 dtype=np.float32,
-#             )
-
-#         data = vehicle.to_dict(
-#             self.observer_vehicle,
-#             observe_intentions=self.observe_intentions,
-#         )
-
-#         row = np.array(
-#             [
-#                 1.0,
-#                 float(data["x"]),
-#                 float(data["y"]),
-#                 float(data["vx"]),
-#                 float(data["vy"]),
-#             ],
-#             dtype=np.float32,
-#         )
-
-#         if self.normalize:
-#             row[1] = self._normalize_value(
-#                 row[1],
-#                 "x",
-#             )
-#             row[2] = self._normalize_value(
-#                 row[2],
-#                 "y",
-#             )
-#             row[3] = self._normalize_value(
-#                 row[3],
-#                 "vx",
-#             )
-#             row[4] = self._normalize_value(
-#                 row[4],
-#                 "vy",
-#             )
-
-#         return row
-
-#     def observe(self) -> np.ndarray:
-#         if not self.env.road:
-#             return np.zeros(
-#                 self.space().shape,
-#                 dtype=np.float32,
-#             )
-
-#         ego = self.observer_vehicle
-
-#         current_lane = ego.lane_index
-#         left_lane, right_lane = (
-#             self._adjacent_lane_indices()
-#         )
-
-#         # --------------------------------------------------------------
-#         # Ego observation
-#         # --------------------------------------------------------------
-
-#         ego_dict = ego.to_dict()
-
-#         ego_vx = float(ego_dict["vx"])
-#         ego_vy = float(ego_dict["vy"])
-
-#         if self.normalize:
-#             ego_vx = self._normalize_value(
-#                 ego_vx,
-#                 "vx",
-#             )
-#             ego_vy = self._normalize_value(
-#                 ego_vy,
-#                 "vy",
-#             )
-
-#         ego_row = np.array(
-#             [
-#                 self._weave_progress(),
-#                 1.0 if left_lane is not None else 0.0,
-#                 1.0 if right_lane is not None else 0.0,
-#                 ego_vx,
-#                 ego_vy,
-#             ],
-#             dtype=np.float32,
-#         )
-
-#         # --------------------------------------------------------------
-#         # Current lane
-#         # --------------------------------------------------------------
-
-#         front_current, rear_current = (
-#             self._front_rear_in_lane(
-#                 current_lane
-#             )
-#         )
-
-#         # --------------------------------------------------------------
-#         # Left lane
-#         # --------------------------------------------------------------
-
-#         front_left, rear_left = (
-#             self._front_rear_in_lane(
-#                 left_lane
-#             )
-#         )
-
-#         # --------------------------------------------------------------
-#         # Right lane
-#         # --------------------------------------------------------------
-
-#         front_right, rear_right = (
-#             self._front_rear_in_lane(
-#                 right_lane
-#             )
-#         )
-
-#         # --------------------------------------------------------------
-#         # Assemble observation
-#         #
-#         # Row 0: ego
-#         # Row 1: front current
-#         # Row 2: rear current
-#         # Row 3: front left
-#         # Row 4: rear left
-#         # Row 5: front right
-#         # Row 6: rear right
-#         # --------------------------------------------------------------
-
-#         #print(ego_row)
-#         # print(self._vehicle_row(front_current))
-#         print(f"Front left: {front_left}")
-#         print(f"Rear left: {rear_left}")
-#         print(f"Front current: {front_current}")
-#         print(f"Front left row: {self._vehicle_row(front_left)}")
-#         print(f"Rear left row: {self._vehicle_row(front_left)}")
-#         # print(front_current)
-
-#         observation = np.vstack(
-#             [
-#                 ego_row,
-#                 self._vehicle_row(front_current),
-#                 self._vehicle_row(rear_current),
-#                 self._vehicle_row(front_left),
-#                 self._vehicle_row(rear_left),
-#                 self._vehicle_row(front_right),
-#                 self._vehicle_row(rear_right),
-#             ]
-#         )
-
-#         return observation.astype(np.float32)
 
 
 class OccupancyGridObservation(ObservationType):
