@@ -304,9 +304,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             # or self.vehicle.position[0] > 370
             or self.vehicle.position[0] > 310
             or self.vehicle.lane_index == ("c", "o", 0)
-            # or self.vehicle.lane_index == ("b", "c", 1)
-            # or self.steps > 500
-            # or any(crashes)
+            or self.steps > 500
         )
 
     def _reset(self) -> None:

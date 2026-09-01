@@ -1,0 +1,13 @@
+[project]
+authors = [{name = "Paul Auerbach", email = "paul.auerbach@barkhauseninstitut.org"}]
+name = "highway-env"
+requires-python = ">= 3.8"
+version = "0.1.0"
+
+[build-system]
+requires = ['setuptools', 'wheel', 'Cython', 'numpy']
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+highway_env = ["*.pyx"]
+

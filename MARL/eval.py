@@ -14,8 +14,8 @@ warnings.filterwarnings("ignore")
 import matplotlib.cm as cm
 import matplotlib as mpl
 
-sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
-sys.path.remove("/home/paul/Documents/PhD/RL/highway_env_commonroad/highway-env")
+#sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
+#sys.path.remove("/home/paul/Documents/PhD/RL/highway_env_commonroad/highway-env")
 
 sys.path.append("../highway-env")
 import highway_env
@@ -33,6 +33,13 @@ def parse_args():
         required=False,
         default=3,
         help="difficulty setting to which the environment is to be set",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        default=42,
+        help="Random seed for the model",
     )
     parser.add_argument(
         "--traj-dir",
@@ -150,24 +157,29 @@ def display_action(action_surface, sim_surface):
 def eval_policy(args):
     env = gym.make("merge-single-agent-v0")
 
-    env.config["screen_height"] = 300
-    env.config["screen_width"] = 2800
-    env.config["safety_guarantee"] = False
-    env.config["traffic_density"] = args.difficulty
+    config = {}
+    config["screen_height"] = 300
+    config["screen_width"] = 2800
+    config["safety_guarantee"] = False
+    config["traffic_density"] = args.difficulty
 
     if args.merging:
-        env.config["use_weaving"] = False
+        config["use_weaving"] = False
 
     if args.mobil:
-        env.config["action"] = {"type": "IDM"}
-        env.config["action_masking"] = False
+        config["action"] = {"type": "IDM"}
+        config["action_masking"] = False
+
+    env = gym.make("merge-single-agent-v0", config=config)
 
     if not args.mobil:
         model = SACD.load(args.model)
-        model.set_random_seed(21)
-        # model.set_random_seed(32)
+        # model.set_random_seed(21)
+        model.set_random_seed(args.seed)
 
-    num_tries = args.num_runs
+    # Number of successful crashes we aim for
+    target_crashes = args.num_runs
+
     crashes = 0
     other_crashes = 0
     speed = 0
@@ -179,11 +191,15 @@ def eval_policy(args):
     if args.traj_dir != "" and not os.path.exists(args.traj_dir):
         os.mkdir(args.traj_dir)
 
-    j = 0
-    t = tqdm(range(num_tries))
+    j = 0  # episode counter
+    # Use tqdm without a predefined total; we update it each episode.
+    t = tqdm(desc="Evaluation episodes", total=target_crashes)
     start = time.time()
 
-    for i in t:
+    action_map = ["LANE_LEFT", "IDLE", "LANE_RIGHT", "FASTER", "SLOWER"]
+
+    # Run episodes until we have observed ``target_crashes`` crashes.
+    while crashes < target_crashes:
         done = truncated = False
         obs, info = env.reset()
         # set the envviewr in the env
@@ -198,12 +214,15 @@ def eval_policy(args):
             env.road.vehicles = load_veh
             env.set_vehicle(env.road.vehicles[0])
 
-        ret = 0
+        # ret = 0
+        # position_list = []
+        # action_buffer = []
+        # initialise per‑episode storage for trajectory positions if needed
         position_list = []
-        action_buffer = []
         while not (done or truncated):
             if not args.mobil:
                 action, _states = model.predict(obs, deterministic=True)
+                # print(action_map[action])
                 # t_obs = torch.tensor(obs)
                 # t_obs = t_obs[None, :]
                 # action_prob, action_log_prob = model.policy.actor.action_log_prob(t_obs)
@@ -213,12 +232,12 @@ def eval_policy(args):
             else:
                 action = None
             obs, reward, done, truncated, info = env.step(action)
-            ret += reward
+            # ret += reward
 
-            global last_observation
-            last_observation = obs
-            global last_info
-            last_info = info
+            # global last_observation
+            # last_observation = obs
+            # global last_info
+            # last_info = info
 
             speed += info["average_speed"]
             road_speed += info["average_road_speed"]
@@ -234,20 +253,30 @@ def eval_policy(args):
 
             # also end the episode when another vehicle crashed
             if info["other_crashes"] and not info["crashed"]:
-                skip_run = True
+                break
+            #     skip_run = True
 
-        # only save trajectories if we didn't load any in the first place
-        # if args.initial_pos == '':
-        # np.save(f"initial_pos_{i}.npy", env.road.initial_vehicles)
+            #for v in env.unwrapped.road.vehicles:
+                #if v.id == 6:
+                    #print(f"Front: {v.speed}")
+                #elif v.id==0:
+                    #print(f"Ego: {v.speed}")
 
         # if skip_run:
         #     continue
 
         if info["other_crashes"] and not info["crashed"]:
             other_crashes += 1
+            print("other crashes")
+            #if args.initial_pos == "":
+                #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
 
         if info["crashed"]:
+            t.update(1)
             crashes += 1
+            # only save trajectories if we didn't load any in the first place
+            #if args.initial_pos == "":
+                #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
             # np.save(f"action_before_crash_{j}.npy", action_buffer)
         # else:
         # np.save(f"action_without_crash_{j}.npy", action_buffer)
@@ -257,18 +286,17 @@ def eval_policy(args):
 
         j += 1
 
-        # if args.traj_dir != '':
-        # np.save(f"{args.traj_dir}/pos_{i}.npy", np.array(position_list))
-
+        # Update the progress description with current statistics.
+        # Guard against division by zero – j is always >=1 here.
         t.set_description(
-            f"Crashrate {crashes/(j+1)} Mergerate {sucessfull_merges/(j+1)} other_crashes {other_crashes/(j+1)}"
+            f"Crashrate {crashes/j:.3f} Mergerate {sucessfull_merges/j:.3f} other_crashes {other_crashes/j:.3f}"
         )
 
     end = time.time()
-    print(f"Took {(end-start)/j}")
-    print(f"Crashrate {crashes/num_tries}")
-    print(f"Average ego vehicle speed {speed/total_steps}")
-    print(f"Average speed of all cars {road_speed/total_steps}")
+    print(f"Took {(end-start)/j:.3f} seconds per episode (average)")
+    print(f"Crashrate {crashes/j:.3f}")
+    print(f"Average ego vehicle speed {speed/total_steps:.3f}")
+    print(f"Average speed of all cars {road_speed/total_steps:.3f}")
 
 
 if __name__ == "__main__":
