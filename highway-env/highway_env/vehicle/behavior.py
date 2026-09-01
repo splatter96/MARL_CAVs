@@ -21,7 +21,7 @@ class IDMVehicle(ControlledVehicle):
     """polite behavior"""
     # """Longitudinal policy parameters"""
     # Maximum acceleration.
-    ACC_MAX = 6.0  # [m/s2]
+    ACC_MAX = 15.0  # [m/s2]
     # Desired maximum acceleration.
     COMFORT_ACC_MAX = 3.0  # [m/s2]
     # COMFORT_ACC_MAX = 0.3  # [m/s2]
@@ -119,7 +119,7 @@ class IDMVehicle(ControlledVehicle):
         distance_to_exit = self.exit_lane.distance(self.position)
 
         # only decelearte if we are on the wrong lane
-        if self.use_deceleration:
+        if self.use_deceleration or self.id == 0:
             if not self.on_track():
                 self.alpha_v0 = max(0.2, distance_to_exit / self.duTactical)
             else:  # reset after passing exit
@@ -199,15 +199,20 @@ class IDMVehicle(ControlledVehicle):
         # adjust target speed for special circumstances
         ego_target_speed *= ego_vehicle.alpha_v0
 
+        #clamp lower end of speed to prevent unrealistic movements
+        ego_target_speed = max(7, ego_target_speed)
+
         acceleration = self.COMFORT_ACC_MAX * (
             1 - np.power(max(ego_vehicle.speed, 0) / ego_target_speed, self.DELTA)
         )
+
 
         if front_vehicle:
             d = ego_vehicle.lane_distance_to(front_vehicle)
             acceleration -= self.COMFORT_ACC_MAX * np.power(
                 self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d), 2
             )
+
         return acceleration
 
     def desired_gap(

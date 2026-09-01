@@ -10,7 +10,7 @@ from highway_env.vehicle.graphics import VehicleGraphics
 
 from highway_env.road.objects import Obstacle
 
-from highway_env.vehicle.kinematics import Vehicle
+from highway_env.vehicle.kinematics import Vehicle, RealVehicle
 
 
 class SingleAgentMergeEnv(AbstractEnv):
@@ -29,6 +29,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             {
                 "duration": 15,  # time step
                 "policy_frequency": 5,  # [Hz]
+                #"policy_frequency": 15,  # [Hz]
                 "reward_speed_range": [10, 30],
                 "collision_reward": 200,
                 "high_speed_reward": 1,
@@ -48,6 +49,204 @@ class SingleAgentMergeEnv(AbstractEnv):
 
     def _reward(self, action: int) -> float:
         return self._agent_reward(action, self.vehicle)
+
+    def step(self, action):
+        """Step the environment and append weaving-safety metrics to ``info``.
+
+        The additional metrics are evaluated in the state reached after the
+        action has been simulated:
+
+        * ``ttc_current_front``: TTC to the closest leader in the ego's
+          current lane.
+        * ``ttc_target_front``: TTC to the closest vehicle ahead in the
+          target lane.
+        * ``ttc_target_rear``: TTC to the closest vehicle approaching from
+          behind in the target lane.
+        * ``target_rear_induced_braking``: additional braking demand [m/s^2]
+          imposed on the target-lane rear vehicle if the ego were inserted in
+          front of it at the current state.
+
+        TTC is ``np.inf`` if no relevant vehicle exists or the relative
+        longitudinal velocity is not closing.  The induced-braking value is
+        ``np.nan`` when no target-lane rear vehicle/model is available.
+        """
+        obs, reward, terminated, truncated, info = super().step(action)
+
+        # Distinguish collisions in which another vehicle hits the ego from
+        # behind. This is useful for open-loop trajectory replay (e.g. NGSIM),
+        # where surrounding vehicles cannot react to the ego vehicle after it
+        # changes lane.
+        info["rear_end_collision_by_other"] = (
+            self._rear_end_collision_by_other_vehicle()
+        )
+
+        # if not getattr(self, "_merged_successfully", False):
+        #     self._merged_successfully = self._is_successfully_merged()
+        info["merged"] = self._is_successfully_merged()
+
+        # info.update(self._compute_safety_info())
+        return obs, reward, terminated, truncated, info
+
+
+    def _is_successfully_merged(self) -> bool:
+        """Return True once the ego is fully aligned with a through lane.
+
+        A successful merge is defined by two conditions:
+
+        1. The ego is assigned to one of the two main through lanes
+           (lane IDs 0 or 1) on a main-road segment.
+        2. The ego heading is aligned with the local heading of that lane
+           within ``merge_heading_tolerance_deg``.
+
+        The main-road segment check explicitly excludes the off-ramp
+        (``("c", "o", 0)``), which also has lane ID 0.
+        """
+        ego = self.vehicle
+
+        if ego is None or self.road is None or ego.lane_index is None:
+            return False
+
+        lane_index = ego.lane_index
+
+        # Main highway segments containing the two through lanes. Including
+        # ("c", "d") ensures that a merge completed very close to the end of
+        # the weaving segment is still recognized after crossing the segment
+        # boundary.
+        through_segments = {
+            ("a", "b"),
+            ("b", "c"),
+            ("c", "d"),
+        }
+
+        if lane_index[:2] not in through_segments or lane_index[2] not in (0, 1):
+            return False
+
+        try:
+            lane = self.road.network.get_lane(lane_index)
+            longitudinal, _ = lane.local_coordinates(ego.position)
+
+            # Keep the query inside the lane definition for numerical safety
+            # near road-segment boundaries.
+            longitudinal = float(np.clip(longitudinal, 0.0, lane.length))
+            lane_heading = float(lane.heading_at(longitudinal))
+        except Exception:
+            return False
+
+        ego_heading = float(getattr(ego, "heading", 0.0))
+
+        # Wrapped signed angular difference in [-pi, pi].
+        heading_error = np.arctan2(
+            np.sin(ego_heading - lane_heading),
+            np.cos(ego_heading - lane_heading),
+        )
+
+        tolerance = np.deg2rad(
+            float(self.config.get("merge_heading_tolerance_deg", 3.0))
+        )
+
+        return bool(abs(heading_error) <= tolerance)
+
+    def _rear_end_collision_by_other_vehicle(self) -> bool:
+        """Return True if another vehicle collided with the ego from behind.
+
+        ``highway-env`` exposes a generic ``crashed`` flag but does not, in
+        this environment, directly identify which vehicle caused the contact.
+        The collision direction is therefore classified geometrically in the
+        ego vehicle's local coordinate frame at the state returned by
+        ``step()``.
+
+        A collision is classified as a rear-end collision by another vehicle
+        only when:
+
+        1. the ego vehicle is marked as crashed;
+        2. another vehicle is also marked as crashed and is close enough for
+           the two vehicle bounding boxes to overlap (with a small numerical
+           tolerance); and
+        3. the centre of that vehicle lies behind the ego centre along the
+           ego heading.
+
+        This deliberately does *not* use relative speed because some vehicle
+        implementations modify their speed immediately when a collision is
+        detected.
+        """
+        ego = self.vehicle
+
+        if (
+            ego is None
+            or self.road is None
+            or not getattr(ego, "crashed", False)
+        ):
+            return False
+
+        ego_position = np.asarray(ego.position, dtype=float)
+        ego_heading = float(getattr(ego, "heading", 0.0))
+
+        # Unit vectors of the ego vehicle's local frame.
+        longitudinal_axis = np.array(
+            [np.cos(ego_heading), np.sin(ego_heading)], dtype=float
+        )
+        lateral_axis = np.array(
+            [-np.sin(ego_heading), np.cos(ego_heading)], dtype=float
+        )
+
+        ego_length = float(getattr(ego, "LENGTH", 5.0))
+        ego_width = float(getattr(ego, "WIDTH", 2.0))
+
+        # Small tolerance for discrete simulation steps and floating-point
+        # differences in the collision detector.
+        longitudinal_tolerance = 0.5
+        lateral_tolerance = 0.25
+
+        for other in self.road.vehicles:
+            if other is ego:
+                continue
+
+            # highway-env marks both vehicles as crashed for a vehicle-vehicle
+            # collision. Requiring this avoids confusing an unrelated close
+            # follower with the actual collision partner.
+            if not getattr(other, "crashed", False):
+                continue
+
+            relative_position = (
+                np.asarray(other.position, dtype=float) - ego_position
+            )
+
+            relative_longitudinal = float(
+                np.dot(relative_position, longitudinal_axis)
+            )
+            relative_lateral = float(
+                np.dot(relative_position, lateral_axis)
+            )
+
+            other_length = float(getattr(other, "LENGTH", 5.0))
+            other_width = float(getattr(other, "WIDTH", 2.0))
+
+            max_longitudinal_separation = (
+                0.5 * (ego_length + other_length)
+                + longitudinal_tolerance
+            )
+            max_lateral_separation = (
+                0.5 * (ego_width + other_width)
+                + lateral_tolerance
+            )
+
+            # Approximate bounding-box overlap. At this point ego.crashed is
+            # already True, so this test is only used to identify the likely
+            # collision partner and its direction.
+            in_contact = (
+                abs(relative_longitudinal)
+                <= max_longitudinal_separation
+                and abs(relative_lateral)
+                <= max_lateral_separation
+            )
+
+            vehicle_is_behind = relative_longitudinal < 0.0
+
+            if in_contact and vehicle_is_behind:
+                return True
+
+        return False
+
 
     def _agent_reward(self, action: int, vehicle: Vehicle) -> float:
         """
@@ -88,22 +287,26 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         # compute overall reward
         reward = (
-            self.config["collision_reward"] * (-1 * vehicle.crashed)
-            + (self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1))
-            + self.config["MERGING_LANE_COST"] * Merging_lane_cost
-            + self.config["HEADWAY_COST"] * (Headway_cost if Headway_cost < 0 else 0)
-            + Lane_change_cost
-            + offramp_cost
-        )
+            self.config["collision_reward"] * (-1 * vehicle.crashed) 
+            + (self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1) )
+            + self.config["MERGING_LANE_COST"] * Merging_lane_cost 
+            + self.config["HEADWAY_COST"] * (Headway_cost  if Headway_cost < 0 else 0)
+            + Lane_change_cost 
+            + offramp_cost 
+        ) 
         return reward
 
     def _is_terminal(self) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
+        crashes = [veh.crashed for veh in self.road.vehicles]
         return (
             self.vehicle.crashed
-            or self.vehicle.position[0] > 370
+            # or self.vehicle.position[0] > 370
+            or self.vehicle.position[0] > 310
             or self.vehicle.lane_index == ("c", "o", 0)
-            or self.steps > 500
+            # or self.vehicle.lane_index == ("b", "c", 1)
+            # or self.steps > 500
+            # or any(crashes)
         )
 
     def _reset(self) -> None:
@@ -111,13 +314,13 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         if self.config["traffic_density"] == 1:
             # easy mode: 6-8 HDVs
-            num_HDV = np.random.choice(np.arange(6, 9), 1)[0]
+            num_HDV = self.np_random.choice(np.arange(6, 9), 1)[0]
         elif self.config["traffic_density"] == 2:
             # easy mode: 9-12 DVs
-            num_HDV = np.random.choice(np.arange(9, 13), 1)[0]
+            num_HDV = self.np_random.choice(np.arange(9, 13), 1)[0]
         elif self.config["traffic_density"] == 3:
             # easy mode: 13-15 HDVs
-            num_HDV = np.random.choice(np.arange(13, 16), 1)[0]
+            num_HDV = self.np_random.choice(np.arange(13, 16), 1)[0]
 
         self._make_vehicles(num_HDV)
         self.T = int(self.config["duration"] * self.config["policy_frequency"])
@@ -242,14 +445,14 @@ class SingleAgentMergeEnv(AbstractEnv):
         spawn_points_m_cav = [125, 165]
 
         # initial speed with noise and location noise
-        initial_speed = np.random.rand(num_HDV + 1) * 8 + 22  # range from [22, 30]
-        loc_noise = np.random.rand(num_HDV + 1) * 6 - 3  # range from [-1.5, 1.5]
+        initial_speed = self.np_random.random(num_HDV + 1) * 8 + 22  # range from [22, 30]
+        loc_noise = self.np_random.random(num_HDV + 1) * 6 - 3  # range from [-1.5, 1.5]
         initial_speed = list(initial_speed)
         loc_noise = list(loc_noise)
 
         """Spawn points for CAV"""
         # spawn point indexes on the merging road
-        spawn_point_m_c = np.random.choice(spawn_points_m_cav, 1, replace=False)
+        spawn_point_m_c = self.np_random.choice(spawn_points_m_cav, 1, replace=False)
         spawn_point_m_c = list(spawn_point_m_c)
         for c in spawn_point_m_c:
             spawn_points_m.remove(c)
@@ -261,6 +464,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             ),
             speed=initial_speed.pop(0),
         )
+        ego_vehicle.id = 0
         self.vehicle = ego_vehicle
         road.vehicles.append(ego_vehicle)
 
@@ -268,14 +472,14 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         """Spawn points for HDV"""
         # spawn point indexes on the straight road
-        spawn_point_s_h1 = np.random.choice(
+        spawn_point_s_h1 = self.np_random.choice(
             spawn_points_s1, num_HDV // 3, replace=False
         )
-        spawn_point_s_h2 = np.random.choice(
+        spawn_point_s_h2 = self.np_random.choice(
             spawn_points_s2, num_HDV // 3, replace=False
         )
         # spawn point indexes on the merging road
-        spawn_point_m_h = np.random.choice(
+        spawn_point_m_h = self.np_random.choice(
             spawn_points_m, num_HDV - 2 * num_HDV // 3, replace=False
         )
         spawn_point_s_h1 = list(spawn_point_s_h1)
@@ -285,7 +489,7 @@ class SingleAgentMergeEnv(AbstractEnv):
         right_bias = 8.0
         offramp_percentage = 0.3
         biases = list(
-            np.random.choice(
+            self.np_random.choice(
                 [-right_bias, right_bias],
                 num_HDV,
                 p=[1 - offramp_percentage, offramp_percentage],
@@ -293,72 +497,94 @@ class SingleAgentMergeEnv(AbstractEnv):
         )
 
         # use weaving scenario instead of merging
-        use_weaving = self.config["use_weaving"]
+        # use_weaving = self.config["use_weaving"]
 
-        """spawn the HDV on the main road first"""
-        for _ in range(num_HDV // 3):
-            veh = other_vehicles_type(
-                road,
-                road.network.get_lane(("a", "b", 0)).position(
-                    spawn_point_s_h1.pop(0) + loc_noise.pop(0), 0
-                ),
-                speed=initial_speed.pop(0),
-                use_deceleration=use_weaving,
-            )
+        # """spawn the HDV on the main road first"""
+        # for _ in range(num_HDV // 3):
+        #     veh = other_vehicles_type(
+        #         road,
+        #         road.network.get_lane(("a", "b", 0)).position(
+        #             spawn_point_s_h1.pop(0) + loc_noise.pop(0), 0
+        #         ),
+        #         speed=initial_speed.pop(0),
+        #         use_deceleration=use_weaving,
+        #     )
 
-            if use_weaving:
-                veh.RIGHT_BIAS = biases.pop(0)
-            else:
-                veh.RIGHT_BIAS = 0.0
+        #     if use_weaving:
+        #         veh.RIGHT_BIAS = biases.pop(0)
+        #     else:
+        #         veh.RIGHT_BIAS = 0.0
 
-            veh.color = (
-                VehicleGraphics.BLUE
-                if veh.RIGHT_BIAS == right_bias
-                else VehicleGraphics.GREEN
-            )
-            road.vehicles.append(veh)
+        #     veh.color = (
+        #         VehicleGraphics.BLUE
+        #         if veh.RIGHT_BIAS == right_bias
+        #         else VehicleGraphics.GREEN
+        #     )
+        #     road.vehicles.append(veh)
 
-        for _ in range(num_HDV // 3):
-            veh = other_vehicles_type(
-                road,
-                road.network.get_lane(("a", "b", 1)).position(
-                    spawn_point_s_h2.pop(0) + loc_noise.pop(0), 0
-                ),
-                speed=initial_speed.pop(0),
-                use_deceleration=use_weaving,
-            )
+        # for _ in range(num_HDV // 3):
+        #     veh = other_vehicles_type(
+        #         road,
+        #         road.network.get_lane(("a", "b", 1)).position(
+        #             spawn_point_s_h2.pop(0) + loc_noise.pop(0), 0
+        #         ),
+        #         speed=initial_speed.pop(0),
+        #         use_deceleration=use_weaving,
+        #     )
 
-            if use_weaving:
-                veh.RIGHT_BIAS = biases.pop(0)
-            else:
-                veh.RIGHT_BIAS = 0.0
+        #     if use_weaving:
+        #         veh.RIGHT_BIAS = biases.pop(0)
+        #     else:
+        #         veh.RIGHT_BIAS = 0.0
 
-            veh.color = (
-                VehicleGraphics.BLUE
-                if veh.RIGHT_BIAS == right_bias
-                else VehicleGraphics.GREEN
-            )
-            road.vehicles.append(veh)
+        #     veh.color = (
+        #         VehicleGraphics.BLUE
+        #         if veh.RIGHT_BIAS == right_bias
+        #         else VehicleGraphics.GREEN
+        #     )
+        #     road.vehicles.append(veh)
 
-        """spawn the rest HDV on the merging road"""
-        for _ in range(num_HDV - 2 * num_HDV // 3):
-            veh = other_vehicles_type(
-                road,
-                road.network.get_lane(("j", "k", 0)).position(
-                    spawn_point_m_h.pop(0) + loc_noise.pop(0), 0
-                ),
-                speed=initial_speed.pop(0),
-                use_deceleration=use_weaving,
-            )
+        # """spawn the rest HDV on the merging road"""
+        # for _ in range(num_HDV - 2 * num_HDV // 3):
+        #     veh = other_vehicles_type(
+        #         road,
+        #         road.network.get_lane(("j", "k", 0)).position(
+        #             spawn_point_m_h.pop(0) + loc_noise.pop(0), 0
+        #         ),
+        #         speed=initial_speed.pop(0),
+        #         use_deceleration=use_weaving,
+        #     )
 
-            # all merging vehicles want on main road (left bias)
-            if use_weaving:
-                veh.RIGHT_BIAS = -4.0
-            else:
-                veh.RIGHT_BIAS = 0
+        #     # all merging vehicles want on main road (left bias)
+        #     if use_weaving:
+        #         veh.RIGHT_BIAS = -4.0
+        #     else:
+        #         veh.RIGHT_BIAS = 0
 
-            veh.color = VehicleGraphics.GREEN
-            road.vehicles.append(veh)
+        #     veh.color = VehicleGraphics.GREEN
+        #     road.vehicles.append(veh)
+
+
+        # Milano dataset
+        # traj_list = [79, 81, 85, 87,  100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
+        # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131]
+        # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
+
+
+        # NGSIM
+        #traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 61, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93, 94, 98, 99]
+        # traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93, 94, 98, 99]
+        traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93,  98, 99]
+        
+        # start_time = np.random.uniform(5, 12) # Milano dataset
+        start_time = np.random.uniform(57, 65) # NGSIM
+
+        for traj in traj_list:
+            v = RealVehicle(f"../trajectories_numpy/vehicle_{traj}.npy", start_time)
+            # v = RealVehicle(f"./traj{traj}.npy", start_time)
+            v.id = traj
+            v.color = VehicleGraphics.BLACK
+            road.vehicles.append(v)
 
 
 register(

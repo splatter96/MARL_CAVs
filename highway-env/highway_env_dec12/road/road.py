@@ -1,5 +1,3 @@
-# cython: profile=True
-
 import numpy as np
 import pandas as pd
 import logging
@@ -22,14 +20,11 @@ Route = List[LaneIndex]
 class RoadNetwork(object):
     graph: Dict[str, Dict[str, List[AbstractLane]]]
     lane_indices: List[LaneIndex]
-    lanes: List[AbstractLane]
 
     lane_indices = []
 
     def __init__(self):
         self.graph = {}
-        self.lane_indices = []
-        self.lanes = []
 
     def add_lane(self, _from: str, _to: str, lane: AbstractLane) -> None:
         """
@@ -57,16 +52,6 @@ class RoadNetwork(object):
             _id = 0
         return self.graph[_from][_to][_id]
 
-    def all_side_lanes(self, lane_index: LaneIndex) -> list[LaneIndex]:
-        """
-        :param lane_index: the index of a lane.
-        :return: all lanes belonging to the same road.
-        """
-        return [
-            (lane_index[0], lane_index[1], i)
-            for i in range(len(self.graph[lane_index[0]][lane_index[1]]))
-        ]
-
     def get_closest_lane_index(self, position: np.ndarray, heading: Optional[float] = None) -> LaneIndex:
         """
         Get the index of the lane closest to a world position.
@@ -75,15 +60,25 @@ class RoadNetwork(object):
         :param heading: a heading angle [rad].
         :return: the index of the closest lane.
         """
+        # indexes, distances = [], []
+        # for _from, to_dict in self.graph.items():
+            # for _to, lanes in to_dict.items():
+                # for _id, l in enumerate(lanes):
+                    # distances.append(l.distance_with_heading(position, heading))
+                    # indexes.append((_from, _to, _id))
+        # return indexes[utils.argmin(distances)]
 
         if not self.lane_indices:
             for _from, to_dict in self.graph.items():
                 for _to, lanes in to_dict.items():
                     for _id, l in enumerate(lanes):
                         self.lane_indices.append((_from, _to, _id))
-                        self.lanes.append(self.get_lane((_from, _to, _id)))
 
-        return utils.get_closest_lane(self.lane_indices, self.lanes, position, heading)
+        # for l in self.lane_indices:
+            # print(l)
+            # print(self.get_lane(l).distance_with_heading(position, heading))
+
+        return min(self.lane_indices, key=lambda l:self.get_lane(l).distance_with_heading(position, float(heading)))
 
     def next_lane(self, current_index: LaneIndex, route: Route = None, position: np.ndarray = None,
                   np_random: np.random.RandomState = np.random) -> LaneIndex:
@@ -108,10 +103,14 @@ class RoadNetwork(object):
                 route.pop(0)
             if route and route[0][0] == _to:  # Next road in route is starting at the end of current road.
                 _, next_to, _ = route[0]
+            # elif route:
+                # logger.warning("Route {} does not start after current road {}.".format(route[0], current_index))
 
         # pick closest next road
         if not next_to:
             try:
+                # next_to = list(self.graph[_to].keys())[np.random.randint(len(self.graph[_to]))]
+
                 lane_candidates = []
                 for next_to in list(self.graph[_to].keys()):
                     for l in range(len(self.graph[_to][next_to])):
@@ -121,6 +120,53 @@ class RoadNetwork(object):
                 return next_lane
             except KeyError:
                 return current_index
+
+        # If next road has same number of lane, stay on the same lane
+        # if len(self.graph[_from][_to]) == len(self.graph[_to][next_to]):
+            # next_id = _id
+        # # Else, pick closest lane
+        # else:
+            # lanes = range(len(self.graph[_to][next_to]))
+            # next_id = min(lanes,
+                          # key=lambda l: self.get_lane((_to, next_to, l)).distance(position))
+
+        # return _to, next_to, next_id
+
+    def bfs_paths(self, start: str, goal: str) -> List[List[str]]:
+        """
+        Breadth-first search of all routes from start to goal.
+
+        :param start: starting node
+        :param goal: goal node
+        :return: list of paths from start to goal.
+        """
+        queue = [(start, [start])]
+        while queue:
+            (node, path) = queue.pop(0)
+            if node not in self.graph:
+                yield []
+            for _next in set(self.graph[node].keys()) - set(path):
+                if _next == goal:
+                    yield path + [_next]
+                elif _next in self.graph:
+                    queue.append((_next, path + [_next]))
+
+    def shortest_path(self, start: str, goal: str) -> List[str]:
+        """
+        Breadth-first search of shortest path from start to goal.
+
+        :param start: starting node
+        :param goal: goal node
+        :return: shortest path from start to goal.
+        """
+        return next(self.bfs_paths(start, goal), [])
+
+    def all_side_lanes(self, lane_index: LaneIndex) -> List[LaneIndex]:
+        """
+        :param lane_index: the index of a lane.
+        :return: all lanes belonging to the same road.
+        """
+        return [(lane_index[0], lane_index[1], i) for i in range(len(self.graph[lane_index[0]][lane_index[1]]))]
 
     def side_lanes(self, lane_index: LaneIndex) -> List[LaneIndex]:
         """
@@ -134,6 +180,16 @@ class RoadNetwork(object):
         if _id < len(self.graph[_from][_to]) - 1:
             lanes.append((_from, _to, _id + 1))
         return lanes
+
+    @staticmethod
+    def is_same_road(lane_index_1: LaneIndex, lane_index_2: LaneIndex, same_lane: bool = False) -> bool:
+        """Is lane 1 in the same road as lane 2?"""
+        return lane_index_1[:2] == lane_index_2[:2] and (not same_lane or lane_index_1[2] == lane_index_2[2])
+
+    @staticmethod
+    def is_leading_to_road(lane_index_1: LaneIndex, lane_index_2: LaneIndex, same_lane: bool = False) -> bool:
+        """Is lane 1 leading to of lane 2?"""
+        return lane_index_1[1] == lane_index_2[0] and (not same_lane or lane_index_1[2] == lane_index_2[2])
 
     def is_connected_road(self, lane_index_1: LaneIndex, lane_index_2: LaneIndex, route: Route = None,
                           same_lane: bool = False, depth: int = 0) -> bool:
@@ -165,6 +221,39 @@ class RoadNetwork(object):
                             for l1_to in self.graph.get(_to, {}).keys()])
         return False
 
+    def lanes_list(self) -> List[AbstractLane]:
+        return [lane for to in self.graph.values() for ids in to.values() for lane in ids]
+
+    @staticmethod
+    def straight_road_network(lanes: int = 4, length: float = 10000, angle: float = 0) -> 'RoadNetwork':
+        net = RoadNetwork()
+        for lane in range(lanes):
+            origin = np.array([0, lane * StraightLane.DEFAULT_WIDTH])
+            end = np.array([length, lane * StraightLane.DEFAULT_WIDTH])
+            rotation = np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
+            origin = rotation @ origin
+            end = rotation @ end
+            line_types = [LineType.CONTINUOUS_LINE if lane == 0 else LineType.STRIPED,
+                          LineType.CONTINUOUS_LINE if lane == lanes - 1 else LineType.NONE]
+            net.add_lane("0", "1", StraightLane(origin, end, line_types=line_types))
+        return net
+
+    def position_heading_along_route(self, route: Route, longitudinal: float, lateral: float) \
+            -> Tuple[np.ndarray, float]:
+        """
+        Get the absolute position and heading along a route composed of several lanes at some local coordinates.
+
+        :param route: a planned route, list of lane indexes
+        :param longitudinal: longitudinal position
+        :param lateral: : lateral position
+        :return: position, heading
+        """
+        while len(route) > 1 and longitudinal > self.get_lane(route[0]).length:
+            longitudinal -= self.get_lane(route[0]).length
+            route = route[1:]
+        return self.get_lane(route[0]).position(longitudinal, lateral), self.get_lane(route[0]).heading_at(longitudinal)
+
+
 class Road(object):
     """A road is a set of lanes, and a set of vehicles driving on these lanes."""
 
@@ -173,7 +262,6 @@ class Road(object):
                  vehicles: List['kinematics.Vehicle'] = None,
                  road_objects: List['objects.RoadObject'] = None,
                  np_random: np.random.RandomState = None,
-                 neighbour_vehicles_connected_lanes: bool = True,
                  record_history: bool = False) -> None:
         """
         New road.
@@ -182,7 +270,6 @@ class Road(object):
         :param vehicles: the vehicles driving on the road
         :param road_objects: the objects on the road including obstacles and landmarks
         :param np.random.RandomState np_random: a random number generator for vehicle behaviour
-        :param neighbour_vehicles_connected_lanes: whether to search connected lane segments for neighbours
         :param record_history: whether the recent trajectories of vehicles should be recorded for display
         """
         self.network = network
@@ -190,7 +277,6 @@ class Road(object):
         self.objects = road_objects or []
         self.np_random = np_random if np_random else np.random.RandomState()
         self.record_history = record_history
-        self.neighbour_vehicles_connected_lanes = neighbour_vehicles_connected_lanes
 
     def close_vehicles_to(self, vehicle: 'kinematics.Vehicle', distance: float, count: int = None,
                           see_behind: bool = True) -> object:
@@ -243,76 +329,63 @@ class Road(object):
         lane_index = lane_index or vehicle.lane_index
         if not lane_index:
             return None, None
-        cdef float s_v
-        cdef float s = vehicle.position[0]  # x position
+        s = vehicle.position[0]  # x position
         s_front = s_rear = None
         v_front = v_rear = None
 
         # we do not consider obstacles
-        for v in self.vehicles + self.objects:
-        # for v in self.vehicles:
+        for v in self.vehicles:
             if v is not vehicle and not isinstance(v, Landmark):
                 if lane_index == ("a", "b", 0) or lane_index == ("b", "c", 0) or lane_index == (
                         "c", "d", 0):
                     if lane_index == ("a", "b", 0) and (
                             v.lane_index == ("a", "b", 0) or v.lane_index == ("b", "c", 0)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                        s_v, lat_v = v.position
                     elif lane_index == ("b", "c", 0) and (
                             v.lane_index == ("a", "b", 0) or v.lane_index == ("b", "c", 0) or v.lane_index == (
                     "c", "d", 0)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                        s_v, lat_v = v.position
                     elif lane_index == ("c", "d", 0) and (v.lane_index == ("b", "c", 0) or v.lane_index == (
                     "c", "d", 0)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                        s_v, lat_v = v.position
                     else:
                         continue
                 elif lane_index == ("a", "b", 1) or lane_index == ("b", "c", 1) or lane_index == (
                         "c", "d", 1):
                     if lane_index == ("a", "b", 1) and (
                             v.lane_index == ("a", "b", 1) or v.lane_index == ("b", "c", 1)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                        s_v, lat_v = v.position
                     elif lane_index == ("b", "c", 1) and (
                             v.lane_index == ("a", "b", 1) or v.lane_index == ("b", "c", 1) or v.lane_index == (
                     "c", "d", 1)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                        s_v, lat_v = v.position
                     elif lane_index == ("c", "d", 1) and (v.lane_index == ("b", "c", 1) or v.lane_index == (
                     "c", "d", 1)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                        s_v, lat_v = v.position
                     else:
                         continue
                 elif lane_index == ("b", "c", 2):
-                    if v.lane_index == ("b", "c", 2) or v.lane_index == ("k", "b", 0) or v.lane_index == ("c", "o", 0):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                    if v.lane_index == ("b", "c", 2) or v.lane_index == ("k", "b", 0):
+                        s_v, lat_v = v.position
                     else:
                         continue
                 elif lane_index == ("c", "o", 0):
-                    if v.lane_index == ("c", "o", 0) or v.lane_index == ("b", "c", 2) or v.lane_index == ("o", "u", 0):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                    if v.lane_index == ("c", "o", 0) or v.lane_index == ("b", "c", 2):
+                        s_v, lat_v = v.position
                     else:
                         continue
                 else:
                     if lane_index == ("j", "k", 0) and (
                             v.lane_index == ("j", "k", 0) or v.lane_index == ("k", "b", 0)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                        s_v, lat_v = v.position
                     elif lane_index == ("k", "b", 0) and (
                             v.lane_index == ("j", "k", 0) or v.lane_index == ("k", "b", 0) or v.lane_index == (
-                    "b", "c", 2)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                    "b", "c", 1)):
+                        s_v, lat_v = v.position
                     elif lane_index == ("b", "c", 1) and (
                             v.lane_index == ("k", "b", 0) or v.lane_index == (
-                    "b", "c", 2)):
-                        # s_v, lat_v = v.position
-                        s_v = v.position[0]
+                    "b", "c", 1)):
+                        s_v, lat_v = v.position
                     else:
                         continue
 
@@ -324,47 +397,11 @@ class Road(object):
                     v_rear = v
         return v_front, v_rear
 
-    # def neighbour_vehicles(self, vehicle: 'kinematics.Vehicle', lane_index: LaneIndex = None) \
-    #         -> Tuple[Optional['kinematics.Vehicle'], Optional['kinematics.Vehicle']]:
-    #     """
-    #     Find the preceding and following vehicles of a given vehicle.
-    #     :param vehicle: the vehicle whose neighbours must be found
-    #     :param lane_index: the lane on which to look for preceding and following vehicles.
-    #                  It doesn't have to be the current vehicle lane but can also be another lane, in which case the
-    #                  vehicle is projected on it considering its local coordinates in the lane.
-    #     :return: its preceding vehicle, its following vehicle
-    #     """
-    #     lane_index = lane_index or vehicle.lane_index
-    #     if not lane_index:
-    #         return None, None
-    #     lane = self.network.get_lane(lane_index)
-    #     s = self.network.get_lane(lane_index).local_coordinates(vehicle.position)[0]
-    #     s_front = s_rear = None
-    #     v_front = v_rear = None
-    #     for v in self.vehicles + self.objects:
-    #         if v is not vehicle and not isinstance(v, Landmark):  # self.network.is_connected_road(v.lane_index,
-    #             # lane_index, same_lane=True):
-    #             s_v, lat_v = lane.local_coordinates(v.position)
-    #             if not lane.on_lane(v.position, s_v, lat_v, margin=1):
-    #                 continue
-    #             if s <= s_v and (s_front is None or s_v <= s_front):
-    #                 s_front = s_v
-    #                 v_front = v
-    #             if s_v < s and (s_rear is None or s_v > s_rear):
-    #                 s_rear = s_v
-    #                 v_rear = v
-    #     return v_front, v_rear
-
-    def neighbour_vehicles(
-        self, vehicle: kinematics.Vehicle, lane_index: LaneIndex = None
-    ) -> tuple[kinematics.Vehicle | None, kinematics.Vehicle | None]:
+    # @profile
+    def neighbour_vehicles(self, vehicle: 'kinematics.Vehicle', lane_index: LaneIndex = None) \
+            -> Tuple[Optional['kinematics.Vehicle'], Optional['kinematics.Vehicle']]:
         """
         Find the preceding and following vehicles of a given vehicle.
-
-        When ``neighbour_vehicles_connected_lanes`` is enabled, connected
-        next/previous lane segments are also searched so vehicles near
-        segment boundaries are detected.
-
         :param vehicle: the vehicle whose neighbours must be found
         :param lane_index: the lane on which to look for preceding and following vehicles.
                      It doesn't have to be the current vehicle lane but can also be another lane, in which case the
@@ -375,57 +412,21 @@ class Road(object):
         if not lane_index:
             return None, None
         lane = self.network.get_lane(lane_index)
-        s = lane.local_coordinates(vehicle.position)[0]
+        s = self.network.get_lane(lane_index).local_coordinates(vehicle.position)[0]
         s_front = s_rear = None
         v_front = v_rear = None
-        cdef float s_v
-        cdef float lat_v
-
-        lanes_offsets: list[tuple[AbstractLane, float]] = [(lane, 0)]
-
-        if self.neighbour_vehicles_connected_lanes:
-            # Offsets convert each connected lane's longitudinal coordinate
-            # into the ego lane coordinate frame.
-            _from, _to, _id = lane_index
-
-            for next_lanes in self.network.graph.get(_to, {}).values():
-                if _id < len(next_lanes):
-                    lanes_offsets.append((next_lanes[_id], lane.length))
-                elif next_lanes:
-                    lanes_offsets.append((next_lanes[0], lane.length))
-
-            for to_dict in self.network.graph.values():
-                if _from in to_dict:
-                    prev_lanes = to_dict[_from]
-                    if _id < len(prev_lanes):
-                        prev_lane = prev_lanes[_id]
-                    elif prev_lanes:
-                        prev_lane = prev_lanes[0]
-                    else:
+        for v in self.vehicles + self.objects:
+            if v is not vehicle and not isinstance(v, Landmark):  # self.network.is_connected_road(v.lane_index,
+                # lane_index, same_lane=True):
+                s_v, lat_v = lane.local_coordinates(v.position)
+                if not lane.on_lane(v.position, s_v, lat_v, margin=1):
                     continue
-                    lanes_offsets.append((prev_lane, -prev_lane.length))
-
-        #for v in self.vehicles + self.objects:
-        # if vehicle.id == 0:
-        #     print(f"Lane index: {lane_index}")
-        #     print(f"Lanes offsets: {lanes_offsets}")
-
-        for v in self.vehicles:
-            if v is vehicle or isinstance(v, Landmark):
-                continue
-            for search_lane, offset in lanes_offsets:
-                s_v, lat_v = search_lane.local_coordinates(v.position)
-                if not search_lane.on_lane(v.position, s_v, lat_v, margin=1):
-                    continue
-                s_v += offset
                 if s <= s_v and (s_front is None or s_v <= s_front):
                     s_front = s_v
                     v_front = v
                 if s_v < s and (s_rear is None or s_v > s_rear):
                     s_rear = s_v
                     v_rear = v
-                break  # matched on this lane, no need to check others
-
         return v_front, v_rear
 
     def __repr__(self):

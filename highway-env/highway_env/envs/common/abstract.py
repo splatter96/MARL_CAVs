@@ -161,10 +161,7 @@ class AbstractEnv(gym.Env):
         """
         raise NotImplementedError
 
-    def reset(
-        self,
-        seed=None,
-    ) -> Observation:
+    def reset(self, seed=None, options=None) -> Observation:
         """
         Reset the environment to it's initial configuration
 
