@@ -1,0 +1,122 @@
+
+Offramp penalty = 0
+Jan_12_08_09_36_weaving_best_run_rerun_set_seed42_with_vec_0_offramp_0
+Crashrate 0.027972027972027972 Mergerate 0.8101898101898102 other_crashes 0.016983016983016984
+Average ego vehicle speed 24.660354457659633
+Average speed of all cars 20.712270148182046
+
+Offramp penalty = 0 (rerun 12_14_52)
+Crashrate 0.03996003996003996 Mergerate 0.8981018981018981 other_crashes 0.02197802197802198
+Average ego vehicle speed 23.903100701972825
+Average speed of all cars 20.51387968259574
+
+
+
+
+Offramp penalty = 50
+Jan_12_09_39_56_weaving_best_run_rerun_set_seed42_with_vec_0_offramp_0
+Crashrate 0.022977022977022976 Mergerate 0.977022977022977 other_crashes 0.05094905094905095
+Average ego vehicle speed 20.13979522171262
+Average speed of all cars 20.083970910207732
+
+
+Jan_13_15_40_30_50_offramp_rerun_again_0
+seed = 42
+Crashrate 0.02097902097902098 Mergerate 0.9760239760239761 other_crashes 0.03796203796203796
+Average ego vehicle speed 22.694764934518698
+Average speed of all cars 20.33094419297784
+
+
+Jan_19_09_28_44_50_offramp_new_env_42
+new unified env
+seed=21
+Crashrate 0.008991008991008992 Mergerate 0.99000999000999 other_crashes 0.02097902097902098
+Average ego vehicle speed 19.519879365520975
+Average speed of all cars 19.96980288149955
+
+Jan_19_09_28_44_50_offramp_new_env_42
+new unified env
+seed=32
+Crashrate 0.012987012987012988 Mergerate 0.983016983016983 other_crashes 0.017982017982017984
+Average ego vehicle speed 19.340071485506424
+Average speed of all cars 20.009312162577487
+
+
+Jan_19_14_25_24_50_offramp_new_env_again_42
+seed=21
+Crashrate 0.022977022977022976 Mergerate 0.9969325153374233 other_crashes 0.024975024975024976
+Average ego vehicle speed 18.09474606532602
+Average speed of all cars 19.747904898756524
+
+Jan_19_14_25_24_50_offramp_new_env_again_42
+seed=32
+Crashrate 0.022977022977022976 Mergerate 1.0 other_crashes 0.013986013986013986
+Average ego vehicle speed 18.476122683546205
+Average speed of all cars 19.856906077829294
+
+
+Jan_20_09_37_41_pixi-test-horse-new-env-longer_42
+seed=32
+Crashrate 0.014985014985014986 Mergerate 0.9959432048681541 other_crashes 0.015984015984015984
+Average ego vehicle speed 20.2405764989077
+Average speed of all cars 20.093974327242393
+
+
+Jan_20_15_51_47_merge_only_direct_42
+seed=32, crashes count as unsuccessfull merges 
+Crashrate 0.02097902097902098 Mergerate 0.9790209790209791 other_crashes 0.012987012987012988
+Average ego vehicle speed 22.163905293149917
+Average speed of all cars 20.512656361614695
+
+
+
+Offramp penalty = 100
+Jan_09_12_17_06_weaving_best_run_rerun_0
+Crashrate 0.027972027972027972 Mergerate 0.9790209790209791 other_crashes 0.058941058941058944
+Average ego vehicle speed 20.25729383556981
+Average speed of all cars 20.226096907182836
+
+Jan_13_13_04_24_100_offramp_rerun_again_0
+Crashrate 0.015984015984015984 Mergerate 0.984015984015984 other_crashes 0.0939060939060939
+Average ego vehicle speed 18.649860181632356
+Average speed of all cars 20.094121656838247
+
+
+Jan_19_09_28_41_100_offramp_new_env_42
+seed=32
+Crashrate 0.029970029970029972 Mergerate 0.9660339660339661 other_crashes 0.029970029970029972
+Average ego vehicle speed 15.885206051100655
+Average speed of all cars 19.525279397887175
+
+Jan_19_09_28_41_100_offramp_new_env_42
+seed=21
+Crashrate 0.025974025974025976 Mergerate 0.971028971028971 other_crashes 0.03596403596403597
+Average ego vehicle speed 15.720368379572383
+Average speed of all cars 19.431839493097996
+
+
+Jan_19_14_25_51_100_offramp_new_env_again_42
+seed=21
+Crashrate 0.030969030969030968 Mergerate 0.9989690721649485 other_crashes 0.017982017982017984
+Average ego vehicle speed 18.396723166779854
+Average speed of all cars 19.7683049591963
+
+Jan_20_07_43_31_pixi-test-horse-new-env-longer_42
+seed=32
+Crashrate 0.015984015984015984 Mergerate 0.9979695431472081 other_crashes 0.013986013986013986
+Average ego vehicle speed 20.60841743287964
+Average speed of all cars 20.208440060900525
+
+Jan_20_07_43_31_pixi-test-horse-new-env-longer_42
+seed=21, crashes count as unsuccessfull merges
+Crashrate 0.015984015984015984 Mergerate 0.9820179820179821 other_crashes 0.013986013986013986
+Average ego vehicle speed 20.60841743287964
+Average speed of all cars 20.208440060900525
+
+
+Jan_20_15_53_50_weaving_100_offramp_42/
+seed=32, crashes count as unsuccessfull merges
+Crashrate 0.03296703296703297 Mergerate 0.965034965034965 other_crashes 0.017982017982017984
+Average ego vehicle speed 18.927982459754734
+Average speed of all cars 19.968626538587532
+

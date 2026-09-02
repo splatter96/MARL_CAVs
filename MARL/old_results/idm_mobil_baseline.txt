@@ -1,0 +1,60 @@
+RIGHT_BIAS=0:
+Crashrate 0.001998001998001998 Mergerate 0.04095904095904096 
+Average ego vehicle speed 20.45672449857832
+Average speed of all cars 20.778915885809308
+
+RIGHT_BIAS=-4:
+Crashrate 0.0 Mergerate 0.24675324675324675 other_crashes 0.024975024975024976:
+Average ego vehicle speed 20.9280781734381
+Average speed of all cars 20.591936810654463
+
+RIGHT_BIAS=-8:
+Crashrate 0.002997002997002997 Mergerate 0.3876123876123876
+Average ego vehicle speed 20.33853687842856
+Average speed of all cars 20.54009994725035
+
+RIGHT_BIAS=-16:
+Crashrate 0.000999000999000999 Mergerate 0.46353646353646355 other_crashes 0.03396603396603397:
+Average ego vehicle speed 19.94034020186592
+Average speed of all cars 20.56324855637728
+
+RIGHT_BIAS=-32:
+Crashrate 0.006993006993006993 Mergerate 0.5354645354645354 other_crashes 0.053946053946053944:
+Average ego vehicle speed 19.21455415951657
+Average speed of all cars 20.35845705710906
+
+RIGHT_BIAS=-64:
+Crashrate 0.01998001998001998 Mergerate 0.5324675324675324 other_crashes 0.04495504495504495:
+Average ego vehicle speed 18.971615659570144
+Average speed of all cars 20.33172280438249
+
+
+==============================================================
+With slow down of ego vehicle on merge lane
+
+RIGHT_BIAS=0
+Crashrate 0.004995004995004995 Mergerate 0.06493506493506493 other_crashes 0.04695304695304695:
+Average ego vehicle speed 11.141121417158399
+Average speed of all cars 18.550067169574792
+
+RIGHT_BIAS=-4
+Crashrate 0.006993006993006993 Mergerate 0.4435564435564436 other_crashes 0.07192807192807193:
+Average ego vehicle speed 14.133083367003433
+Average speed of all cars 19.133040098113778
+
+RIGHT_BIAS=-8
+Crashrate 0.005994005994005994 Mergerate 0.5284715284715285 other_crashes 0.058941058941058944:
+Average ego vehicle speed 14.535154942607491
+Average speed of all cars 19.33275629768272
+
+RIGHT_BIAS=-16
+Crashrate 0.008991008991008992 Mergerate 0.5674325674325674 other_crashes 0.07492507492507493
+Average ego vehicle speed 14.518087319815224
+Average speed of all cars 19.321996233789474
+
+RIGHT_BIAS=-32
+Crashrate 0.008991008991008992 Mergerate 0.6003996003996004 other_crashes 0.08891108891108891
+Average ego vehicle speed 14.479522056007857
+Average speed of all cars 19.230574891687382
+
+

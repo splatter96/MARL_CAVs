@@ -1,0 +1,67 @@
+
+# TODO need to set the same offramp reward of 100
+Jan_12_14_00_14_weaving_best_run_rerun_set_seed42_with_vec_0_lanechange_0
+lane change penalty = 0
+with offramp reward 50
+Crashrate 0.01998001998001998 Mergerate 0.977022977022977 other_crashes 0.03696303696303696
+Average ego vehicle speed 21.831527496851248
+Average speed of all cars 20.224512162406995
+
+
+Jan_13_09_12_32_0_lane_change_penalty_0
+lane change penalty = 0
+with correct offramp reward 100
+with seed 32
+Crashrate 0.03796203796203796 Mergerate 0.958041958041958 other_crashes 0.053946053946053944
+Average ego vehicle speed 20.430903198159765
+Average speed of all cars 20.272821283596894
+
+with seed 21
+Crashrate 0.02097902097902098 Mergerate 0.975024975024975 other_crashes 0.05194805194805195
+Average ego vehicle speed 20.279067651126574
+Average speed of all cars 20.18355027765205
+
+
+
+
+
+
+
+
+Jan_12_16_23_18_1_lane_change_penalty_0
+lane change penalty = 1
+Crashrate 0.023976023976023976 Mergerate 0.975024975024975 other_crashes 0.07592407592407592
+Average ego vehicle speed 18.169449018806425
+Average speed of all cars 20.050508994143076
+
+with seed 32
+Crashrate 0.023976023976023976 Mergerate 0.974025974025974 other_crashes 0.08691308691308691
+Average ego vehicle speed 18.247450679284707
+Average speed of all cars 20.109838330065664
+
+with seed 21
+Crashrate 0.01998001998001998 Mergerate 0.977022977022977 other_crashes 0.08791208791208792
+Average ego vehicle speed 18.121684045154797
+Average speed of all cars 20.015804448995468
+
+
+
+
+
+Jan_12_16_22_38_3_lane_change_penalty_0
+lane change penalty = 3
+Crashrate 0.03496503496503497 Mergerate 0.965034965034965 other_crashes 0.06993006993006994
+Average ego vehicle speed 18.168965679969162
+Average speed of all cars 19.985698081313025
+
+with seed 32
+Crashrate 0.015984015984015984 Mergerate 0.985014985014985 other_crashes 0.07692307692307693
+Average ego vehicle speed 18.38792333316494
+Average speed of all cars 20.056083738208383
+
+with seed 21
+Crashrate 0.02097902097902098 Mergerate 0.98001998001998 other_crashes 0.0999000999000999
+Average ego vehicle speed 18.212193078201192
+Average speed of all cars 19.943559450059865
+
+

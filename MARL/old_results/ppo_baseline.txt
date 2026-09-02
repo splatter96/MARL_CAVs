@@ -1,0 +1,42 @@
+
+
+Jan_13_09_40_23_ppo_more_frequent_update_0
+
+Crashrate 0.04795204795204795 Mergerate 0.9440559440559441 other_crashes 0.22077922077922077
+Average ego vehicle speed 13.344094476128225
+Average speed of all cars 19.63153615981906
+
+
+Jan_13_12_52_21_ppo_even_more_frequent_update_0
+Crashrate 0.10789210789210789 Mergerate 0.8811188811188811 other_crashes 0.17382617382617382
+Average ego vehicle speed 14.242171362463376
+Average speed of all cars 19.73519454940206
+
+Jan_13_13_59_58_ppo_even_more_frequent_update_higher_epochs_0
+Crashrate 0.14485514485514486 Mergerate 0.8471528471528471 other_crashes 0.17082917082917082
+Average ego vehicle speed 13.808250292936346
+Average speed of all cars 19.86803661559694
+
+Jan_13_08_53_21_ppo_first_run_0
+Crashrate 0.08291708291708291 Mergerate 0.8651348651348651 other_crashes 0.13486513486513488
+Average ego vehicle speed 15.432094348656078
+Average speed of all cars 19.938198906197808
+
+Jan_13_14_56_42_ppo_less_frequent_update_higher_epochs_0
+Crashrate 0.07792207792207792 Mergerate 0.9270729270729271 other_crashes 0.1008991008991009
+Average ego vehicle speed 17.247111511979153
+Average speed of all cars 20.01268489847721
+
+
+Jan_13_15_46_40_ppo_less_frequent_update_higher_epochs_higher_ent_coef_0
+Crashrate 0.061938061938061936 Mergerate 0.9000999000999002 other_crashes 0.0969030969030969
+Average ego vehicle speed 16.872427569508893
+Average speed of all cars 20.00064059443352
+
+
+Jan_13_16_23_59_ppo_less_frequent_update_even_higher_epochs_0
+Crashrate 0.07892107892107893 Mergerate 0.8841158841158842 other_crashes 0.09290709290709291
+Average ego vehicle speed 17.066994707315857
+Average speed of all cars 20.028856580365844
+
+

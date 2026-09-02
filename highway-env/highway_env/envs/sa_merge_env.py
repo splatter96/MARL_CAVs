@@ -76,16 +76,395 @@ class SingleAgentMergeEnv(AbstractEnv):
         # behind. This is useful for open-loop trajectory replay (e.g. NGSIM),
         # where surrounding vehicles cannot react to the ego vehicle after it
         # changes lane.
-        info["rear_end_collision_by_other"] = (
-            self._rear_end_collision_by_other_vehicle()
-        )
+        # info["rear_end_collision_by_other"] = self._rear_end_collision_by_other_vehicle()
 
         # if not getattr(self, "_merged_successfully", False):
         #     self._merged_successfully = self._is_successfully_merged()
-        info["merged"] = self._is_successfully_merged()
+        # info["merged"] = self._is_successfully_merged()
 
-        # info.update(self._compute_safety_info())
+        #info.update(self._compute_safety_info())
         return obs, reward, terminated, truncated, info
+
+    def _compute_safety_info(self):
+        """Compute TTC and target-lane braking metrics for the ego vehicle."""
+        ego = self.vehicle
+
+        # ---- Current-lane leader -------------------------------------------------
+        current_lane_index = ego.lane_index
+        current_front = None
+        current_front, _, current_front_gap, _ = self._lane_neighbours(
+            ego, current_lane_index, include_next_front=True
+        )
+        ttc_current_front = self._front_ttc(
+            ego,
+            current_front,
+            current_front_gap,
+            current_lane_index,
+        )
+
+        # ---- Target-lane front/rear ---------------------------------------------
+        target_front = None
+        target_rear = None
+
+        target_lane_index = self._get_target_lane_index()
+        if target_lane_index is None:
+            ttc_target_front = np.inf
+            ttc_target_rear = np.inf
+            induced_braking = np.nan
+        else:
+            target_front, target_rear, target_front_gap, target_rear_gap = (
+                self._lane_neighbours(
+                    ego, target_lane_index, include_next_front=True
+                )
+            )
+
+            ttc_target_front = self._front_ttc(
+                ego,
+                target_front,
+                target_front_gap,
+                target_lane_index,
+            )
+            ttc_target_rear = self._rear_ttc(
+                ego,
+                target_rear,
+                target_rear_gap,
+                target_lane_index,
+            )
+            induced_braking = self._target_rear_induced_braking(
+                ego,
+                target_rear,
+                target_front,
+            )
+
+        return {
+            "ttc_current_front": float(ttc_current_front),
+            "ttc_target_front": float(ttc_target_front),
+            "ttc_target_rear": float(ttc_target_rear),
+            "target_rear_induced_braking": float(induced_braking),
+            "current_front_id": current_front.id if current_front is not None else None,
+            "target_front_id": target_front.id if target_front is not None else None,
+            "target_rear_id": target_rear.id if target_rear is not None else None,
+        }
+
+    def _get_target_lane_index(self):
+        """Return the lane that is relevant as the ego's merge/lane-change target.
+
+        In the weaving section the ego approaches on lane ("b", "c", 2) and
+        merges left into ("b", "c", 1).  If the controlled vehicle already
+        has a different explicit ``target_lane_index`` on the same road
+        segment, that commanded lane takes precedence (e.g. a further lane
+        change from lane 1 to lane 0).
+        """
+        current = self.vehicle.lane_index
+        explicit_target = getattr(self.vehicle, "target_lane_index", None)
+
+        if (
+            explicit_target is not None
+            and current is not None
+            and explicit_target != current
+            and explicit_target[:2] == current[:2]
+        ):
+            try:
+                self.road.network.get_lane(explicit_target)
+                return explicit_target
+            except Exception:
+                pass
+
+        # Default merge target of the weaving lane.
+        if current == ("b", "c", 2):
+            return ("b", "c", 1)
+
+        return None
+
+    @staticmethod
+    def _bumper_gap(reference, other, centre_distance):
+        """Convert centre-to-centre longitudinal distance to bumper gap."""
+        half_lengths = 0.5 * (
+            float(getattr(reference, "LENGTH", 0.0))
+            + float(getattr(other, "LENGTH", 0.0))
+        )
+        return max(0.0, float(centre_distance) - half_lengths)
+
+    def _lane_neighbours(
+        self,
+        reference,
+        lane_index,
+        include_next_front=False,
+        include_previous_rear=True,
+    ):
+        """Find the nearest front/rear vehicles relative to ``reference``.
+
+        The reference vehicle does not need to physically occupy ``lane_index``;
+        this is important for evaluating an adjacent target lane. The reference
+        is projected onto that lane using ``local_coordinates``.
+
+        In addition to vehicles on ``lane_index`` itself, the immediately
+        connected road segments can be considered:
+
+        * ``include_next_front`` includes the closest front vehicle on the next
+          lane segment, so front TTC remains continuous across a segment end.
+        * ``include_previous_rear`` includes the closest rear vehicle on the
+          preceding lane segment, so rear TTC remains continuous across a
+          segment start. This is particularly important when the ego is near the
+          beginning of the weaving segment while a target-lane follower is still
+          on the preceding highway segment.
+
+        The preceding lane is selected from all lanes entering the start node of
+        ``lane_index``. Lanes with the same lane ID are preferred; when lane IDs
+        change between segments (e.g. the ramp), geometric continuity at the
+        segment boundary is used as a fallback.
+
+        Returns
+        -------
+        front, rear, front_gap, rear_gap
+            Vehicle references and bumper-to-bumper longitudinal gaps [m].
+        """
+        try:
+            lane = self.road.network.get_lane(lane_index)
+        except Exception:
+            return None, None, np.inf, np.inf
+
+        s_ref, _ = lane.local_coordinates(reference.position)
+
+        front = None
+        rear = None
+        front_gap = np.inf
+        rear_gap = np.inf
+
+        # ------------------------------------------------------------------
+        # Vehicles on the same lane segment
+        # ------------------------------------------------------------------
+        for other in self.road.vehicles:
+            if other is reference or other.lane_index != lane_index:
+                continue
+
+            s_other, _ = lane.local_coordinates(other.position)
+            delta_s = float(s_other - s_ref)
+
+            if delta_s >= 0.0:
+                gap = self._bumper_gap(reference, other, delta_s)
+                if gap < front_gap:
+                    front = other
+                    front_gap = gap
+            else:
+                gap = self._bumper_gap(reference, other, -delta_s)
+                if gap < rear_gap:
+                    rear = other
+                    rear_gap = gap
+
+        # ------------------------------------------------------------------
+        # Immediately preceding lane segment: rear vehicles
+        # ------------------------------------------------------------------
+        if include_previous_rear:
+            try:
+                start_node = lane_index[0]
+                target_lane_id = lane_index[2]
+                graph = self.road.network.graph
+
+                # Collect every lane on an edge that ends at the start node of
+                # the current lane. RoadNetwork stores lanes as
+                # graph[from_node][to_node][lane_id].
+                predecessor_candidates = []
+                for from_node, outgoing in graph.items():
+                    if start_node not in outgoing:
+                        continue
+
+                    predecessor_lanes = outgoing[start_node]
+                    for predecessor_lane_id, predecessor_lane in enumerate(
+                        predecessor_lanes
+                    ):
+                        predecessor_index = (
+                            from_node,
+                            start_node,
+                            predecessor_lane_id,
+                        )
+
+                        # Measure geometric continuity between the end of the
+                        # predecessor and the start of the current lane.
+                        predecessor_end = np.asarray(
+                            predecessor_lane.position(predecessor_lane.length, 0),
+                            dtype=float,
+                        )
+                        current_start = np.asarray(
+                            lane.position(0, 0), dtype=float
+                        )
+                        endpoint_distance = float(
+                            np.linalg.norm(predecessor_end - current_start)
+                        )
+
+                        predecessor_heading = float(
+                            predecessor_lane.heading_at(predecessor_lane.length)
+                        )
+                        current_heading = float(lane.heading_at(0))
+                        heading_error = abs(
+                            np.arctan2(
+                                np.sin(predecessor_heading - current_heading),
+                                np.cos(predecessor_heading - current_heading),
+                            )
+                        )
+
+                        # Prefer continuity of lane numbering when available,
+                        # then use endpoint/heading agreement to disambiguate
+                        # multiple incoming edges.
+                        same_lane_id = predecessor_lane_id == target_lane_id
+                        score = endpoint_distance + heading_error
+                        predecessor_candidates.append(
+                            (
+                                not same_lane_id,
+                                score,
+                                predecessor_index,
+                                predecessor_lane,
+                            )
+                        )
+
+                if predecessor_candidates:
+                    predecessor_candidates.sort(key=lambda candidate: candidate[:2])
+                    _, _, previous_lane_index, previous_lane = (
+                        predecessor_candidates[0]
+                    )
+
+                    # Distance from a vehicle on the previous segment to the
+                    # reference, measured continuously along the road:
+                    #
+                    #   previous vehicle -> segment boundary -> reference
+                    #
+                    distance_from_boundary_to_reference = max(0.0, float(s_ref))
+
+                    for other in self.road.vehicles:
+                        if (
+                            other is reference
+                            or other.lane_index != previous_lane_index
+                        ):
+                            continue
+
+                        s_other, _ = previous_lane.local_coordinates(other.position)
+                        distance_to_boundary = max(
+                            0.0,
+                            float(previous_lane.length - s_other),
+                        )
+                        centre_distance = (
+                            distance_to_boundary
+                            + distance_from_boundary_to_reference
+                        )
+
+                        gap = self._bumper_gap(
+                            reference,
+                            other,
+                            centre_distance,
+                        )
+                        if gap < rear_gap:
+                            rear = other
+                            rear_gap = gap
+            except Exception:
+                # If the road graph has no valid predecessor, keep the result
+                # from the current lane segment.
+                pass
+
+        # ------------------------------------------------------------------
+        # Immediately following lane segment: front vehicles
+        # ------------------------------------------------------------------
+        if include_next_front:
+            try:
+                next_lane_index = self.road.network.next_lane(
+                    lane_index, position=reference.position
+                )
+                if next_lane_index != lane_index:
+                    next_lane = self.road.network.get_lane(next_lane_index)
+                    distance_to_lane_end = max(0.0, float(lane.length - s_ref))
+
+                    for other in self.road.vehicles:
+                        if other is reference or other.lane_index != next_lane_index:
+                            continue
+
+                        s_other, _ = next_lane.local_coordinates(other.position)
+                        centre_distance = distance_to_lane_end + max(
+                            0.0, float(s_other)
+                        )
+                        gap = self._bumper_gap(reference, other, centre_distance)
+                        if gap < front_gap:
+                            front = other
+                            front_gap = gap
+            except Exception:
+                # No unique/valid next lane: the same-segment result is still
+                # valid and is kept.
+                pass
+
+        return front, rear, front_gap, rear_gap 
+
+    def _longitudinal_speed(self, vehicle, lane_index):
+        """Vehicle velocity component along the specified lane [m/s]."""
+        if vehicle is None:
+            return np.nan
+
+        try:
+            lane = self.road.network.get_lane(lane_index)
+            s, _ = lane.local_coordinates(vehicle.position)
+            lane_heading = lane.heading_at(s)
+            return float(vehicle.speed * np.cos(vehicle.heading - lane_heading))
+        except Exception:
+            # All lanes in this environment have the same forward direction
+            # over the weaving section; scalar speed is a safe fallback.
+            return float(vehicle.speed)
+
+    def _front_ttc(self, ego, front, gap, lane_index):
+        """Constant-velocity TTC to a front vehicle [s]."""
+        if front is None or not np.isfinite(gap):
+            return np.inf
+        if gap <= 0.0:
+            return 0.0
+
+        ego_speed = self._longitudinal_speed(ego, lane_index)
+        front_speed = self._longitudinal_speed(front, front.lane_index)
+        closing_speed = ego_speed - front_speed
+
+        if closing_speed <= 0.0:
+            return np.inf
+        return float(gap / closing_speed)
+
+    def _rear_ttc(self, ego, rear, gap, lane_index):
+        """Constant-velocity TTC for a target-lane vehicle approaching from rear."""
+        if rear is None or not np.isfinite(gap):
+            return np.inf
+        if gap <= 0.0:
+            return 0.0
+
+        ego_speed = self._longitudinal_speed(ego, lane_index)
+        rear_speed = self._longitudinal_speed(rear, rear.lane_index)
+        closing_speed = rear_speed - ego_speed
+
+        if closing_speed <= 0.0:
+            return np.inf
+        return float(gap / closing_speed)
+
+    @staticmethod
+    def _target_rear_induced_braking(ego, target_rear, target_front):
+        """Counterfactual braking demand caused by inserting ego into target lane.
+
+        For IDM-like traffic vehicles, compare the rear vehicle's predicted
+        acceleration before the ego insertion with its predicted acceleration
+        when the ego is used as its new leader:
+
+            induced_braking = max(0, a_without_ego - a_with_ego)
+
+        The returned quantity is therefore a positive braking magnitude in
+        m/s^2.  It is ``np.nan`` if no target rear vehicle exists or its
+        behavior model does not expose the required acceleration function.
+        """
+        if target_rear is None or not hasattr(target_rear, "acceleration"):
+            return np.nan
+
+        try:
+            a_without_ego = target_rear.acceleration(
+                ego_vehicle=target_rear,
+                front_vehicle=target_front,
+            )
+            a_with_ego = target_rear.acceleration(
+                ego_vehicle=target_rear,
+                front_vehicle=ego,
+            )
+            return max(0.0, float(a_without_ego - a_with_ego))
+        except (TypeError, AttributeError, ValueError, FloatingPointError):
+            return np.nan
 
 
     def _is_successfully_merged(self) -> bool:
@@ -305,6 +684,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             or self.vehicle.position[0] > 310
             or self.vehicle.lane_index == ("c", "o", 0)
             or self.steps > 500
+            #or any(crashes)
         )
 
     def _reset(self) -> None:
@@ -495,94 +875,94 @@ class SingleAgentMergeEnv(AbstractEnv):
         )
 
         # use weaving scenario instead of merging
-        # use_weaving = self.config["use_weaving"]
+        use_weaving = self.config["use_weaving"]
 
-        # """spawn the HDV on the main road first"""
-        # for _ in range(num_HDV // 3):
-        #     veh = other_vehicles_type(
-        #         road,
-        #         road.network.get_lane(("a", "b", 0)).position(
-        #             spawn_point_s_h1.pop(0) + loc_noise.pop(0), 0
-        #         ),
-        #         speed=initial_speed.pop(0),
-        #         use_deceleration=use_weaving,
-        #     )
+        """spawn the HDV on the main road first"""
+        for _ in range(num_HDV // 3):
+            veh = other_vehicles_type(
+                road,
+                road.network.get_lane(("a", "b", 0)).position(
+                    spawn_point_s_h1.pop(0) + loc_noise.pop(0), 0
+                ),
+                speed=initial_speed.pop(0),
+                use_deceleration=use_weaving,
+            )
 
-        #     if use_weaving:
-        #         veh.RIGHT_BIAS = biases.pop(0)
-        #     else:
-        #         veh.RIGHT_BIAS = 0.0
+            if use_weaving:
+                veh.RIGHT_BIAS = biases.pop(0)
+            else:
+                veh.RIGHT_BIAS = 0.0
 
-        #     veh.color = (
-        #         VehicleGraphics.BLUE
-        #         if veh.RIGHT_BIAS == right_bias
-        #         else VehicleGraphics.GREEN
-        #     )
-        #     road.vehicles.append(veh)
+            veh.color = (
+                VehicleGraphics.BLUE
+                if veh.RIGHT_BIAS == right_bias
+                else VehicleGraphics.GREEN
+            )
+            road.vehicles.append(veh)
 
-        # for _ in range(num_HDV // 3):
-        #     veh = other_vehicles_type(
-        #         road,
-        #         road.network.get_lane(("a", "b", 1)).position(
-        #             spawn_point_s_h2.pop(0) + loc_noise.pop(0), 0
-        #         ),
-        #         speed=initial_speed.pop(0),
-        #         use_deceleration=use_weaving,
-        #     )
+        for _ in range(num_HDV // 3):
+            veh = other_vehicles_type(
+                road,
+                road.network.get_lane(("a", "b", 1)).position(
+                    spawn_point_s_h2.pop(0) + loc_noise.pop(0), 0
+                ),
+                speed=initial_speed.pop(0),
+                use_deceleration=use_weaving,
+            )
 
-        #     if use_weaving:
-        #         veh.RIGHT_BIAS = biases.pop(0)
-        #     else:
-        #         veh.RIGHT_BIAS = 0.0
+            if use_weaving:
+                veh.RIGHT_BIAS = biases.pop(0)
+            else:
+                veh.RIGHT_BIAS = 0.0
 
-        #     veh.color = (
-        #         VehicleGraphics.BLUE
-        #         if veh.RIGHT_BIAS == right_bias
-        #         else VehicleGraphics.GREEN
-        #     )
-        #     road.vehicles.append(veh)
+            veh.color = (
+                VehicleGraphics.BLUE
+                if veh.RIGHT_BIAS == right_bias
+                else VehicleGraphics.GREEN
+            )
+            road.vehicles.append(veh)
 
-        # """spawn the rest HDV on the merging road"""
-        # for _ in range(num_HDV - 2 * num_HDV // 3):
-        #     veh = other_vehicles_type(
-        #         road,
-        #         road.network.get_lane(("j", "k", 0)).position(
-        #             spawn_point_m_h.pop(0) + loc_noise.pop(0), 0
-        #         ),
-        #         speed=initial_speed.pop(0),
-        #         use_deceleration=use_weaving,
-        #     )
+        """spawn the rest HDV on the merging road"""
+        for _ in range(num_HDV - 2 * num_HDV // 3):
+            veh = other_vehicles_type(
+                road,
+                road.network.get_lane(("j", "k", 0)).position(
+                    spawn_point_m_h.pop(0) + loc_noise.pop(0), 0
+                ),
+                speed=initial_speed.pop(0),
+                use_deceleration=use_weaving,
+            )
 
-        #     # all merging vehicles want on main road (left bias)
-        #     if use_weaving:
-        #         veh.RIGHT_BIAS = -4.0
-        #     else:
-        #         veh.RIGHT_BIAS = 0
+            # all merging vehicles want on main road (left bias)
+            if use_weaving:
+                veh.RIGHT_BIAS = -4.0
+            else:
+                veh.RIGHT_BIAS = 0
 
-        #     veh.color = VehicleGraphics.GREEN
-        #     road.vehicles.append(veh)
-
-
-        # Milano dataset
-        # traj_list = [79, 81, 85, 87,  100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
-        # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131]
-        # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
+            veh.color = VehicleGraphics.GREEN
+            road.vehicles.append(veh)
 
 
-        # NGSIM
-        #traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 61, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93, 94, 98, 99]
-        # traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93, 94, 98, 99]
-        traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93,  98, 99]
+        # # Milano dataset
+        # # traj_list = [79, 81, 85, 87,  100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
+        # # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131]
+        # # traj_list = [69, 79, 80, 81, 85, 87, 91, 92, 100, 101, 103, 104, 105, 114, 115, 117, 119, 122, 125, 129, 131, 133, 135, 138, 145, 156, 160]
+
+
+        # # NGSIM
+        # #traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 61, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93, 94, 98, 99]
+        # # traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93, 94, 98, 99]
+        # traj_list = [19, 25, 31, 33, 35, 36, 37, 39, 42, 44, 46, 48, 49, 52, 57, 59, 66, 71, 72, 73, 79, 82, 85, 87, 90, 93,  98, 99]
         
-        # start_time = np.random.uniform(5, 12) # Milano dataset
-        start_time = np.random.uniform(57, 65) # NGSIM
+        # # start_time = np.random.uniform(5, 12) # Milano dataset
+        # start_time = np.random.uniform(57, 65) # NGSIM
 
-        for traj in traj_list:
-            v = RealVehicle(f"../trajectories_numpy/vehicle_{traj}.npy", start_time)
-            # v = RealVehicle(f"./traj{traj}.npy", start_time)
-            v.id = traj
-            v.color = VehicleGraphics.BLACK
-            road.vehicles.append(v)
+        # for traj in traj_list:
+        #     v = RealVehicle(f"NGSIM-Dataset/trajectories_numpy/vehicle_{traj}.npy", start_time)
+        #     # v = RealVehicle(f"./traj{traj}.npy", start_time)
+        #     v.id = traj
+        #     v.color = VehicleGraphics.BLACK
+        #     road.vehicles.append(v)
 
 
 register(

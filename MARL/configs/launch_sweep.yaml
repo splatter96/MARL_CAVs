@@ -1,0 +1,63 @@
+# launch_sweep.yaml
+# -------------------------------------------------
+# Hydra launch configuration for a 10×10 grid sweep
+# of `env.offramp_reward` and `env.collision_reward`.
+# -------------------------------------------------
+
+defaults:
+  # Use the same base config as the training script
+  - configs_sacd.yml          # ← the base config you already have
+  # Use Hydra’s grid sweeper
+  - override hydra/sweeper: grid
+  # Use the Ray launcher for parallel execution (local workers)
+  - override hydra/launcher: ray
+
+hydra:
+  # -----------------------------------------------------------------
+  # Grid‑search settings – 10 values for each parameter → 100 jobs
+  # -----------------------------------------------------------------
+  sweeper:
+    params:
+      env.offramp_reward: [ 1, 5, 10, 25, 50, 100, 150, 200, 250, 300]
+      env.collision_reward: [ 1, 5, 10, 25, 100, 150, 200, 250, 300]
+    # Run all jobs in one batch (adjust if you want smaller batches)
+    max_batch_size: 100
+
+  # ---------------------------------------------------------------
+  # Ray launcher – spawns a local Ray cluster and runs jobs in parallel
+  # ---------------------------------------------------------------
+  launcher:
+    # Number of concurrent Ray workers (set to the number of CPU cores you have)
+    # Adjust `max_parallel` to control parallelism.
+    max_parallel: 8               # e.g. 8 parallel jobs; change as needed
+    # Optional: limit resources per job (memory, CPUs)
+    # ray_init_kwargs:
+    #   num_cpus: 8
+    #   # memory: 4GB  # uncomment if you want to set a memory limit
+
+  # ---------------------------------------------------------------
+  # Output directories – each run gets its own folder
+  # ---------------------------------------------------------------
+  run:
+    dir: ${output_dir:${hydra.job.name}}
+    # The `${output_dir:...}` helper creates a unique sub‑directory per job.
+    # You can customise the pattern, e.g. `runs/${now:%Y-%m-%d}/${hydra.job.num}`
+
+  # -----------------------------------------------------------------
+  # Optional logging – keep a CSV with all sweep parameters
+  # -----------------------------------------------------------------
+  job_logging:
+    root:
+      level: INFO
+    handlers:
+      file:
+        class: logging.FileHandler
+        filename: ${hydra:runtime.output_dir}/sweep.log
+        formatter: simple
+        level: INFO
+
+  # -----------------------------------------------------------------
+  # Make sure the original script sees the updated config
+  # -----------------------------------------------------------------
+  job:
+    chdir: False   # keep cwd as in your original script

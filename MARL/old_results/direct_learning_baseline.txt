@@ -1,0 +1,24 @@
+
+Jan_15_07_44_13_50_offramp_direct_learning_same_length_again_0
+Crashrate 0.029970029970029972 Mergerate 0.9690309690309691 other_crashes 0.1038961038961039
+Average ego vehicle speed 17.9537561656615
+Average speed of all cars 20.028788154580017
+
+Jan_15_07_46_41_100_offramp_direct_0
+Crashrate 0.026973026973026972 Mergerate 0.97002997002997 other_crashes 0.06893106893106893
+Average ego vehicle speed 19.132984378459817
+Average speed of all cars 20.07005107688607
+
+
+Jan_20_09_40_39_pixi-test-horse-new-env-longer_42
+seed=32
+Crashrate 0.027972027972027972 Mergerate 0.998972250770812 other_crashes 0.016983016983016984
+Average ego vehicle speed 19.867180012793774
+Average speed of all cars 20.091648801760428
+
+Jan_20_09_40_39_pixi-test-horse-new-env-longer_42
+seed=21, crashes count as unsuccesfull merges
+Crashrate 0.027972027972027972 Mergerate 0.971028971028971 other_crashes 0.016983016983016984
+Average ego vehicle speed 19.867180012793774
+Average speed of all cars 20.091648801760428
+

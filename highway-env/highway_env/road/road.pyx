@@ -402,8 +402,8 @@ class Road(object):
                     elif prev_lanes:
                         prev_lane = prev_lanes[0]
                     else:
-                    continue
-                    lanes_offsets.append((prev_lane, -prev_lane.length))
+                        continue
+                        lanes_offsets.append((prev_lane, -prev_lane.length))
 
         #for v in self.vehicles + self.objects:
         # if vehicle.id == 0:

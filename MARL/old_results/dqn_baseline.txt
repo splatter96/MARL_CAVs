@@ -1,0 +1,21 @@
+
+Jan_14_09_51_46_dqn_64_gradient_steps_0
+seed=21
+Crashrate 0.11588411588411589 Mergerate 0.8881118881118881 other_crashes 0.028971028971028972
+Average ego vehicle speed 24.570367921952567
+Average speed of all cars 20.652426691737254
+
+seed=32
+Crashrate 0.0939060939060939 Mergerate 0.9000999000999002 other_crashes 0.01998001998001998
+Average ego vehicle speed 24.66727456222176
+Average speed of all cars 20.656896315677
+
+
+
+
+Jan_14_10_14_22_dqn_64_gradient_steps_100_offramp_penalty_0
+seed=32
+Crashrate 0.07192807192807193 Mergerate 0.9230769230769231 other_crashes 0.02197802197802198
+Average ego vehicle speed 24.29787928352753
+Average speed of all cars 20.66705624742099
+

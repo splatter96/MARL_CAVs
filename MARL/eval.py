@@ -14,8 +14,8 @@ warnings.filterwarnings("ignore")
 import matplotlib.cm as cm
 import matplotlib as mpl
 
-#sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
-#sys.path.remove("/home/paul/Documents/PhD/RL/highway_env_commonroad/highway-env")
+sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
+sys.path.remove("/home/paul/Documents/PhD/RL/highway_env_commonroad/highway-env")
 
 sys.path.append("../highway-env")
 import highway_env
@@ -47,6 +47,16 @@ def parse_args():
         required=False,
         default="",
         help="directory where to save the trajectories",
+    )
+    parser.add_argument(
+        "--metrics-dir",
+        type=str,
+        required=False,
+        default=".",
+        help=(
+            "directory where the TTC metric numpy files are saved "
+            "(default: current directory)"
+        ),
     )
     parser.add_argument(
         "--mobil",
@@ -91,7 +101,7 @@ def parse_args():
 last_action_prob = None
 last_observation = None
 last_info = None
-
+render_env = None
 
 def display_action(action_surface, sim_surface):
     def angle_to_position(angle, _range):
@@ -153,9 +163,181 @@ def display_action(action_surface, sim_surface):
         text = font.render(text, 1, (10, 10, 10), (255, 255, 255))
         action_surface.blit(text, (cell_size[0] * i, 20))
 
+def _format_ttc(value):
+    """Format a TTC value for the renderer."""
+    if value is None:
+        return "n/a"
+
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return "n/a"
+
+    if np.isnan(value):
+        return "n/a"
+    if np.isinf(value):
+        return "inf"
+    return f"{value:.2f} s"
+
+
+def _find_vehicle_by_id(vehicle_id):
+    """Find a vehicle in the current rendered environment by its ID."""
+    global render_env
+
+    if render_env is None or vehicle_id is None:
+        return None
+
+    for vehicle in render_env.road.vehicles:
+        current_id = getattr(vehicle, "id", None)
+
+        # Exact comparison first. The string fallback also handles cases in
+        # which NumPy/scalar types are used in the info dictionary.
+        if current_id == vehicle_id or str(current_id) == str(vehicle_id):
+            return vehicle
+
+    return None
+
+
+def display_ttc(action_surface, sim_surface):
+    """Visualize TTC values and the vehicles used to compute them.
+
+    TTC information is shown in ``action_surface``. The corresponding vehicles
+    are highlighted directly in ``sim_surface`` and connected to the ego vehicle
+    with a line.
+
+    Labels:
+        CF = current-lane front vehicle
+        TF = target-lane front vehicle
+        TR = target-lane rear vehicle
+    """
+    global last_info, render_env
+
+    if last_info is None or render_env is None:
+        return
+
+    ego = getattr(render_env, "vehicle", None)
+    if ego is None:
+        return
+
+    # Distinct colors for the three TTC relations.
+    metrics = [
+        {
+            "label": "CF",
+            "name": "Current front",
+            "ttc_key": "ttc_current_front",
+            "id_key": "current_front_id",
+            "color": (255, 190, 0),
+        },
+        {
+            "label": "TF",
+            "name": "Target front",
+            "ttc_key": "ttc_target_front",
+            "id_key": "target_front_id",
+            "color": (0, 210, 255),
+        },
+        {
+            "label": "TR",
+            "name": "Target rear",
+            "ttc_key": "ttc_target_rear",
+            "id_key": "target_rear_id",
+            "color": (255, 70, 220),
+        },
+    ]
+
+    # ------------------------------------------------------------------
+    # Text panel with the TTC values
+    # ------------------------------------------------------------------
+    font = pygame.font.Font(None, 26)
+    small_font = pygame.font.Font(None, 20)
+
+    panel_x = 10
+    panel_y = 10
+    panel_width = 390
+    panel_height = 100
+
+    pygame.draw.rect(
+        action_surface,
+        (245, 245, 245),
+        (panel_x, panel_y, panel_width, panel_height),
+    )
+    pygame.draw.rect(
+        action_surface,
+        (40, 40, 40),
+        (panel_x, panel_y, panel_width, panel_height),
+        1,
+    )
+
+    title = font.render("Time-to-Collision", True, (20, 20, 20))
+    action_surface.blit(title, (panel_x + 8, panel_y + 5))
+
+    for i, metric in enumerate(metrics):
+        ttc = last_info.get(metric["ttc_key"], None)
+        vehicle_id = last_info.get(metric["id_key"], None)
+
+        id_text = "None" if vehicle_id is None else str(vehicle_id)
+        text = (
+            f'{metric["label"]}: {_format_ttc(ttc)}   '
+            f'(vehicle {id_text})'
+        )
+
+        rendered = small_font.render(text, True, metric["color"])
+        action_surface.blit(
+            rendered,
+            (panel_x + 10, panel_y + 35 + i * 20),
+        )
+
+    # ------------------------------------------------------------------
+    # Highlight the vehicles used for the TTC calculation in the road view
+    # ------------------------------------------------------------------
+    ego_pixel = sim_surface.pos2pix(
+        float(ego.position[0]),
+        float(ego.position[1]),
+    )
+
+    for metric in metrics:
+        vehicle_id = last_info.get(metric["id_key"], None)
+        vehicle = _find_vehicle_by_id(vehicle_id)
+
+        if vehicle is None:
+            continue
+
+        vehicle_pixel = sim_surface.pos2pix(
+            float(vehicle.position[0]),
+            float(vehicle.position[1]),
+        )
+
+        color = metric["color"]
+
+        # Line from ego to the vehicle involved in this TTC measurement.
+        pygame.draw.line(
+            sim_surface,
+            color,
+            (int(ego_pixel[0]), int(ego_pixel[1])),
+            (int(vehicle_pixel[0]), int(vehicle_pixel[1])),
+            3,
+        )
+
+        # Marker around the TTC vehicle.
+        pygame.draw.circle(
+            sim_surface,
+            color,
+            (int(vehicle_pixel[0]), int(vehicle_pixel[1])),
+            18,
+            4,
+        )
+
+        # Put CF/TF/TR next to the highlighted vehicle.
+        label = font.render(metric["label"], True, color)
+        sim_surface.blit(
+            label,
+            (int(vehicle_pixel[0]) + 18, int(vehicle_pixel[1]) - 22),
+        )
+
 
 def eval_policy(args):
-    env = gym.make("merge-single-agent-v0")
+    global last_info, last_observation, render_env
+
+    #env = gym.make("merge-single-agent-v0")
 
     config = {}
     config["screen_height"] = 300
@@ -171,6 +353,8 @@ def eval_policy(args):
         config["action_masking"] = False
 
     env = gym.make("merge-single-agent-v0", config=config)
+    render_env = env.unwrapped
+
 
     if not args.mobil:
         model = SACD.load(args.model)
@@ -187,6 +371,8 @@ def eval_policy(args):
     total_steps = 0
     sucessfull_merges = 0
 
+    crash_positions = []
+
     # create the output directory if we need to save the trajectories
     if args.traj_dir != "" and not os.path.exists(args.traj_dir):
         os.mkdir(args.traj_dir)
@@ -197,15 +383,29 @@ def eval_policy(args):
     start = time.time()
 
     action_map = ["LANE_LEFT", "IDLE", "LANE_RIGHT", "FASTER", "SLOWER"]
+    action_buffer = []
+    ttc_current_front_values = []
+    ttc_target_front_values = []
+    ttc_target_rear_values = []
+
+    os.makedirs(args.metrics_dir, exist_ok=True)
+
 
     # Run episodes until we have observed ``target_crashes`` crashes.
-    while crashes < target_crashes:
+    # while crashes < target_crashes:
+    while j < target_crashes:
         done = truncated = False
         obs, info = env.reset()
-        # set the envviewr in the env
+        last_observation = obs
+        last_info = info
+
         if args.render:
             env.render()
             # env.viewer.set_agent_display(display_action)
+            viewer = getattr(env, "viewer", None)
+            if viewer is None:
+                viewer = env.unwrapped.viewer
+            viewer.set_agent_display(display_ttc)
         skip_run = False
 
         if args.initial_pos != "":
@@ -222,6 +422,7 @@ def eval_policy(args):
         while not (done or truncated):
             if not args.mobil:
                 action, _states = model.predict(obs, deterministic=True)
+                action_buffer.append(action)
                 # print(action_map[action])
                 # t_obs = torch.tensor(obs)
                 # t_obs = t_obs[None, :]
@@ -232,6 +433,8 @@ def eval_policy(args):
             else:
                 action = None
             obs, reward, done, truncated, info = env.step(action)
+            last_observation = obs
+            last_info = info
             # ret += reward
 
             # global last_observation
@@ -242,6 +445,13 @@ def eval_policy(args):
             speed += info["average_speed"]
             road_speed += info["average_road_speed"]
             total_steps += 1
+
+            # Collect TTC metrics for every simulation step over the complete
+            # evaluation. The environment reports np.inf when no closing
+            # conflict exists, and those values are preserved in the files.
+            ttc_current_front_values.append(float(info["ttc_current_front"]))
+            ttc_target_front_values.append(float(info["ttc_target_front"]))
+            ttc_target_rear_values.append(float(info["ttc_target_rear"]))
 
             if args.traj_dir != "":
                 veh_pos = info["vehicle_position"][0]
@@ -267,13 +477,14 @@ def eval_policy(args):
 
         if info["other_crashes"] and not info["crashed"]:
             other_crashes += 1
-            print("other crashes")
             #if args.initial_pos == "":
                 #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
 
         if info["crashed"]:
-            t.update(1)
+            # t.update(1)
             crashes += 1
+            # save position of crash
+            crash_positions.append(info["vehicle_position"][0])
             # only save trajectories if we didn't load any in the first place
             #if args.initial_pos == "":
                 #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
@@ -285,6 +496,7 @@ def eval_policy(args):
             sucessfull_merges += 1
 
         j += 1
+        t.update(1)
 
         # Update the progress description with current statistics.
         # Guard against division by zero – j is always >=1 here.
@@ -298,6 +510,25 @@ def eval_policy(args):
     print(f"Average ego vehicle speed {speed/total_steps:.3f}")
     print(f"Average speed of all cars {road_speed/total_steps:.3f}")
 
+
+    metrics_dir = args.metrics_dir
+
+    np.save(
+        os.path.join(metrics_dir, "ttc_current_front.npy"),
+        np.asarray(ttc_current_front_values, dtype=float),
+    )
+    np.save(
+        os.path.join(metrics_dir, "ttc_target_front.npy"),
+        np.asarray(ttc_target_front_values, dtype=float),
+    )
+    np.save(
+        os.path.join(metrics_dir, "ttc_target_rear.npy"),
+        np.asarray(ttc_target_rear_values, dtype=float),
+    )
+
+
+    np.save("crash_positions.npy", np.array(crash_positions))
+    np.save("actions.npy", action_buffer)
 
 if __name__ == "__main__":
     torch.set_num_threads(2)

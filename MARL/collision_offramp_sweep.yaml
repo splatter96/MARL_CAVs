@@ -1,0 +1,20 @@
+program: train_new.py
+name: collision_offramp_sweep
+method: grid
+metric:
+  goal: maximize
+  name: rollout/ep_rew_mean
+parameters:
+  env.collision_reward:
+    distribution: categorical
+    values: [1, 5, 10, 20, 25, 50, 100, 150, 200, 250]
+  env.offramp_reward:
+    distribution: categorical
+    values: [1, 5, 10, 20, 25, 50, 100, 150, 200, 250]
+
+command:
+  - ${env}
+  - python3
+  - ${program}
+  #- "hydra.job.chdir=False"
+  - ${args_no_hyphens}
