@@ -231,15 +231,30 @@ class KinematicObservation(ObservationType):
 
     def observe(self) -> np.ndarray:
         if not self.env.road:
+            self.observed_vehicles = []
+            self.observed_vehicle_ids = []
             return np.zeros(self.space().shape)
 
-        # Collect nearby traffic
+        # Collect nearby traffic. Keep the exact selected vehicle objects so
+        # evaluation/rendering code can visualize precisely which vehicles
+        # were visible to the policy for this observation.
         close_vehicles = self.env.road.close_vehicles_to(
             self.observer_vehicle,
             self.env.PERCEPTION_DISTANCE,
             count=self.vehicles_count - 1,
             see_behind=self.see_behind,
         )
+
+        selected_close_vehicles = list(
+            close_vehicles[-self.vehicles_count + 1 :]
+        ) if close_vehicles else []
+
+        self.observed_vehicles = [self.observer_vehicle] + selected_close_vehicles
+        self.observed_vehicle_ids = [
+            getattr(vehicle, "id", None)
+            for vehicle in self.observed_vehicles
+        ]
+
         obs_list = []
 
 
@@ -249,12 +264,12 @@ class KinematicObservation(ObservationType):
         obs = {k: obs[k] for k in self.features if k in obs}
         obs_list.append(obs)
 
-        if close_vehicles:
+        if selected_close_vehicles:
             origin = self.observer_vehicle if not self.absolute else None
 
             close_veh = [
                 v.to_dict(origin, observe_intentions=self.observe_intentions)
-                for v in close_vehicles[-self.vehicles_count + 1 :]
+                for v in selected_close_vehicles
             ]
             # extract only the features we want
             for idx, veh in enumerate(close_veh):

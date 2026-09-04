@@ -21,8 +21,8 @@ class IDMVehicle(ControlledVehicle):
     """polite behavior"""
     # """Longitudinal policy parameters"""
     # Maximum acceleration.
-    ACC_MAX = 6.0  # [m/s2]
-    # ACC_MAX = 15.0  # [m/s2]
+    # ACC_MAX = 6.0  # [m/s2]
+    ACC_MAX = 15.0  # [m/s2]
     # Desired maximum acceleration.
     COMFORT_ACC_MAX = 3.0  # [m/s2]
     # COMFORT_ACC_MAX = 0.3  # [m/s2]

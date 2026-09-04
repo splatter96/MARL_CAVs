@@ -386,9 +386,26 @@ def eval_policy(args):
 
     action_map = ["LANE_LEFT", "IDLE", "LANE_RIGHT", "FASTER", "SLOWER"]
     action_buffer = []
+    # Step-wise TTC values over the complete evaluation. These are kept for
+    # distribution plots and threshold-based statistics.
     ttc_current_front_values = []
     ttc_target_front_values = []
     ttc_target_rear_values = []
+
+    # Episode-wise minimum TTC values. One value is stored per evaluation
+    # episode and interaction type. np.inf is preserved if no closing conflict
+    # occurred for that interaction type during the episode.
+    episode_min_ttc_current_front = []
+    episode_min_ttc_target_front = []
+    episode_min_ttc_target_rear = []
+
+    # Accepted merge gaps measured by the environment at merge initiation and
+    # reported once the merge is successfully completed. We store one value per
+    # episode; unsuccessful episodes remain np.nan. This keeps the values aligned
+    # with the evaluation episodes and allows np.nanmedian()/percentiles later.
+    accepted_merge_gap_front = []
+    accepted_merge_gap_rear = []
+    successful_merge_flags = []
 
     os.makedirs(args.metrics_dir, exist_ok=True)
 
@@ -419,8 +436,22 @@ def eval_policy(args):
         # ret = 0
         # position_list = []
         # action_buffer = []
-        # initialise per‑episode storage for trajectory positions if needed
+        # initialise per-episode storage for trajectory positions if needed
         position_list = []
+
+        # Per-episode TTC traces are used to compute the minimum TTC for each of
+        # the three relevant interaction partners.
+        episode_ttc_current_front = []
+        episode_ttc_target_front = []
+        episode_ttc_target_rear = []
+
+        # The environment reports the accepted gap only after a successful merge,
+        # but the stored values correspond to the instant at which the merge was
+        # initiated. Keep np.nan if no successful merge occurs in this episode.
+        episode_merge_gap_front = np.nan
+        episode_merge_gap_rear = np.nan
+        episode_merged = False
+
         while not (done or truncated):
             if not args.mobil:
                 action, _states = model.predict(obs, deterministic=True)
@@ -451,9 +482,31 @@ def eval_policy(args):
             # Collect TTC metrics for every simulation step over the complete
             # evaluation. The environment reports np.inf when no closing
             # conflict exists, and those values are preserved in the files.
-            ttc_current_front_values.append(float(info["ttc_current_front"]))
-            ttc_target_front_values.append(float(info["ttc_target_front"]))
-            ttc_target_rear_values.append(float(info["ttc_target_rear"]))
+            ttc_current = float(info["ttc_current_front"])
+            ttc_target_front = float(info["ttc_target_front"])
+            ttc_target_rear = float(info["ttc_target_rear"])
+
+            ttc_current_front_values.append(ttc_current)
+            ttc_target_front_values.append(ttc_target_front)
+            ttc_target_rear_values.append(ttc_target_rear)
+
+            episode_ttc_current_front.append(ttc_current)
+            episode_ttc_target_front.append(ttc_target_front)
+            episode_ttc_target_rear.append(ttc_target_rear)
+
+            # In the modified environment these fields become available on the
+            # step on which a successful merge is first detected. The gap itself
+            # was captured earlier, at the first LANE_LEFT action on the parallel
+            # on-ramp section. Capture it here before later steps overwrite the
+            # info values with np.nan again.
+            if info.get("merged_now", False):
+                episode_merge_gap_front = float(
+                    info.get("accepted_merge_gap_front", np.nan)
+                )
+                episode_merge_gap_rear = float(
+                    info.get("accepted_merge_gap_rear", np.nan)
+                )
+                episode_merged = True
 
             if args.traj_dir != "":
                 veh_pos = info["vehicle_position"][0]
@@ -473,6 +526,30 @@ def eval_policy(args):
                     #print(f"Front: {v.speed}")
                 #elif v.id==0:
                     #print(f"Ego: {v.speed}")
+
+        # Store episode-level safety metrics before processing the terminal
+        # outcome. Each minimum is taken over all simulation steps in the episode.
+        # np.inf remains meaningful here: it denotes that no closing TTC conflict
+        # occurred for that interaction type during the complete episode.
+        episode_min_ttc_current_front.append(
+            float(np.min(episode_ttc_current_front))
+            if episode_ttc_current_front
+            else np.inf
+        )
+        episode_min_ttc_target_front.append(
+            float(np.min(episode_ttc_target_front))
+            if episode_ttc_target_front
+            else np.inf
+        )
+        episode_min_ttc_target_rear.append(
+            float(np.min(episode_ttc_target_rear))
+            if episode_ttc_target_rear
+            else np.inf
+        )
+
+        accepted_merge_gap_front.append(float(episode_merge_gap_front))
+        accepted_merge_gap_rear.append(float(episode_merge_gap_rear))
+        successful_merge_flags.append(bool(episode_merged))
 
         # if skip_run:
         #     continue
@@ -528,6 +605,57 @@ def eval_policy(args):
         np.asarray(ttc_target_rear_values, dtype=float),
     )
 
+    # Episode-wise minimum TTC values used for the safety-margin table and the
+    # episode-level TTC distribution figure.
+    np.save(
+        os.path.join(metrics_dir, "episode_min_ttc_current_front.npy"),
+        np.asarray(episode_min_ttc_current_front, dtype=float),
+    )
+    np.save(
+        os.path.join(metrics_dir, "episode_min_ttc_target_front.npy"),
+        np.asarray(episode_min_ttc_target_front, dtype=float),
+    )
+    np.save(
+        os.path.join(metrics_dir, "episode_min_ttc_target_rear.npy"),
+        np.asarray(episode_min_ttc_target_rear, dtype=float),
+    )
+
+    # One entry per episode. Failed/non-completed merges are represented by
+    # np.nan, so the accepted-gap statistics can later be computed directly with
+    # np.nanmedian, np.nanpercentile, etc. The Boolean flag preserves which
+    # episodes actually completed a merge.
+    np.save(
+        os.path.join(metrics_dir, "accepted_merge_gap_front.npy"),
+        np.asarray(accepted_merge_gap_front, dtype=float),
+    )
+    np.save(
+        os.path.join(metrics_dir, "accepted_merge_gap_rear.npy"),
+        np.asarray(accepted_merge_gap_rear, dtype=float),
+    )
+    np.save(
+        os.path.join(metrics_dir, "successful_merge.npy"),
+        np.asarray(successful_merge_flags, dtype=bool),
+    )
+
+    # Convenience archive containing all safety-margin data in one file.
+    np.savez(
+        os.path.join(metrics_dir, "safety_margin_metrics.npz"),
+        ttc_current_front=np.asarray(ttc_current_front_values, dtype=float),
+        ttc_target_front=np.asarray(ttc_target_front_values, dtype=float),
+        ttc_target_rear=np.asarray(ttc_target_rear_values, dtype=float),
+        episode_min_ttc_current_front=np.asarray(
+            episode_min_ttc_current_front, dtype=float
+        ),
+        episode_min_ttc_target_front=np.asarray(
+            episode_min_ttc_target_front, dtype=float
+        ),
+        episode_min_ttc_target_rear=np.asarray(
+            episode_min_ttc_target_rear, dtype=float
+        ),
+        accepted_merge_gap_front=np.asarray(accepted_merge_gap_front, dtype=float),
+        accepted_merge_gap_rear=np.asarray(accepted_merge_gap_rear, dtype=float),
+        successful_merge=np.asarray(successful_merge_flags, dtype=bool),
+    )
 
     np.save("crash_positions.npy", np.array(crash_positions))
     np.save("actions.npy", action_buffer)

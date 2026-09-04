@@ -335,6 +335,231 @@ def display_ttc(action_surface, sim_surface):
         )
 
 
+def _get_observed_vehicles():
+    """Return the exact vehicles used in the latest KinematicObservation.
+
+    KinematicObservation stores these when ``observe()`` is called. Row 0 is
+    the ego vehicle and rows 1..N are the surrounding vehicles supplied to the
+    policy. Missing/padded rows are not represented by a vehicle object.
+    """
+    global render_env
+
+    if render_env is None:
+        return []
+
+    observation_type = getattr(render_env, "observation_type", None)
+    if observation_type is None:
+        return []
+
+    return list(getattr(observation_type, "observed_vehicles", []))
+
+
+def display_observed_vehicles(action_surface, sim_surface):
+    """Visualize the policy observation and the ego vehicle's target lane.
+
+    The labels correspond to rows of the KinematicObservation:
+
+        OBS 0 = ego row
+        OBS 1..N = surrounding-vehicle rows
+
+    Only real vehicle rows are drawn; zero-padded rows have no corresponding
+    vehicle and therefore no circle in the road view.
+
+    In addition, the current ``target_lane_index`` of the ego vehicle is
+    highlighted directly in the road view. This makes it easier to relate the
+    policy's selected action to the lane toward which the controlled vehicle
+    is currently steering.
+    """
+    global render_env
+
+    if render_env is None:
+        return
+
+    observed_vehicles = _get_observed_vehicles()
+    if not observed_vehicles:
+        return
+
+    ego = observed_vehicles[0]
+
+    # Use one color for ego and one for every surrounding vehicle selected by
+    # KinematicObservation. Keeping all observed traffic the same color makes
+    # it easy to distinguish "visible to policy" from normal renderer colors.
+    ego_color = (255, 80, 180)
+    observed_color = (0, 220, 120)
+    text_color = (20, 20, 20)
+
+    font = pygame.font.Font(None, 24)
+    small_font = pygame.font.Font(None, 19)
+
+    # ------------------------------------------------------------------
+    # Observation summary panel
+    # ------------------------------------------------------------------
+    observation_type = getattr(render_env, "observation_type", None)
+    vehicles_count = getattr(observation_type, "vehicles_count", len(observed_vehicles))
+    surrounding_count = max(0, len(observed_vehicles) - 1)
+    padded_count = max(0, int(vehicles_count) - len(observed_vehicles))
+
+    panel_x = 10
+    panel_y = 10
+    panel_width = 520
+    # One additional line is reserved for the current target-lane index.
+    panel_height = 78 + 20 * min(len(observed_vehicles), 8)
+
+    pygame.draw.rect(
+        action_surface,
+        (245, 245, 245),
+        (panel_x, panel_y, panel_width, panel_height),
+    )
+    pygame.draw.rect(
+        action_surface,
+        (40, 40, 40),
+        (panel_x, panel_y, panel_width, panel_height),
+        1,
+    )
+
+    title = font.render(
+        f"Kinematic observation: {surrounding_count} surrounding vehicles",
+        True,
+        text_color,
+    )
+    action_surface.blit(title, (panel_x + 8, panel_y + 5))
+
+    summary = small_font.render(
+        f"Rows used: {len(observed_vehicles)}/{vehicles_count}  "
+        f"zero-padded: {padded_count}",
+        True,
+        text_color,
+    )
+    action_surface.blit(summary, (panel_x + 8, panel_y + 28))
+
+    # ------------------------------------------------------------------
+    # Highlight the ego vehicle's current target lane
+    # ------------------------------------------------------------------
+    target_lane_index = getattr(ego, "target_lane_index", None)
+    target_lane_color = (255, 215, 0)
+
+    target_lane_text = "None" if target_lane_index is None else str(target_lane_index)
+    target_line = small_font.render(
+        f"Target lane: {target_lane_text}",
+        True,
+        target_lane_color,
+    )
+    action_surface.blit(target_line, (panel_x + 8, panel_y + 48))
+
+    if target_lane_index is not None:
+        try:
+            target_lane = render_env.road.network.get_lane(target_lane_index)
+
+            # Sample the complete lane centerline. Using lane.position() rather
+            # than assuming a straight lane also works for curved/sine lanes.
+            sample_count = max(2, int(np.ceil(float(target_lane.length) / 2.0)) + 1)
+            longitudinal_samples = np.linspace(
+                0.0,
+                float(target_lane.length),
+                sample_count,
+            )
+
+            target_pixels = []
+            for longitudinal in longitudinal_samples:
+                point = target_lane.position(float(longitudinal), 0.0)
+                pixel = sim_surface.pos2pix(float(point[0]), float(point[1]))
+                target_pixels.append((int(pixel[0]), int(pixel[1])))
+
+            if len(target_pixels) >= 2:
+                # Draw a broad dark outline first so the target lane remains
+                # visible on both light and dark road markings.
+                pygame.draw.lines(
+                    sim_surface,
+                    (40, 40, 40),
+                    False,
+                    target_pixels,
+                    8,
+                )
+                pygame.draw.lines(
+                    sim_surface,
+                    target_lane_color,
+                    False,
+                    target_pixels,
+                    5,
+                )
+
+            # Place the TARGET label close to the longitudinal position of ego
+            # projected onto the target lane, rather than at a distant midpoint.
+            ego_longitudinal, _ = target_lane.local_coordinates(ego.position)
+            ego_longitudinal = float(
+                np.clip(ego_longitudinal, 0.0, float(target_lane.length))
+            )
+            label_position = target_lane.position(ego_longitudinal, 0.0)
+            label_pixel = sim_surface.pos2pix(
+                float(label_position[0]),
+                float(label_position[1]),
+            )
+
+            # target_label = font.render("TARGET", True, target_lane_color)
+            # sim_surface.blit(
+            #     target_label,
+            #     (int(label_pixel[0]) + 10, int(label_pixel[1]) + 14),
+            # )
+        except Exception:
+            # Visualization should never interfere with policy evaluation if a
+            # temporary target-lane index cannot be resolved by the road graph.
+            pass
+
+    # ------------------------------------------------------------------
+    # Draw every real observation row in the road view
+    # ------------------------------------------------------------------
+    ego_pixel = sim_surface.pos2pix(
+        float(ego.position[0]),
+        float(ego.position[1]),
+    )
+
+    for row_idx, vehicle in enumerate(observed_vehicles):
+        vehicle_pixel = sim_surface.pos2pix(
+            float(vehicle.position[0]),
+            float(vehicle.position[1]),
+        )
+
+        color = ego_color if row_idx == 0 else observed_color
+        label_text = "" if row_idx == 0 else f"{row_idx}"
+
+        # Circle around the vehicle used in this observation row.
+        pygame.draw.circle(
+            sim_surface,
+            color,
+            (int(vehicle_pixel[0]), int(vehicle_pixel[1])),
+            20,
+            4,
+        )
+
+        # Connect surrounding observed vehicles to ego for quick inspection.
+        if row_idx > 0:
+            pygame.draw.line(
+                sim_surface,
+                color,
+                (int(ego_pixel[0]), int(ego_pixel[1])),
+                (int(vehicle_pixel[0]), int(vehicle_pixel[1])),
+                2,
+            )
+
+        label = font.render(label_text, True, color)
+        sim_surface.blit(
+            label,
+            (int(vehicle_pixel[0]) + 20, int(vehicle_pixel[1]) - 24),
+        )
+
+        vehicle_id = getattr(vehicle, "id", None)
+        id_text = "None" if vehicle_id is None else str(vehicle_id)
+        panel_line = small_font.render(
+            f"OBS {row_idx}: vehicle id {id_text}",
+            True,
+            color,
+        )
+        action_surface.blit(
+            panel_line,
+            (panel_x + 10, panel_y + 70 + row_idx * 20),
+        )
+
+
 def eval_policy(args):
     global last_info, last_observation, render_env
 
@@ -358,8 +583,8 @@ def eval_policy(args):
 
 
     if not args.mobil:
-        #model = SACD.load(args.model)
-        model = DQN.load(args.model)
+        model = SACD.load(args.model)
+        #model = DQN.load(args.model)
         # model.set_random_seed(21)
         model.set_random_seed(args.seed)
 
@@ -407,7 +632,7 @@ def eval_policy(args):
             viewer = getattr(env, "viewer", None)
             if viewer is None:
                 viewer = env.unwrapped.viewer
-            viewer.set_agent_display(display_ttc)
+            viewer.set_agent_display(display_observed_vehicles)
         skip_run = False
 
         if args.initial_pos != "":

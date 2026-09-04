@@ -53,8 +53,17 @@ class SingleAgentMergeEnv(AbstractEnv):
     def step(self, action):
         """Step the environment and append weaving-safety metrics to ``info``.
 
-        The additional metrics are evaluated in the state reached after the
-        action has been simulated:
+        The TTC-related metrics are evaluated in the state reached after the
+        action has been simulated.
+
+        The accepted merge gaps are measured at *merge initiation*: when the
+        ego is on the parallel part of the on-ramp (lane ``("b", "c", 2)``)
+        and issues a lane-change-left action.  These front/rear target-lane
+        gaps are stored temporarily and are only reported if the ego later
+        completes the merge successfully.  If the episode terminates before a
+        successful merge, the stored values are discarded.
+
+        Additional ``info`` fields:
 
         * ``ttc_current_front``: TTC to the closest leader in the ego's
           current lane.
@@ -65,11 +74,60 @@ class SingleAgentMergeEnv(AbstractEnv):
         * ``target_rear_induced_braking``: additional braking demand [m/s^2]
           imposed on the target-lane rear vehicle if the ego were inserted in
           front of it at the current state.
+        * ``accepted_merge_gap_front`` / ``accepted_merge_gap_rear``:
+          bumper-to-bumper target-lane gaps [m] measured at merge initiation
+          and reported on the step where the merge is successfully completed.
+          These values are ``np.nan`` at all other time steps.
+        * ``merge_initiated_now``: True on the step on which the merge command
+          is first issued from the parallel on-ramp lane.
+        * ``merged_now``: True on the step on which the merge is first
+          recognized as successfully completed.
 
         TTC is ``np.inf`` if no relevant vehicle exists or the relative
         longitudinal velocity is not closing.  The induced-braking value is
         ``np.nan`` when no target-lane rear vehicle/model is available.
         """
+
+        # ------------------------------------------------------------------
+        # Capture the accepted gap at merge initiation, BEFORE simulating the
+        # lane-change action. In highway-env's DiscreteMetaAction mapping,
+        # action 0 is LANE_LEFT. The parallel on-ramp is ("b", "c", 2) and
+        # the adjacent highway target lane is ("b", "c", 1).
+        # ------------------------------------------------------------------
+        merge_initiated_now = False
+
+        if (
+            self.vehicle is not None
+            and not getattr(self, "_merged_successfully", False)
+            and not getattr(self, "_merge_gap_pending", False)
+            and self.vehicle.lane_index == ("b", "c", 2)
+            #and int(action) == 0
+            and self.vehicle.target_lane_index == ("b", "c", 1)
+        ):
+            target_lane_index = ("b", "c", 1)
+            target_front, target_rear, front_gap, rear_gap = self._lane_neighbours(
+                self.vehicle,
+                target_lane_index,
+                include_next_front=True,
+                include_previous_rear=True,
+            )
+
+            # Store the target-lane gaps at the decision instant. Keep NaN if
+            # no corresponding neighbour exists so missing vehicles do not
+            # enter aggregate statistics as infinite gaps.
+            self._pending_merge_gap_front = (
+                float(front_gap)
+                if target_front is not None and np.isfinite(front_gap)
+                else np.nan
+            )
+            self._pending_merge_gap_rear = (
+                float(rear_gap)
+                if target_rear is not None and np.isfinite(rear_gap)
+                else np.nan
+            )
+            self._merge_gap_pending = True
+            merge_initiated_now = True
+
         obs, reward, terminated, truncated, info = super().step(action)
 
         # Distinguish collisions in which another vehicle hits the ego from
@@ -78,11 +136,54 @@ class SingleAgentMergeEnv(AbstractEnv):
         # changes lane.
         # info["rear_end_collision_by_other"] = self._rear_end_collision_by_other_vehicle()
 
-        # if not getattr(self, "_merged_successfully", False):
-        #     self._merged_successfully = self._is_successfully_merged()
-        # info["merged"] = self._is_successfully_merged()
+        # Detect the first time the ego has actually completed its merge onto
+        # one of the highway through lanes.
+        merged_now = (
+            not getattr(self, "_merged_successfully", False)
+            and self._is_successfully_merged()
+        )
 
-        #info.update(self._compute_safety_info())
+        accepted_merge_gap_front = np.nan
+        accepted_merge_gap_rear = np.nan
+
+        if merged_now:
+            self._merged_successfully = True
+            merge_lane_index = self.vehicle.lane_index
+            merge_front, merge_rear, front_gap, rear_gap = self._lane_neighbours(
+                self.vehicle,
+                merge_lane_index,
+                include_next_front=True,
+                include_previous_rear=True,
+            )
+
+            # Only a gap captured at a preceding merge-initiation event is
+            # considered an accepted merge gap. Thus these values describe the
+            # tactical decision point, not the geometry at merge completion.
+            if getattr(self, "_merge_gap_pending", False):
+                accepted_merge_gap_front = self._pending_merge_gap_front
+                accepted_merge_gap_rear = self._pending_merge_gap_rear
+
+            self._merge_gap_pending = False
+            self._pending_merge_gap_front = np.nan
+            self._pending_merge_gap_rear = np.nan
+
+        # If a commanded merge never completes (e.g. collision, off-ramp, or
+        # timeout), discard the candidate gaps. This conditions accepted-gap
+        # statistics on successful merges only.
+        elif terminated or truncated:
+            self._merge_gap_pending = False
+            self._pending_merge_gap_front = np.nan
+            self._pending_merge_gap_rear = np.nan
+
+        info.update(self._compute_safety_info())
+        info.update(
+            {
+                "accepted_merge_gap_front": float(accepted_merge_gap_front),
+                "accepted_merge_gap_rear": float(accepted_merge_gap_rear),
+                "merge_initiated_now": bool(merge_initiated_now),
+                "merged_now": bool(merged_now),
+            }
+        )
         return obs, reward, terminated, truncated, info
 
     def _compute_safety_info(self):
@@ -171,8 +272,8 @@ class SingleAgentMergeEnv(AbstractEnv):
                 pass
 
         # Default merge target of the weaving lane.
-        if current == ("b", "c", 2):
-            return ("b", "c", 1)
+        # if current == ("b", "c", 2):
+        #     return ("b", "c", 1)
 
         return None
 
@@ -688,6 +789,12 @@ class SingleAgentMergeEnv(AbstractEnv):
         )
 
     def _reset(self) -> None:
+        # Reset one-shot merge-event tracking used for the accepted-gap metrics.
+        self._merged_successfully = False
+        self._merge_gap_pending = False
+        self._pending_merge_gap_front = np.nan
+        self._pending_merge_gap_rear = np.nan
+
         self._make_road()
 
         if self.config["traffic_density"] == 1:
