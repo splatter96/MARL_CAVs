@@ -346,6 +346,10 @@ def eval_policy(args):
     config["safety_guarantee"] = False
     config["traffic_density"] = args.difficulty
 
+    #config["hdv_driving_style"] = "conservative"
+    config["hdv_driving_style"] = "nominal"
+    #config["hdv_driving_style"] = "aggressive"
+
     if args.merging:
         config["use_weaving"] = False
 
@@ -358,8 +362,8 @@ def eval_policy(args):
 
 
     if not args.mobil:
-        #model = SACD.load(args.model)
-        model = DQN.load(args.model)
+        model = SACD.load(args.model)
+        # model = DQN.load(args.model)
         # model.set_random_seed(21)
         model.set_random_seed(args.seed)
 
@@ -390,12 +394,14 @@ def eval_policy(args):
     ttc_target_front_values = []
     ttc_target_rear_values = []
 
+    ttm_values = []
+
     os.makedirs(args.metrics_dir, exist_ok=True)
 
 
     # Run episodes until we have observed ``target_crashes`` crashes.
-    # while crashes < target_crashes:
-    while j < target_crashes:
+    while crashes < target_crashes:
+    #while j < target_crashes:
         done = truncated = False
         obs, info = env.reset()
         last_observation = obs
@@ -483,7 +489,7 @@ def eval_policy(args):
                 #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
 
         if info["crashed"]:
-            # t.update(1)
+            t.update(1)
             crashes += 1
             # save position of crash
             crash_positions.append(info["vehicle_position"][0])
@@ -496,9 +502,11 @@ def eval_policy(args):
 
         if "merged" in info and info["merged"]:  # and not info["other_crashes"]:
             sucessfull_merges += 1
+            if np.isfinite(float(info["time_to_merge"])):
+            ttm_values.append(float(info["time_to_merge"]))
 
         j += 1
-        t.update(1)
+        #t.update(1)
 
         # Update the progress description with current statistics.
         # Guard against division by zero – j is always >=1 here.
@@ -511,6 +519,7 @@ def eval_policy(args):
     print(f"Crashrate {crashes/j:.3f}")
     print(f"Average ego vehicle speed {speed/total_steps:.3f}")
     print(f"Average speed of all cars {road_speed/total_steps:.3f}")
+    print(f"Average time to merge {sum(ttm_values)/j:.3f}")
 
 
     metrics_dir = args.metrics_dir

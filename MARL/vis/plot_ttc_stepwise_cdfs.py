@@ -39,7 +39,11 @@ import argparse
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
+sns.set_theme()
+sns.set_context("paper")
+sns.set(font_scale=1.3)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -176,7 +180,7 @@ def plot_metric(ax, all_series, labels, title, threshold, x_max):
     ax.set_xlim(0.0, x_max)
     # ax.set_ylim(0.0, 1.0)
     ax.set_ylim(0.0, 0.16)
-    ax.grid(True, alpha=0.3)
+    ax.grid(True, alpha=0.9)
 
 
 def main():

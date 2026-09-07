@@ -40,6 +40,9 @@ class SingleAgentMergeEnv(AbstractEnv):
                 "LANE_CHANGE_COST": 1,  # default=0.5
                 "traffic_density": 1,  # easy or hard modes
                 "use_weaving": True,
+                # Driving style used by all surrounding IDM/MOBIL vehicles.
+                # Supported values: "conservative", "nominal", "aggressive".
+                "hdv_driving_style": "nominal",
             }
         )
         return cfg
@@ -82,6 +85,9 @@ class SingleAgentMergeEnv(AbstractEnv):
           is first issued from the parallel on-ramp lane.
         * ``merged_now``: True on the step on which the merge is first
           recognized as successfully completed.
+        * ``time_to_merge``: elapsed time [s] from the beginning of the episode
+          until the first successful merge. It is ``np.nan`` before a merge
+          has been completed and for episodes in which no successful merge occurs.
 
         TTC is ``np.inf`` if no relevant vehicle exists or the relative
         longitudinal velocity is not closing.  The induced-braking value is
@@ -130,6 +136,11 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         obs, reward, terminated, truncated, info = super().step(action)
 
+        # One call to step() advances the policy by one decision interval.
+        # Keeping this timer locally avoids relying on implementation details of
+        # AbstractEnv while remaining consistent with policy_frequency.
+        self._episode_elapsed_time += 1.0 / float(self.config["policy_frequency"])
+
         # Distinguish collisions in which another vehicle hits the ego from
         # behind. This is useful for open-loop trajectory replay (e.g. NGSIM),
         # where surrounding vehicles cannot react to the ego vehicle after it
@@ -148,6 +159,7 @@ class SingleAgentMergeEnv(AbstractEnv):
 
         if merged_now:
             self._merged_successfully = True
+            self._time_to_merge = float(self._episode_elapsed_time)
             merge_lane_index = self.vehicle.lane_index
             merge_front, merge_rear, front_gap, rear_gap = self._lane_neighbours(
                 self.vehicle,
@@ -182,6 +194,7 @@ class SingleAgentMergeEnv(AbstractEnv):
                 "accepted_merge_gap_rear": float(accepted_merge_gap_rear),
                 "merge_initiated_now": bool(merge_initiated_now),
                 "merged_now": bool(merged_now),
+                "time_to_merge": float(self._time_to_merge),
             }
         )
         return obs, reward, terminated, truncated, info
@@ -794,6 +807,8 @@ class SingleAgentMergeEnv(AbstractEnv):
         self._merge_gap_pending = False
         self._pending_merge_gap_front = np.nan
         self._pending_merge_gap_rear = np.nan
+        self._episode_elapsed_time = 0.0
+        self._time_to_merge = np.nan
 
         self._make_road()
 
@@ -924,6 +939,76 @@ class SingleAgentMergeEnv(AbstractEnv):
         road = self.road
         other_vehicles_type = utils.class_from_path(self.config["other_vehicles_type"])
 
+        # Select a homogeneous driving style for all surrounding HDVs.
+        # The route-specific RIGHT_BIAS is set separately below and is therefore
+        # intentionally not part of these behavior profiles.
+        driving_style = self.config.get("hdv_driving_style", "nominal").lower()
+        driving_styles = {
+            "conservative": {
+                "ACC_MAX": 15.0,
+                "COMFORT_ACC_MAX": 2.0,
+                "COMFORT_ACC_MIN": -3.0,
+                "DISTANCE_WANTED_OFFSET": 7.0,
+                "TIME_WANTED": 2.0,
+                "DELTA": 4.0,
+                "POLITENESS": 0.5,
+                "LANE_CHANGE_MIN_ACC_GAIN": 0.3,
+                "LANE_CHANGE_MAX_BRAKING_IMPOSED": 4.0,
+                "LANE_CHANGE_DELAY": 1.5,
+            },
+            "nominal": {
+                "ACC_MAX": 15.0,
+                "COMFORT_ACC_MAX": 3.0,
+                "COMFORT_ACC_MIN": -5.0,
+                "DISTANCE_WANTED_OFFSET": 5.0,
+                "TIME_WANTED": 1.5,
+                "DELTA": 4.0,
+                "POLITENESS": 0.0,
+                "LANE_CHANGE_MIN_ACC_GAIN": 0.1,
+                "LANE_CHANGE_MAX_BRAKING_IMPOSED": 9.0,
+                "LANE_CHANGE_DELAY": 1.0,
+            },
+            "aggressive": {
+                "ACC_MAX": 15.0,
+                "COMFORT_ACC_MAX": 4.0,
+                "COMFORT_ACC_MIN": -6.0,
+                "DISTANCE_WANTED_OFFSET": 3.0,
+                "TIME_WANTED": 1.0,
+                "DELTA": 4.0,
+                "POLITENESS": 0.0,
+                "LANE_CHANGE_MIN_ACC_GAIN": 0.0,
+                "LANE_CHANGE_MAX_BRAKING_IMPOSED": 9.0,
+                "LANE_CHANGE_DELAY": 0.5,
+            },
+        }
+
+        if driving_style not in driving_styles:
+            raise ValueError(
+                f"Unknown hdv_driving_style '{driving_style}'. "
+                f"Expected one of {tuple(driving_styles.keys())}."
+            )
+
+        style_parameters = driving_styles[driving_style]
+
+        def apply_hdv_driving_style(vehicle):
+            """Apply the selected IDM/MOBIL parameter set to one HDV instance."""
+            vehicle.ACC_MAX = style_parameters["ACC_MAX"]
+            vehicle.COMFORT_ACC_MAX = style_parameters["COMFORT_ACC_MAX"]
+            vehicle.COMFORT_ACC_MIN = style_parameters["COMFORT_ACC_MIN"]
+            vehicle.DISTANCE_WANTED = (
+                style_parameters["DISTANCE_WANTED_OFFSET"] + vehicle.LENGTH
+            )
+            vehicle.TIME_WANTED = style_parameters["TIME_WANTED"]
+            vehicle.DELTA = style_parameters["DELTA"]
+            vehicle.POLITENESS = style_parameters["POLITENESS"]
+            vehicle.LANE_CHANGE_MIN_ACC_GAIN = style_parameters[
+                "LANE_CHANGE_MIN_ACC_GAIN"
+            ]
+            vehicle.LANE_CHANGE_MAX_BRAKING_IMPOSED = style_parameters[
+                "LANE_CHANGE_MAX_BRAKING_IMPOSED"
+            ]
+            vehicle.LANE_CHANGE_DELAY = style_parameters["LANE_CHANGE_DELAY"]
+
         spawn_points_s1 = [10, 50, 90, 130, 170, 210, 225]
         spawn_points_s2 = [0, 40, 80, 120, 160, 200, 220]
         spawn_points_m = [5, 45, 85, 125, 165, 205, 225]
@@ -994,6 +1079,7 @@ class SingleAgentMergeEnv(AbstractEnv):
                 speed=initial_speed.pop(0),
                 use_deceleration=use_weaving,
             )
+            apply_hdv_driving_style(veh)
 
             if use_weaving:
                 veh.RIGHT_BIAS = biases.pop(0)
@@ -1016,6 +1102,7 @@ class SingleAgentMergeEnv(AbstractEnv):
                 speed=initial_speed.pop(0),
                 use_deceleration=use_weaving,
             )
+            apply_hdv_driving_style(veh)
 
             if use_weaving:
                 veh.RIGHT_BIAS = biases.pop(0)
@@ -1039,6 +1126,7 @@ class SingleAgentMergeEnv(AbstractEnv):
                 speed=initial_speed.pop(0),
                 use_deceleration=use_weaving,
             )
+            apply_hdv_driving_style(veh)
 
             # all merging vehicles want on main road (left bias)
             if use_weaving:
