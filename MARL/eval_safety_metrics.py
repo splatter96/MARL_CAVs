@@ -14,8 +14,8 @@ warnings.filterwarnings("ignore")
 import matplotlib.cm as cm
 import matplotlib as mpl
 
-sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
-sys.path.remove("/home/paul/Documents/PhD/RL/highway_env_commonroad/highway-env")
+#sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
+#sys.path.remove("/home/paul/Documents/PhD/RL/highway_env_commonroad/highway-env")
 
 sys.path.append("../highway-env")
 import highway_env
@@ -358,8 +358,8 @@ def eval_policy(args):
 
 
     if not args.mobil:
-        #model = SACD.load(args.model)
-        model = DQN.load(args.model)
+        model = SACD.load(args.model)
+        #model = DQN.load(args.model)
         # model.set_random_seed(21)
         model.set_random_seed(args.seed)
 
@@ -411,8 +411,8 @@ def eval_policy(args):
 
 
     # Run episodes until we have observed ``target_crashes`` crashes.
-    # while crashes < target_crashes:
-    while j < target_crashes:
+    while crashes < target_crashes:
+    #while j < target_crashes:
         done = truncated = False
         obs, info = env.reset()
         last_observation = obs
@@ -560,7 +560,7 @@ def eval_policy(args):
                 #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
 
         if info["crashed"]:
-            # t.update(1)
+            t.update(1)
             crashes += 1
             # save position of crash
             crash_positions.append(info["vehicle_position"][0])
@@ -575,7 +575,7 @@ def eval_policy(args):
             sucessfull_merges += 1
 
         j += 1
-        t.update(1)
+        #t.update(1)
 
         # Update the progress description with current statistics.
         # Guard against division by zero – j is always >=1 here.
