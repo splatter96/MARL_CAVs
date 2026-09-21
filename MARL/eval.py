@@ -494,8 +494,8 @@ def eval_policy(args):
             # save position of crash
             crash_positions.append(info["vehicle_position"][0])
             # only save trajectories if we didn't load any in the first place
-            #if args.initial_pos == "":
-                #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
+            # if args.initial_pos == "":
+            #     np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
             # np.save(f"action_before_crash_{j}.npy", action_buffer)
         # else:
         # np.save(f"action_without_crash_{j}.npy", action_buffer)
@@ -503,7 +503,7 @@ def eval_policy(args):
         if "merged" in info and info["merged"]:  # and not info["other_crashes"]:
             sucessfull_merges += 1
             if np.isfinite(float(info["time_to_merge"])):
-            ttm_values.append(float(info["time_to_merge"]))
+                ttm_values.append(float(info["time_to_merge"]))
 
         j += 1
         #t.update(1)
@@ -538,8 +538,8 @@ def eval_policy(args):
     )
 
 
-    np.save("crash_positions.npy", np.array(crash_positions))
-    np.save("actions.npy", action_buffer)
+    #np.save("crash_positions.npy", np.array(crash_positions))
+    #np.save("actions.npy", action_buffer)
 
 if __name__ == "__main__":
     torch.set_num_threads(2)

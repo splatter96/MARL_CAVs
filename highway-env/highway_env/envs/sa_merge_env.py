@@ -195,6 +195,8 @@ class SingleAgentMergeEnv(AbstractEnv):
                 "merge_initiated_now": bool(merge_initiated_now),
                 "merged_now": bool(merged_now),
                 "time_to_merge": float(self._time_to_merge),
+
+                # "merged": self._is_successfully_merged(),
             }
         )
         return obs, reward, terminated, truncated, info
@@ -799,6 +801,7 @@ class SingleAgentMergeEnv(AbstractEnv):
             or self.vehicle.lane_index == ("c", "o", 0)
             or self.steps > 500
             #or any(crashes)
+            # or self._is_successfully_merged()
         )
 
     def _reset(self) -> None:
