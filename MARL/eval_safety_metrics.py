@@ -14,8 +14,8 @@ warnings.filterwarnings("ignore")
 import matplotlib.cm as cm
 import matplotlib as mpl
 
-#sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
-#sys.path.remove("/home/paul/Documents/PhD/RL/highway_env_commonroad/highway-env")
+sys.path.remove("/home/paul/Documents/PhD/RL/MARL_CAVs_lidar/highway-env")
+sys.path.remove("/home/paul/Documents/PhD/RL/highway_env_commonroad/highway-env")
 
 sys.path.append("../highway-env")
 import highway_env
@@ -104,6 +104,7 @@ last_observation = None
 last_info = None
 render_env = None
 
+
 def display_action(action_surface, sim_surface):
     def angle_to_position(angle, _range):
         x = np.cos(angle) * _range
@@ -163,6 +164,7 @@ def display_action(action_surface, sim_surface):
         text = f"{action_map[i]}"
         text = font.render(text, 1, (10, 10, 10), (255, 255, 255))
         action_surface.blit(text, (cell_size[0] * i, 20))
+
 
 def _format_ttc(value):
     """Format a TTC value for the renderer."""
@@ -276,10 +278,7 @@ def display_ttc(action_surface, sim_surface):
         vehicle_id = last_info.get(metric["id_key"], None)
 
         id_text = "None" if vehicle_id is None else str(vehicle_id)
-        text = (
-            f'{metric["label"]}: {_format_ttc(ttc)}   '
-            f'(vehicle {id_text})'
-        )
+        text = f'{metric["label"]}: {_format_ttc(ttc)}   ' f'(vehicle {id_text})'
 
         rendered = small_font.render(text, True, metric["color"])
         action_surface.blit(
@@ -338,7 +337,7 @@ def display_ttc(action_surface, sim_surface):
 def eval_policy(args):
     global last_info, last_observation, render_env
 
-    #env = gym.make("merge-single-agent-v0")
+    # env = gym.make("merge-single-agent-v0")
 
     config = {}
     config["screen_height"] = 300
@@ -356,10 +355,10 @@ def eval_policy(args):
     env = gym.make("merge-single-agent-v0", config=config)
     render_env = env.unwrapped
 
-
     if not args.mobil:
-        model = SACD.load(args.model)
-        #model = DQN.load(args.model)
+        # model = SACD.load(args.model)
+        model = PPO.load(args.model)
+        # model = DQN.load(args.model)
         # model.set_random_seed(21)
         model.set_random_seed(args.seed)
 
@@ -409,10 +408,9 @@ def eval_policy(args):
 
     os.makedirs(args.metrics_dir, exist_ok=True)
 
-
     # Run episodes until we have observed ``target_crashes`` crashes.
-    while crashes < target_crashes:
-    #while j < target_crashes:
+    # while crashes < target_crashes:
+    while j < target_crashes:
         done = truncated = False
         obs, info = env.reset()
         last_observation = obs
@@ -521,11 +519,11 @@ def eval_policy(args):
                 break
             #     skip_run = True
 
-            #for v in env.unwrapped.road.vehicles:
-                #if v.id == 6:
-                    #print(f"Front: {v.speed}")
-                #elif v.id==0:
-                    #print(f"Ego: {v.speed}")
+            # for v in env.unwrapped.road.vehicles:
+            # if v.id == 6:
+            # print(f"Front: {v.speed}")
+            # elif v.id==0:
+            # print(f"Ego: {v.speed}")
 
         # Store episode-level safety metrics before processing the terminal
         # outcome. Each minimum is taken over all simulation steps in the episode.
@@ -556,8 +554,8 @@ def eval_policy(args):
 
         if info["other_crashes"] and not info["crashed"]:
             other_crashes += 1
-            #if args.initial_pos == "":
-                #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
+            # if args.initial_pos == "":
+            # np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
 
         if info["crashed"]:
             t.update(1)
@@ -565,8 +563,8 @@ def eval_policy(args):
             # save position of crash
             crash_positions.append(info["vehicle_position"][0])
             # only save trajectories if we didn't load any in the first place
-            #if args.initial_pos == "":
-                #np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
+            # if args.initial_pos == "":
+            # np.save(f"initial_pos_{j}.npy", env.road.initial_vehicles)
             # np.save(f"action_before_crash_{j}.npy", action_buffer)
         # else:
         # np.save(f"action_without_crash_{j}.npy", action_buffer)
@@ -575,7 +573,7 @@ def eval_policy(args):
             sucessfull_merges += 1
 
         j += 1
-        #t.update(1)
+        # t.update(1)
 
         # Update the progress description with current statistics.
         # Guard against division by zero – j is always >=1 here.
@@ -588,7 +586,6 @@ def eval_policy(args):
     print(f"Crashrate {crashes/j:.3f}")
     print(f"Average ego vehicle speed {speed/total_steps:.3f}")
     print(f"Average speed of all cars {road_speed/total_steps:.3f}")
-
 
     metrics_dir = args.metrics_dir
 
@@ -659,6 +656,7 @@ def eval_policy(args):
 
     np.save("crash_positions.npy", np.array(crash_positions))
     np.save("actions.npy", action_buffer)
+
 
 if __name__ == "__main__":
     torch.set_num_threads(2)

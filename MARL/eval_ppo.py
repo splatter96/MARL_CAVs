@@ -39,6 +39,13 @@ def parse_args():
         help="difficulty setting to which the environment is to be set",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        default=42,
+        help="Random seed for the model",
+    )
+    parser.add_argument(
         "--traj-dir",
         type=str,
         required=False,
@@ -161,7 +168,8 @@ def eval_policy(args):
     if not args.mobil:
         # model = SACD.load(args.model)
         model = PPO.load(args.model)
-        model.set_random_seed(21)
+        # model.set_random_seed(21)
+        model.set_random_seed(args.seed)
 
     num_tries = args.num_runs
     crashes = 0
